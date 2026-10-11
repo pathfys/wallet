@@ -80,7 +80,29 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .balance .cur{font-size:11px;font-weight:700;letter-spacing:.04em;background:rgba(255,255,255,.18);padding:4px 9px;border-radius:8px;}
 .balance .mini{width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.16);display:grid;place-items:center;}
 .balance .mini svg{width:17px;height:17px;}
-
+/* EMV chip on the balance card */
+.chip{position:absolute;right:20px;top:56px;width:46px;height:34px;border-radius:7px;z-index:1;overflow:hidden;
+  background:linear-gradient(135deg,#f7e9ad,#d9b451 45%,#b8922f);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.22),0 2px 7px rgba(0,0,0,.4);}
+.chip::before{content:"";position:absolute;inset:0;background:
+  linear-gradient(to right,transparent 29%,rgba(90,68,16,.55) 29%,rgba(90,68,16,.55) 31%,transparent 31%,transparent 69%,rgba(90,68,16,.55) 69%,rgba(90,68,16,.55) 71%,transparent 71%),
+  linear-gradient(to bottom,transparent 31%,rgba(90,68,16,.55) 31%,rgba(90,68,16,.55) 33%,transparent 33%,transparent 67%,rgba(90,68,16,.55) 67%,rgba(90,68,16,.55) 69%,transparent 69%);}
+.chip::after{content:"";position:absolute;left:31%;top:33%;right:31%;bottom:33%;border:1.4px solid rgba(90,68,16,.55);border-radius:2px;}
+/* card skins (собственные, без внешних картинок) */
+.skin-blue{background:linear-gradient(140deg,#6a97ff 0%,#2f6bff 46%,#1f4fd6 100%);}
+.skin-obsidian{background:repeating-linear-gradient(135deg,rgba(255,255,255,.028) 0 2px,transparent 2px 7px),radial-gradient(130% 100% at 80% -15%,#343842 0%,transparent 55%),linear-gradient(145deg,#1b1d24 0%,#0a0b0e 72%);}
+.skin-graphite{background:repeating-linear-gradient(115deg,rgba(255,255,255,.045) 0 1px,transparent 1px 4px),linear-gradient(145deg,#4a4f58 0%,#2b2f37 55%,#15171c 100%);}
+.skin-emerald{background:repeating-linear-gradient(135deg,rgba(255,255,255,.03) 0 2px,transparent 2px 8px),radial-gradient(130% 100% at 80% -15%,#1f6f4d 0%,transparent 60%),linear-gradient(150deg,#0e3b29 0%,#06140e 75%);}
+.balance.skin-obsidian,.balance.skin-graphite,.balance.skin-emerald{box-shadow:0 22px 50px -28px rgba(0,0,0,.78);}
+/* card skin picker */
+.skin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.skin-opt{text-align:left;padding:0;background:none;border:none;}
+.skin-sw{height:66px;border-radius:14px;position:relative;overflow:hidden;border:1px solid var(--line);}
+.skin-sw::after{content:"";position:absolute;left:12px;top:13px;width:22px;height:16px;border-radius:4px;background:linear-gradient(135deg,#f7e9ad,#c99f3c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.22);}
+.skin-opt .skin-nm{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin:8px 2px 0;color:var(--ink-2);}
+.skin-opt.on .skin-nm{color:var(--ink);}
+.skin-opt.on .skin-sw{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary);}
+.skin-opt .skin-nm svg{width:15px;height:15px;color:var(--primary);}
 /* primary actions */
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
 .btn{display:flex;align-items:center;justify-content:center;gap:9px;border-radius:15px;font-weight:700;font-size:15px;
@@ -363,7 +385,7 @@ let refreshTimer=null;
 
 function defaultState(){
   return {
-    hasWallet:false, locked:true, network:"mainnet",
+    hasWallet:false, locked:true, network:"mainnet", cardSkin:"blue",
     addressRaw:null, pubkey:null, enc:null,
     settings:{currency:"USD", theme:"dark", lang:"Русский", notifications:false},
     balances:{GRAM:"0", USDT:"0"},           // raw units (string of bigint) by asset
@@ -707,10 +729,11 @@ function renderHome(){
       <button class="iconbtn" data-act="go-settings" title="Настройки">${I.gear}</button>
       <button class="iconbtn" data-act="go-history" title="История">${I.clock}</button>
     </div>
-    <div class="balance">
+    <div class="balance skin-${esc(S.cardSkin||'blue')}">
+      <div class="chip" aria-hidden="true"></div>
       <div class="row1">
         <span class="lbl">Общий баланс${S.network==="testnet"?" · TESTNET":""}</span>
-        <button class="mini" data-act="toggle-balance">${I.palette}</button>
+        <button class="mini" data-act="card-skin" title="Фон карты">${I.palette}</button>
       </div>
       <div class="big">${hideBalance?"••••••":("$"+ (Math.floor(total)).toLocaleString("en-US") + "<small>."+ (total.toFixed(2).split(".")[1]) +"</small>")}</div>
       <div class="foot">
