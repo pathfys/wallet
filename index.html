@@ -1,0 +1,1441 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0c0d10">
+<meta name="description" content="PMR Wallet — некастодиальный криптокошелёк сети TON: TON (GRAM) и USDT, приём и отправка, P2P с блокировкой средств.">
+<title>PMR Wallet</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f6bff'/%3E%3Cpath d='M9 12h11a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H9z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='19' cy='17' r='1.6' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
+<style>
+/* ===================== design tokens ===================== */
+:root{
+  --bg:#0c0d10; --bg-2:#0f1116; --panel:#14161b; --panel-2:#191c22; --panel-3:#20242c;
+  --line:#23262e; --line-2:#2c313b;
+  --ink:#f4f6fa; --ink-2:#a3abb6; --ink-3:#6b7280; --ink-4:#4b515c;
+  --primary:#2f6bff; --primary-2:#5b8bff; --primary-strong:#2457e0;
+  --primary-ghost:rgba(47,107,255,.14); --primary-rgb:47,107,255;
+  --on-primary:#ffffff; --surface-light:#eef1f6; --on-light:#0f1319;
+  --buy:#2ebd85; --buy-ghost:rgba(46,189,133,.14);
+  --sell:#f6465d; --sell-ghost:rgba(246,70,93,.14);
+  --warn:#f0b90b; --warn-ghost:rgba(240,185,11,.14);
+  --btc:#f7931a; --eth:#627eea; --usdt:#26a17b; --ton:#0098ea;
+  --font:"Manrope","Helvetica Neue",Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --r-sm:9px; --r-md:14px; --r-lg:20px; --r-xl:26px;
+  --gut:16px; --tabbar-h:72px;
+  --sh-1:0 1px 0 rgba(255,255,255,.03) inset,0 10px 30px -18px rgba(0,0,0,.8);
+  --sh-card:0 24px 60px -30px rgba(var(--primary-rgb),.55);
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+:root[data-theme="light"]{
+  --bg:#f3f5f9; --bg-2:#ffffff; --panel:#ffffff; --panel-2:#f6f8fb; --panel-3:#eef1f6;
+  --line:#e4e8ef; --line-2:#d9dee8;
+  --ink:#0f1319; --ink-2:#4b5562; --ink-3:#7b8494; --ink-4:#aab2bf;
+  --surface-light:#0f1319; --on-light:#ffffff;
+  --sh-1:0 1px 2px rgba(15,19,25,.05),0 10px 24px -18px rgba(15,19,25,.3);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--font); font-size:15px; line-height:1.45;
+  font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased; overscroll-behavior-y:none;
+}
+button,input,select,textarea{font:inherit;color:inherit;background:none;border:none;}
+button{cursor:pointer;}
+input,textarea,select{outline:none;}
+svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
+.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.muted{color:var(--ink-3);} .dim{color:var(--ink-2);}
+.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);}
+
+/* ===================== app frame ===================== */
+#app{min-height:100%;max-width:520px;margin:0 auto;position:relative;display:flex;flex-direction:column;}
+.screen{flex:1;min-width:0;padding:14px var(--gut) calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom));}
+.screen.no-tab{padding-bottom:calc(28px + env(safe-area-inset-bottom));}
+
+/* topbar */
+.topbar{display:flex;align-items:center;gap:10px;padding:8px 2px 16px;}
+.topbar h1{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-right:auto;}
+.topbar .sub{font-size:12px;color:var(--ink-3);font-weight:600;}
+.iconbtn{width:42px;height:42px;border-radius:13px;background:var(--panel-2);border:1px solid var(--line);
+  display:grid;place-items:center;color:var(--ink);transition:.18s var(--ease);}
+.iconbtn:active{transform:scale(.94);} .iconbtn svg{width:19px;height:19px;}
+.backbtn{width:42px;height:42px;border-radius:13px;background:var(--panel-2);border:1px solid var(--line);display:grid;place-items:center;}
+
+/* balance card */
+.balance{position:relative;border-radius:var(--r-xl);padding:20px 20px 18px;color:#fff;overflow:hidden;
+  background:linear-gradient(140deg,#6a97ff 0%,#2f6bff 46%,#1f4fd6 100%);box-shadow:var(--sh-card);}
+.balance::after{content:"";position:absolute;inset:0;background:
+  radial-gradient(120% 90% at 85% -10%,rgba(255,255,255,.28),transparent 55%);pointer-events:none;}
+.balance .row1{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}
+.balance .lbl{font-size:12.5px;font-weight:600;opacity:.9;}
+.balance .big{font-family:var(--mono);font-weight:700;font-size:40px;letter-spacing:-.03em;margin:8px 0 6px;position:relative;z-index:1;}
+.balance .big small{font-size:24px;opacity:.78;}
+.balance .foot{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}
+.balance .chg{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:5px;}
+.balance .cur{font-size:11px;font-weight:700;letter-spacing:.04em;background:rgba(255,255,255,.18);padding:4px 9px;border-radius:8px;}
+.balance .mini{width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.16);display:grid;place-items:center;}
+.balance .mini svg{width:17px;height:17px;}
+
+/* primary actions */
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+.btn{display:flex;align-items:center;justify-content:center;gap:9px;border-radius:15px;font-weight:700;font-size:15px;
+  padding:15px 14px;transition:.16s var(--ease);border:1px solid transparent;}
+.btn:active{transform:scale(.975);}
+.btn svg{width:18px;height:18px;}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 26px -14px rgba(var(--primary-rgb),.9);}
+.btn-primary:disabled{opacity:.5;box-shadow:none;}
+.btn-light{background:var(--surface-light);color:var(--on-light);}
+.btn-ghost{background:var(--panel-2);color:var(--ink);border-color:var(--line);}
+.btn-block{width:100%;}
+.btn-lg{padding:17px;font-size:16px;border-radius:17px;}
+.btn[disabled]{cursor:not-allowed;opacity:.55;}
+
+/* section head */
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;margin:22px 2px 12px;}
+.sec-head h2{font-size:16px;font-weight:800;letter-spacing:-.01em;}
+.sec-head .count{font-size:13px;color:var(--ink-3);font-weight:600;}
+
+/* asset list */
+.assets{display:flex;flex-direction:column;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;}
+.asset{display:flex;align-items:center;gap:13px;padding:14px 15px;transition:.14s var(--ease);}
+.asset:active{background:var(--panel-2);}
+.asset + .asset{border-top:1px solid var(--line-soft,var(--line));}
+.coin{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;color:#fff;font-weight:800;}
+.asset .nm{min-width:0;}
+.asset .nm b{font-size:15px;font-weight:700;display:block;}
+.asset .nm span{font-size:12px;color:var(--ink-3);font-weight:600;}
+.asset .bal{margin-left:auto;text-align:right;}
+.asset .bal b{font-size:15px;font-weight:700;font-family:var(--mono);display:block;}
+.asset .bal span{font-size:11.5px;color:var(--ink-3);font-weight:600;}
+.asset.off{opacity:.62;}
+.asset .tag{font-size:9.5px;color:var(--ink-4);font-weight:700;letter-spacing:.04em;}
+
+/* ===================== onboarding ===================== */
+.onb{min-height:100vh;display:flex;flex-direction:column;padding:26px var(--gut) calc(26px + env(safe-area-inset-bottom));
+  background:radial-gradient(130% 80% at 50% -5%,#15223f 0%,var(--bg) 52%);}
+.onb .head{display:flex;align-items:center;justify-content:space-between;}
+.onb .step{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--ink-3);text-transform:uppercase;}
+.onb .hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;}
+.hero-badge{width:118px;height:118px;border-radius:34px;position:relative;display:grid;place-items:center;margin-bottom:26px;
+  background:linear-gradient(150deg,#243b6e,#141922);box-shadow:0 30px 70px -30px rgba(var(--primary-rgb),.7),0 0 0 1px var(--line) inset;}
+.hero-badge::after{content:"";position:absolute;inset:-28px;border-radius:50%;z-index:-1;
+  background:radial-gradient(circle,rgba(var(--primary-rgb),.35),transparent 68%);}
+.hero-badge svg{width:52px;height:52px;color:#cdd9ff;}
+.hero-badge .shield{position:absolute;right:-10px;bottom:-10px;width:40px;height:40px;border-radius:13px;background:var(--primary);
+  display:grid;place-items:center;box-shadow:0 10px 24px -10px rgba(var(--primary-rgb),.9);}
+.hero-badge .shield svg{width:20px;height:20px;color:#fff;}
+.onb .kicker{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--primary-2);text-transform:uppercase;}
+.onb h2{font-size:33px;font-weight:800;line-height:1.08;letter-spacing:-.02em;margin:4px 0 8px;max-width:11ch;}
+.onb .lead{color:var(--ink-2);font-size:15px;max-width:30ch;margin-bottom:26px;}
+.onb .feats{display:flex;flex-direction:column;gap:18px;width:100%;max-width:340px;text-align:left;}
+.feat{display:flex;gap:13px;align-items:flex-start;}
+.feat .fi{width:38px;height:38px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line);display:grid;place-items:center;flex:0 0 auto;color:var(--primary-2);}
+.feat .fi svg{width:19px;height:19px;}
+.feat b{font-size:14.5px;font-weight:700;display:block;}
+.feat span{font-size:13px;color:var(--ink-3);}
+.onb .cta{margin-top:26px;}
+.onb .note{text-align:center;font-size:11.5px;color:var(--ink-4);margin-top:16px;line-height:1.5;}
+.linkbtn{background:none;color:var(--primary-2);font-weight:700;font-size:14px;padding:12px;width:100%;text-align:center;}
+
+/* seed grid */
+.seed-wrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;}
+.seed-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;}
+.seed-word{display:flex;gap:8px;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:14px;}
+.seed-word i{color:var(--ink-4);font-style:normal;font-size:11px;width:16px;text-align:right;font-family:var(--mono);}
+.seed-word b{font-weight:600;}
+.seed-blur{filter:blur(7px);transition:.2s;}
+.warnbox{display:flex;gap:11px;background:var(--warn-ghost);border:1px solid rgba(240,185,11,.28);border-radius:14px;padding:13px 14px;color:#f4cf5e;font-size:13px;line-height:1.5;margin:14px 0;}
+.warnbox svg{width:18px;height:18px;flex:0 0 auto;color:var(--warn);margin-top:1px;}
+.infobox{display:flex;gap:11px;background:var(--primary-ghost);border:1px solid rgba(var(--primary-rgb),.26);border-radius:14px;padding:13px 14px;color:var(--primary-2);font-size:12.5px;line-height:1.5;}
+.infobox svg{width:18px;height:18px;flex:0 0 auto;margin-top:1px;}
+
+/* generic field */
+.field{margin-bottom:16px;}
+.field > label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin:0 2px 8px;}
+.input,.select,textarea.input{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:13px;
+  padding:14px 15px;font-size:15px;color:var(--ink);transition:.15s var(--ease);font-family:var(--font);}
+.input::placeholder,textarea.input::placeholder{color:var(--ink-4);}
+.input:focus,.select:focus,textarea.input:focus{border-color:var(--primary);background:var(--panel);}
+.input.mono{font-family:var(--mono);font-size:14px;}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236b7280' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:40px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.hint{font-size:11.5px;color:var(--ink-4);margin:-8px 2px 16px;}
+
+/* address box */
+.addrbox{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:13px;padding:13px 14px;}
+.addrbox .a{font-family:var(--mono);font-size:13px;word-break:break-all;line-height:1.4;min-width:0;color:var(--ink);}
+.addrbox .cp{width:36px;height:36px;border-radius:10px;background:var(--panel-3);display:grid;place-items:center;flex:0 0 auto;color:var(--primary-2);}
+.addrbox .cp:active{transform:scale(.9);}
+.qrwrap{display:flex;justify-content:center;padding:14px;background:#fff;border-radius:16px;margin:14px auto;width:fit-content;}
+.qrwrap canvas,.qrwrap img{width:188px;height:188px;display:block;}
+
+/* ===================== P2P ===================== */
+.pill{font-size:11px;font-weight:700;padding:5px 11px;border-radius:9px;background:var(--primary-ghost);color:var(--primary-2);letter-spacing:.02em;}
+.pill.net{background:var(--buy-ghost);color:var(--buy);}
+.pill.test{background:var(--warn-ghost);color:var(--warn);}
+.bigcta{display:flex;align-items:center;gap:14px;background:var(--primary);color:#fff;border-radius:var(--r-lg);padding:18px;font-weight:700;font-size:16px;box-shadow:0 18px 40px -22px rgba(var(--primary-rgb),.95);}
+.bigcta .pl{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.18);display:grid;place-items:center;}
+.bigcta:active{transform:scale(.985);}
+.twocard{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
+.flatcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;display:flex;flex-direction:column;gap:10px;}
+.flatcard .ic{width:40px;height:40px;border-radius:12px;background:var(--panel-2);display:grid;place-items:center;color:var(--ink-2);}
+.flatcard b{font-size:14.5px;font-weight:700;}
+.flatcard:active{background:var(--panel-2);}
+.offer{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;margin-bottom:12px;}
+.offer:active{border-color:var(--line-2);}
+.offer .top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
+.offer .mk{font-size:15px;font-weight:700;}
+.offer .mk .maker{font-size:11.5px;color:var(--ink-3);font-weight:600;margin-top:2px;}
+.badge{font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:8px;letter-spacing:.03em;}
+.badge.sell{background:var(--sell-ghost);color:var(--sell);}
+.badge.buy{background:var(--buy-ghost);color:var(--buy);}
+.offer .price{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;}
+.offer .price b{font-size:26px;font-weight:800;font-family:var(--mono);letter-spacing:-.02em;}
+.offer .price span{font-size:12.5px;color:var(--ink-3);font-weight:600;}
+.offer .meta{font-size:12.5px;color:var(--ink-2);line-height:1.6;}
+.offer .meta .mm{color:var(--ink-3);}
+.offer .tagline{font-size:10.5px;color:var(--ink-4);font-weight:600;margin-top:8px;display:flex;align-items:center;gap:6px;}
+.offer.mine .tagline{color:var(--primary-2);}
+.pagenote{text-align:center;font-size:11.5px;color:var(--ink-4);margin:18px 6px 0;line-height:1.55;}
+
+/* pin options */
+.pinbox{background:var(--panel-2);border:1px solid var(--line-2);border-radius:16px;padding:14px;margin-top:4px;}
+.pinbox > .lbl{font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:10px;display:flex;align-items:center;gap:7px;}
+.pin-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.pin-opt{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 13px;transition:.14s var(--ease);}
+.pin-opt.wide{grid-column:1/-1;}
+.pin-opt .rad{width:17px;height:17px;border-radius:50%;border:2px solid var(--ink-4);flex:0 0 auto;display:grid;place-items:center;}
+.pin-opt.on{border-color:var(--primary);background:var(--primary-ghost);}
+.pin-opt.on .rad{border-color:var(--primary);} .pin-opt.on .rad::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--primary);}
+.pin-opt .pt{font-size:13px;font-weight:600;margin-right:auto;}
+.pin-opt .pp{font-size:13px;font-weight:700;color:var(--primary-2);font-family:var(--mono);}
+.pin-opt .free{font-size:12px;color:var(--ink-3);font-weight:600;}
+
+/* settings rows */
+.setcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;}
+.setrow{display:flex;align-items:center;gap:14px;padding:16px 15px;transition:.14s var(--ease);}
+.setrow:active{background:var(--panel-2);}
+.setrow + .setrow{border-top:1px solid var(--line);}
+.setrow .si{width:40px;height:40px;border-radius:12px;background:var(--panel-2);display:grid;place-items:center;color:var(--primary-2);flex:0 0 auto;}
+.setrow .si svg{width:19px;height:19px;}
+.setrow .st{min-width:0;}
+.setrow .st b{font-size:15px;font-weight:700;display:block;}
+.setrow .st span{font-size:12.5px;color:var(--ink-3);}
+.setrow .ch{margin-left:auto;color:var(--ink-4);}
+.setrow .ch svg{width:18px;height:18px;}
+.pagesub{color:var(--primary-2);font-size:12.5px;font-weight:600;margin:2px 2px 16px;}
+
+/* toggle */
+.tgl{width:46px;height:28px;border-radius:15px;background:var(--panel-3);border:1px solid var(--line-2);position:relative;transition:.2s;flex:0 0 auto;margin-left:auto;}
+.tgl::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:var(--ink-2);transition:.2s;}
+.tgl.on{background:var(--primary);border-color:var(--primary);} .tgl.on::after{left:20px;background:#fff;}
+
+/* ===================== tabbar ===================== */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;max-width:520px;margin:0 auto;padding:10px var(--gut) calc(10px + env(safe-area-inset-bottom));}
+.tabbar-inner{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:color-mix(in srgb,var(--panel) 92%,transparent);
+  backdrop-filter:blur(20px);border:1px solid var(--line);border-radius:22px;padding:7px;box-shadow:0 20px 44px -26px rgba(0,0,0,.8);}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:9px 4px;border-radius:15px;
+  color:var(--ink-4);font-size:10.5px;font-weight:700;transition:.16s var(--ease);}
+.tab svg{width:21px;height:21px;}
+.tab.on{color:var(--ink);background:var(--panel-3);}
+
+/* ===================== modal ===================== */
+.modal-root{position:fixed;inset:0;z-index:60;display:none;}
+.modal-root.open{display:block;}
+.modal-bg{position:absolute;inset:0;background:rgba(5,6,9,.62);backdrop-filter:blur(3px);animation:fade .2s;}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:var(--bg-2);
+  border-radius:24px 24px 0 0;border-top:1px solid var(--line);padding:18px var(--gut) calc(22px + env(safe-area-inset-bottom));
+  max-height:92vh;overflow-y:auto;animation:slideup .28s var(--ease);box-shadow:0 -24px 60px -30px rgba(0,0,0,.9);}
+.sheet.center{top:50%;bottom:auto;transform:translateY(-50%);border-radius:24px;max-height:90vh;animation:fade .2s;}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.sheet-head h3{font-size:19px;font-weight:800;letter-spacing:-.01em;}
+.sheet .x{width:36px;height:36px;border-radius:50%;background:var(--panel-3);display:grid;place-items:center;color:var(--ink-2);}
+.sheet .x:active{transform:scale(.9);}
+@keyframes slideup{from{transform:translateY(100%);}to{transform:translateY(0);}}
+@keyframes fade{from{opacity:0;}to{opacity:1;}}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(var(--tabbar-h) + 30px);transform:translateX(-50%) translateY(20px);z-index:90;
+  background:var(--panel-3);border:1px solid var(--line-2);color:var(--ink);padding:12px 18px;border-radius:13px;font-size:13.5px;font-weight:600;
+  opacity:0;pointer-events:none;transition:.26s var(--ease);box-shadow:0 18px 40px -20px rgba(0,0,0,.8);max-width:88%;text-align:center;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.ok{border-color:rgba(46,189,133,.4);} #toast.err{border-color:rgba(246,70,93,.4);}
+
+/* misc */
+.spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;display:inline-block;animation:sp .7s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.center-load{min-height:60vh;display:grid;place-items:center;color:var(--ink-3);}
+.kv{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px;}
+.kv:last-child{border-bottom:none;}
+.kv .k{color:var(--ink-3);} .kv .v{font-weight:700;font-family:var(--mono);text-align:right;word-break:break-all;max-width:62%;}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:-6px;margin-bottom:10px;}
+.chip{font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:11px;background:var(--panel-2);border:1px solid var(--line);}
+.chip.on{background:var(--primary-ghost);border-color:var(--primary);color:var(--primary-2);}
+.danger{color:var(--sell);}
+a.tlink{color:var(--primary-2);font-weight:600;}
+.empty{text-align:center;color:var(--ink-3);padding:30px 10px;font-size:13.5px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="tabbar" id="tabbar" style="display:none"></div>
+<div class="modal-root" id="modal"></div>
+<div id="toast"></div>
+
+<script type="module">
+/* ========================================================================
+   PMR Wallet — некастодиальный TON-кошелёк (TON/GRAM + USDT) + P2P.
+   Крипто-библиотеки грузятся динамически; интерфейс работает даже без сети.
+   ======================================================================== */
+
+/* ---------- lazy crypto libs ---------- */
+let TON=null, TCRYPTO=null, QR=null, cryptoReady=false, libsPromise=null;
+const CDN={
+  buffer:"https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm",
+  crypto:"https://cdn.jsdelivr.net/npm/@ton/crypto@3.3.0/+esm",
+  ton:"https://cdn.jsdelivr.net/npm/@ton/ton@15.1.0/+esm",
+  qr:"https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm",
+};
+async function loadLibs(){
+  if(cryptoReady) return true;
+  if(libsPromise) return libsPromise;
+  libsPromise=(async()=>{
+    try{
+      const buf=await import(CDN.buffer); globalThis.Buffer=globalThis.Buffer||buf.Buffer;
+      TCRYPTO=await import(CDN.crypto);
+      TON=await import(CDN.ton);
+      try{ QR=(await import(CDN.qr)).default; }catch(e){ QR=null; }
+      cryptoReady=true; return true;
+    }catch(e){ console.warn("[PMR] crypto libs failed:",e); cryptoReady=false; return false; }
+  })();
+  return libsPromise;
+}
+
+/* ---------- constants ---------- */
+const USDT_MASTER="EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"; // USD₮ jetton master (mainnet)
+const ENDPOINTS={
+  mainnet:"https://toncenter.com/api/v2/jsonRPC",
+  testnet:"https://testnet.toncenter.com/api/v2/jsonRPC",
+};
+const SCAN={mainnet:"https://tonviewer.com",testnet:"https://testnet.tonviewer.com"};
+const ASSET_META={
+  BTC :{name:"Bitcoin",  sym:"BTC", color:"var(--btc)", cg:"bitcoin",        onTon:false, dec:8},
+  ETH :{name:"Ethereum", sym:"ETH", color:"var(--eth)", cg:"ethereum",       onTon:false, dec:18},
+  USDT:{name:"Tether",   sym:"USDT",color:"var(--usdt)",cg:"tether",         onTon:true,  dec:6, kind:"jetton"},
+  GRAM:{name:"Gram",     sym:"GRAM",color:"var(--ton)", cg:"the-open-network",onTon:true, dec:9, kind:"native"},
+};
+const FIATS=["USD","RUB(РФ)","EUR","UAH","KZT"];
+const CRYPTOS=["USDT","GRAM","BTC","ETH"];
+const METHODS=["Банковский перевод","СБП","Наличные","Перевод на карту","Tinkoff","Sberbank"];
+const PINS=[
+  {h:0,  price:0,  label:"Без закрепления"},
+  {h:3,  price:1,  label:"3 ч"},
+  {h:6,  price:3,  label:"6 ч"},
+  {h:12, price:5,  label:"12 ч"},
+  {h:24, price:10, label:"24 ч"},
+];
+
+/* ---------- state ---------- */
+const LS="pmr_wallet_v3";
+let S=null;         // persisted store
+let session={ mnemonic:null, key:null, unlocked:false }; // runtime only
+let prices={bitcoin:0,ethereum:0,tether:1,"the-open-network":0,_chg:{}};
+let view="home";    // home | p2p | profile | settings | settings-*
+let refreshTimer=null;
+
+function defaultState(){
+  return {
+    hasWallet:false, locked:true, network:"mainnet",
+    addressRaw:null, pubkey:null, enc:null,
+    settings:{currency:"USD", theme:"dark", lang:"Русский", notifications:false},
+    balances:{GRAM:"0", USDT:"0"},           // raw units (string of bigint) by asset
+    locks:[],                                 // {id, asset, amount(human float), reason, offerId, ts}
+    offers:[],                                // user + demo offers
+    history:[],                               // {id,type,asset,amount,addr,hash,ts,net,status}
+    seedConfirmed:false,
+    seeded:false,
+  };
+}
+function load(){
+  try{ const r=localStorage.getItem(LS); S=r?JSON.parse(r):defaultState(); }
+  catch(e){ S=defaultState(); }
+  S=Object.assign(defaultState(),S||{});
+  if(!S.seeded){ seedDemoOffers(); S.seeded=true; }
+}
+function save(){ try{ localStorage.setItem(LS,JSON.stringify(S)); }catch(e){} }
+function seedDemoOffers(){
+  S.offers.push(
+    {id:"demo-blue", side:"sell", crypto:"USDT", fiat:"USD", price:1, min:10, max:500,
+     method:"Банковский перевод", pin:0, mine:false, name:"Blue Market", demo:true, ts:Date.now()},
+    {id:"demo-ton", side:"sell", crypto:"GRAM", fiat:"RUB(РФ)", price:270, min:1000, max:25000,
+     method:"Банковский перевод", pin:0, mine:false, name:"TON Desk", demo:true, ts:Date.now()},
+  );
+}
+
+/* ---------- helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const el=(id)=>document.getElementById(id);
+const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(msg,kind=""){ const t=el("toast"); t.className=""; t.textContent=msg; void t.offsetWidth; t.className=(kind?kind+" ":"")+"show"; clearTimeout(t._t); t._t=setTimeout(()=>t.className="",2600); }
+function b64(u8){ let s=""; u8.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
+function ub64(s){ return Uint8Array.from(atob(s),c=>c.charCodeAt(0)); }
+function nowShort(ts){ const d=new Date(ts); return d.toLocaleString("ru-RU",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}); }
+
+function fmtCrypto(x,dec=4){
+  const n=Number(x);
+  if(!isFinite(n)) return "0";
+  const d=n>=1000?2:(n>=1?dec:6);
+  return n.toLocaleString("ru-RU",{minimumFractionDigits:0,maximumFractionDigits:d});
+}
+// plain number, no thousand separators (for P2P price / limits — matches mockup)
+function fmtNum(x,dec=2){
+  const n=Number(x);
+  if(!isFinite(n)) return "0";
+  return n.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:dec,useGrouping:false});
+}
+function fmtUsd(n){
+  n=Number(n)||0;
+  return "$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+// raw bigint-string units -> human float
+function fromUnits(raw,dec){ try{ return Number(BigInt(raw))/Math.pow(10,dec); }catch(e){ return Number(raw)/Math.pow(10,dec)||0; } }
+// human string/float -> bigint units
+function toUnits(amount,dec){
+  const s=String(amount).trim().replace(",",".");
+  if(!/^\d*\.?\d*$/.test(s)||s==="") throw new Error("bad amount");
+  const [i,f=""]=s.split(".");
+  const frac=(f+"0".repeat(dec)).slice(0,dec);
+  return BigInt((i||"0")+frac);
+}
+function humanBal(asset){
+  const m=ASSET_META[asset];
+  if(!m) return 0;
+  if(asset==="BTC"||asset==="ETH") return 0;
+  return fromUnits(S.balances[asset]||"0", m.dec);
+}
+function lockedFor(asset){
+  return S.locks.filter(l=>l.asset===asset).reduce((a,l)=>a+Number(l.amount||0),0);
+}
+function availableFor(asset){ return Math.max(0, humanBal(asset)-lockedFor(asset)); }
+
+function usdOf(asset,amount){
+  const m=ASSET_META[asset]; if(!m) return 0;
+  const p=prices[m.cg]||(asset==="USDT"?1:0);
+  return amount*p;
+}
+function totalUsd(){
+  let t=0;
+  for(const a of CRYPTOS) t+=usdOf(a,humanBal(a));
+  return t;
+}
+function networkLabel(){ return S.network==="testnet"?"Testnet":"Mainnet"; }
+
+function shortAddr(a){ if(!a) return "—"; return a.length>16?a.slice(0,8)+"…"+a.slice(-6):a; }
+function friendlyAddr(){
+  if(!S.addressRaw) return null;
+  if(cryptoReady&&TON){
+    try{ return TON.Address.parse(S.addressRaw).toString({bounceable:false,testOnly:S.network==="testnet",urlSafe:true}); }
+    catch(e){}
+  }
+  return S.addressRaw;
+}
+
+/* ---------- WebCrypto seed encryption ---------- */
+async function deriveKey(pw,salt){
+  const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:160000,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function encryptSeed(mnemonic,pw){
+  const salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(pw,salt);
+  const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(mnemonic));
+  return {salt:b64(salt),iv:b64(iv),data:b64(new Uint8Array(ct))};
+}
+async function decryptSeed(enc,pw){
+  const key=await deriveKey(pw,ub64(enc.salt));
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:ub64(enc.iv)},key,ub64(enc.data));
+  return new TextDecoder().decode(pt);
+}
+
+/* ---------- TON wallet ops ---------- */
+function getClient(){
+  if(!cryptoReady||!TON) throw new Error("libs");
+  return new TON.TonClient({endpoint:ENDPOINTS[S.network]});
+}
+function walletContract(){
+  const pub=Buffer.from(S.pubkey,"hex");
+  return TON.WalletContractV4.create({workchain:0,publicKey:pub});
+}
+async function deriveFromMnemonic(words){
+  const key=await TCRYPTO.mnemonicToPrivateKey(words);
+  const w=TON.WalletContractV4.create({workchain:0,publicKey:key.publicKey});
+  return {key, wallet:w, raw:w.address.toString()};
+}
+
+async function refreshBalances(){
+  if(!await loadLibs()){ renderCurrent(); return; }
+  if(!S.addressRaw) return;
+  try{
+    const client=getClient();
+    const addr=TON.Address.parse(S.addressRaw);
+    const bal=await client.getBalance(addr);
+    S.balances.GRAM=bal.toString();
+    // USDT jetton (mainnet only)
+    if(S.network==="mainnet"){
+      try{
+        const jm=client.open(TON.JettonMaster.create(TON.Address.parse(USDT_MASTER)));
+        const jwAddr=await jm.getWalletAddress(addr);
+        const jw=client.open(TON.JettonWallet.create(jwAddr));
+        const jb=await jw.getBalance();
+        S.balances.USDT=jb.toString();
+      }catch(e){ /* no jetton wallet yet => 0 */ S.balances.USDT="0"; }
+    } else { S.balances.USDT="0"; }
+    save(); renderCurrent();
+  }catch(e){ console.warn("balance refresh failed",e); }
+}
+
+async function fetchPrices(){
+  try{
+    const ids="bitcoin,ethereum,tether,the-open-network";
+    const r=await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,{cache:"no-store"});
+    if(!r.ok) throw 0;
+    const d=await r.json();
+    for(const k of ["bitcoin","ethereum","tether","the-open-network"]){
+      if(d[k]){ prices[k]=d[k].usd; prices._chg[k]=d[k].usd_24h_change; }
+    }
+    renderCurrent();
+  }catch(e){ /* keep defaults; USDT=1 */ }
+}
+
+async function sendTon(to,amountHuman,comment){
+  const client=getClient();
+  const w=walletContract();
+  const contract=client.open(w);
+  const seqno=await contract.getSeqno();
+  const body=comment?comment:undefined;
+  await contract.sendTransfer({
+    secretKey:session.key.secretKey,
+    seqno,
+    sendMode: TON.SendMode ? (TON.SendMode.PAY_GAS_SEPARATELY|TON.SendMode.IGNORE_ERRORS) : 3,
+    messages:[ TON.internal({to:TON.Address.parse(to),value:TON.toNano(String(amountHuman)),bounce:false,body}) ],
+  });
+  return seqno;
+}
+async function sendJetton(to,amountHuman){
+  const client=getClient();
+  const w=walletContract();
+  const owner=w.address;
+  const jm=client.open(TON.JettonMaster.create(TON.Address.parse(USDT_MASTER)));
+  const myJw=await jm.getWalletAddress(owner);
+  const amount=toUnits(amountHuman, ASSET_META.USDT.dec);
+  const forwardTon=TON.toNano("0.02");
+  const transferBody=TON.beginCell()
+    .storeUint(0x0f8a7ea5,32)
+    .storeUint(BigInt(Date.now()),64)
+    .storeCoins(amount)
+    .storeAddress(TON.Address.parse(to))
+    .storeAddress(owner)
+    .storeMaybeRef(null)
+    .storeCoins(forwardTon)
+    .storeMaybeRef(null)
+    .endCell();
+  const contract=client.open(w);
+  const seqno=await contract.getSeqno();
+  await contract.sendTransfer({
+    secretKey:session.key.secretKey,
+    seqno,
+    sendMode: TON.SendMode ? (TON.SendMode.PAY_GAS_SEPARATELY|TON.SendMode.IGNORE_ERRORS) : 3,
+    messages:[ TON.internal({to:myJw,value:TON.toNano("0.1"),bounce:true,body:transferBody}) ],
+  });
+  return seqno;
+}
+
+/* ===================== ICONS ===================== */
+const I={
+  qr:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3M21 14v7M17 21h4M14 21h0"/></svg>`,
+  gear:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>`,
+  clock:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
+  down:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>`,
+  up:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`,
+  wallet:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2H5a2 2 0 0 1-2-2z"/><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9H5a2 2 0 0 1-2-2z"/><circle cx="17" cy="14" r="1.4" fill="currentColor" stroke="none"/></svg>`,
+  shield:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>`,
+  swap:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 7h12l-3-3M17 17H5l3 3"/></svg>`,
+  home:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>`,
+  user:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>`,
+  copy:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`,
+  x:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
+  plus:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>`,
+  filter:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16M7 12h10M10 19h4"/></svg>`,
+  grid:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>`,
+  chev:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 6l6 6-6 6"/></svg>`,
+  back:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 6l-6 6 6 6"/></svg>`,
+  check:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 13l4 4L19 7"/></svg>`,
+  bell:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>`,
+  globe:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>`,
+  help:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .8-1 1.7"/><circle cx="12" cy="16.5" r="0.6" fill="currentColor" stroke="none"/></svg>`,
+  palette:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.5 0-1 .8-1.5 1.5-1.5H17a4 4 0 0 0 4-4c0-5-4-8-9-8z"/><circle cx="7.5" cy="11" r="1"/><circle cx="12" cy="8" r="1"/><circle cx="16" cy="11" r="1"/></svg>`,
+  moon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 14a8 8 0 1 1-9-10 6 6 0 0 0 9 10z"/></svg>`,
+  key:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M17 4l2 2M15 6l2 2"/></svg>`,
+  warn:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3l9 16H3z"/><path d="M12 9v5M12 17h0"/></svg>`,
+  info:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h0"/></svg>`,
+  lock:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+  out:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>`,
+};
+function coinGlyph(sym){
+  const g={BTC:"₿",ETH:"◆",USDT:"₮",GRAM:"◆"};
+  return g[sym]||sym[0];
+}
+
+/* ===================== RENDER ===================== */
+function render(){
+  if(!S.hasWallet){ renderOnboarding(); return; }
+  if(S.locked){ renderLock(); return; }
+  el("tabbar").style.display= (view==="home"||view==="p2p"||view==="profile") ? "block":"none";
+  renderCurrent();
+  renderTabbar();
+}
+function renderCurrent(){
+  if(!S.hasWallet || S.locked) return;
+  if(view==="home") renderHome();
+  else if(view==="p2p") renderP2P();
+  else if(view==="profile") renderProfile();
+  else if(view==="settings") renderSettings();
+  else if(view.startsWith("settings-")) renderSettingsSub(view.slice(9));
+}
+
+/* ---------- onboarding ---------- */
+let onbStep=1, onbMnemonic=null;
+function renderOnboarding(){
+  el("tabbar").style.display="none";
+  const app=el("app");
+  if(onbStep===1){
+    app.innerHTML=`
+    <div class="onb">
+      <div class="head"><span class="step">НАЧАЛО РАБОТЫ</span><span class="step">01 / 02</span></div>
+      <div class="hero">
+        <div class="hero-badge">${I.wallet}<span class="shield">${I.shield}</span></div>
+        <span class="kicker">ВАШ НОВЫЙ КОШЕЛЁК</span>
+        <h2>Всё начинается с вашего кошелька</h2>
+        <p class="lead">Храните, отправляйте и обменивайте криптовалюту в одном месте.</p>
+        <div class="feats">
+          <div class="feat"><span class="fi">${I.shield}</span><div><b>Контроль над вашими средствами</b><span>Ключи только у вас. Некастодиальный доступ.</span></div></div>
+          <div class="feat"><span class="fi">${I.swap}</span><div><b>Переводы без лишних шагов</b><span>Всё необходимое всегда под рукой.</span></div></div>
+        </div>
+      </div>
+      <div class="cta">
+        <button class="btn btn-primary btn-lg btn-block" data-act="onb-create">Создать кошелёк ${I.chev}</button>
+        <button class="linkbtn" data-act="onb-import">У меня уже есть seed-фраза</button>
+      </div>
+      <p class="note">Некастодиальный кошелёк сети TON. Запишите seed-фразу — только она восстанавливает доступ к средствам.</p>
+    </div>`;
+  } else {
+    // step 2 — seed backup
+    const words=onbMnemonic||[];
+    app.innerHTML=`
+    <div class="onb" style="justify-content:flex-start">
+      <div class="head" style="margin-bottom:22px">
+        <button class="backbtn" data-act="onb-back">${I.back}</button>
+        <span class="step">01 / 02 — SEED</span>
+      </div>
+      <div style="text-align:center;margin-bottom:6px">
+        <div class="hero-badge" style="margin:0 auto 18px;width:84px;height:84px;border-radius:24px">${I.key}</div>
+        <h2 style="font-size:26px;max-width:100%;margin:0 auto 6px">Ваша seed-фраза</h2>
+        <p class="lead" style="margin:0 auto 14px">24 слова — резервная копия кошелька. Запишите их по порядку и храните офлайн.</p>
+      </div>
+      <div class="warnbox">${I.warn}<div>Никому не показывайте эти слова. Любой, кто их знает, получит полный доступ к вашим средствам. Поддержка PMR никогда их не спросит.</div></div>
+      <div class="seed-wrap">
+        <div class="seed-grid" id="seedGrid">
+          ${words.map((w,i)=>`<div class="seed-word"><i>${i+1}</i><b>${esc(w)}</b></div>`).join("")}
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-block" style="margin-top:12px" data-act="copy-seed">${I.copy} Скопировать фразу</button>
+      <button class="btn btn-primary btn-lg btn-block" style="margin-top:12px" data-act="onb-confirm">Я записал(а) фразу ${I.chev}</button>
+      <p class="note">Дальше нужно будет подтвердить несколько слов и задать пароль для доступа.</p>
+    </div>`;
+  }
+}
+
+/* ---------- lock screen ---------- */
+function renderLock(){
+  el("tabbar").style.display="none";
+  el("app").innerHTML=`
+  <div class="onb" style="justify-content:center;text-align:center">
+    <div class="hero-badge" style="margin:0 auto 22px;width:84px;height:84px;border-radius:24px">${I.lock}</div>
+    <h2 style="margin:0 auto 6px">PMR Wallet</h2>
+    <p class="lead" style="margin:0 auto 22px">Введите пароль, чтобы разблокировать кошелёк.</p>
+    <div style="width:100%;max-width:340px;margin:0 auto">
+      <input class="input" id="lockPw" type="password" inputmode="numeric" placeholder="Пароль" autocomplete="current-password">
+      <button class="btn btn-primary btn-lg btn-block" style="margin-top:12px" data-act="unlock">Разблокировать</button>
+      <button class="linkbtn" data-act="forgot">Забыли пароль? Восстановить по seed-фразе</button>
+    </div>
+  </div>`;
+  setTimeout(()=>{const i=el("lockPw"); if(i){ i.focus(); i.addEventListener("keydown",e=>{if(e.key==="Enter")act("unlock");}); }},60);
+}
+
+/* ---------- home ---------- */
+let hideBalance=false;
+function renderHome(){
+  const app=el("app");
+  const total=totalUsd();
+  const tonChg=prices._chg["the-open-network"];
+  const chgTxt=(typeof tonChg==="number")?`${tonChg>=0?"↗":"↘"} ${Math.abs(tonChg).toFixed(2)}% за 24ч`:"— за 24ч";
+  const chgCls=(typeof tonChg==="number"&&tonChg<0)?"":"";
+  const netOk=cryptoReady;
+  app.innerHTML=`
+  <div class="screen">
+    <div class="topbar">
+      <h1>Мой кошелёк</h1>
+      <button class="iconbtn" data-act="deposit" title="Приём">${I.qr}</button>
+      <button class="iconbtn" data-act="go-settings" title="Настройки">${I.gear}</button>
+      <button class="iconbtn" data-act="go-history" title="История">${I.clock}</button>
+    </div>
+    <div class="balance">
+      <div class="row1">
+        <span class="lbl">Общий баланс${S.network==="testnet"?" · TESTNET":""}</span>
+        <button class="mini" data-act="toggle-balance">${I.palette}</button>
+      </div>
+      <div class="big">${hideBalance?"••••••":("$"+ (Math.floor(total)).toLocaleString("en-US") + "<small>."+ (total.toFixed(2).split(".")[1]) +"</small>")}</div>
+      <div class="foot">
+        <span class="chg">${chgTxt}</span>
+        <span class="cur">${esc(S.settings.currency)}</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" data-act="deposit">${I.down} Пополнить</button>
+      <button class="btn btn-light" data-act="send">${I.up} Отправить</button>
+    </div>
+    ${!netOk?`<div class="infobox" style="margin-top:14px">${I.info}<div>Подключение к сети TON… балансы обновятся автоматически. Если не грузится — проверьте интернет.</div></div>`:""}
+    <div class="sec-head"><h2>Активы</h2><button class="count" data-act="refresh">обновить</button></div>
+    <div class="assets">
+      ${CRYPTOS.map(a=>assetRow(a)).join("")}
+    </div>
+  </div>`;
+}
+function assetRow(a){
+  const m=ASSET_META[a];
+  const onTon=m.onTon;
+  const bal=humanBal(a);
+  const lk=lockedFor(a);
+  const usd=usdOf(a,bal);
+  return `<div class="asset ${onTon?"":"off"}" data-act="asset" data-asset="${a}">
+    <div class="coin" style="background:${m.color}">${coinGlyph(a)}</div>
+    <div class="nm"><b>${m.name}</b><span>${a}${lk>0?` · 🔒 ${fmtCrypto(lk)} в ордере`:""}</span></div>
+    <div class="bal">
+      <b>${hideBalance?"••••":fmtCrypto(bal)}</b>
+      <span>${onTon?(hideBalance?"":fmtUsd(usd)):"вне сети TON"}</span>
+    </div>
+  </div>`;
+}
+
+/* ---------- P2P ---------- */
+let p2pFilter={side:"Все",crypto:"Все",fiat:"Все"};
+function renderP2P(){
+  const app=el("app");
+  const list=filteredOffers();
+  app.innerHTML=`
+  <div class="screen">
+    <div class="topbar">
+      <h1>P2P</h1>
+      <span class="pill ${S.network==="testnet"?"test":"net"}">${networkLabel()}</span>
+    </div>
+    <button class="bigcta" data-act="create-offer"><span class="pl">${I.plus}</span>Создать оффер</button>
+    <div class="twocard">
+      <div class="flatcard" data-act="scroll-offers"><span class="ic">${I.grid}</span><b>Офферы</b></div>
+      <div class="flatcard" data-act="filters"><span class="ic">${I.filter}</span><b>Фильтры</b></div>
+    </div>
+    <div class="sec-head" id="offersAnchor"><h2>Офферы</h2><span class="count">${list.length}</span></div>
+    ${list.length?list.map(offerCard).join(""):`<div class="empty">Нет офферов по выбранным фильтрам.</div>`}
+    <p class="pagenote">P2P-ордера на продажу блокируют ваши средства локально (эскроу без бэкенда недоступен). Отпуск по сделке — реальный перевод в сети TON на адрес контрагента.</p>
+  </div>`;
+}
+function filteredOffers(){
+  return S.offers.filter(o=>{
+    if(p2pFilter.side!=="Все"){ const sv=p2pFilter.side==="Продажа"?"sell":"buy"; if(o.side!==sv) return false; }
+    if(p2pFilter.crypto!=="Все"&&o.crypto!==p2pFilter.crypto) return false;
+    if(p2pFilter.fiat!=="Все"&&o.fiat!==p2pFilter.fiat) return false;
+    return true;
+  }).sort((a,b)=>(b.pin?b.pin:0)-(a.pin?a.pin:0)||b.ts-a.ts);
+}
+function offerCard(o){
+  const sideTxt=o.side==="sell"?"Продажа":"Покупка";
+  const tag=o.demo?"Демо-оффер":(o.mine?"Ваш оффер · нажмите для управления":"Пользовательский оффер");
+  return `<div class="offer ${o.mine?"mine":""}" data-act="offer" data-id="${o.id}">
+    <div class="top">
+      <div class="mk">${esc(o.name)}${o.mine?`<div class="maker">${esc(shortAddr(friendlyAddr()))}</div>`:""}</div>
+      <span class="badge ${o.side}">${sideTxt}</span>
+    </div>
+    <div class="price"><b>${fmtNum(o.price,2)}</b><span>${esc(o.fiat)} / ${esc(o.crypto)}</span></div>
+    <div class="meta">
+      <div><span class="mm">Лимиты:</span> ${fmtNum(o.min,0)}–${fmtNum(o.max,0)} ${esc(o.fiat)}</div>
+      <div>${esc(o.method)}</div>
+    </div>
+    <div class="tagline">${o.pin?`${I.clock}закреплён · `:""}${esc(tag)}</div>
+  </div>`;
+}
+
+/* ---------- profile ---------- */
+function renderProfile(){
+  const app=el("app");
+  const addr=friendlyAddr();
+  const myOffers=S.offers.filter(o=>o.mine).length;
+  const totalLocked=CRYPTOS.reduce((a,c)=>a+usdOf(c,lockedFor(c)),0);
+  app.innerHTML=`
+  <div class="screen">
+    <div class="topbar"><h1>Профиль</h1>
+      <button class="iconbtn" data-act="go-settings">${I.gear}</button>
+    </div>
+    <div class="flatcard" style="flex-direction:row;align-items:center;gap:14px">
+      <div class="coin" style="width:52px;height:52px;background:linear-gradient(140deg,#5b8bff,#2457e0)">${I.user}</div>
+      <div style="min-width:0">
+        <b style="font-size:16px">PMR Wallet</b>
+        <div class="muted" style="font-size:12.5px;font-family:var(--mono);word-break:break-all">${esc(shortAddr(addr))}</div>
+      </div>
+      <button class="iconbtn" style="margin-left:auto" data-act="copy-addr">${I.copy}</button>
+    </div>
+    <div class="twocard" style="margin-top:12px">
+      <div class="flatcard"><span class="muted" style="font-size:12px">Активных офферов</span><b style="font-size:22px">${myOffers}</b></div>
+      <div class="flatcard"><span class="muted" style="font-size:12px">Заблокировано</span><b style="font-size:22px">${fmtUsd(totalLocked)}</b></div>
+    </div>
+    <div class="sec-head"><h2>Кошелёк</h2></div>
+    <div class="setcard">
+      <div class="setrow" data-act="deposit"><span class="si">${I.down}</span><div class="st"><b>Пополнить</b><span>Приём TON и USDT</span></div><span class="ch">${I.chev}</span></div>
+      <div class="setrow" data-act="send"><span class="si">${I.up}</span><div class="st"><b>Отправить</b><span>Перевод в сети TON</span></div><span class="ch">${I.chev}</span></div>
+      <div class="setrow" data-act="go-history"><span class="si">${I.clock}</span><div class="st"><b>История операций</b><span>${S.history.length} записей</span></div><span class="ch">${I.chev}</span></div>
+      <div class="setrow" data-act="go-settings"><span class="si">${I.gear}</span><div class="st"><b>Настройки</b><span>Управление кошельком</span></div><span class="ch">${I.chev}</span></div>
+    </div>
+    <div class="setcard" style="margin-top:12px">
+      <div class="setrow" data-act="lock-now"><span class="si">${I.lock}</span><div class="st"><b>Заблокировать</b><span>Выйти до ввода пароля</span></div><span class="ch">${I.chev}</span></div>
+    </div>
+  </div>`;
+}
+
+/* ---------- settings ---------- */
+function renderSettings(){
+  el("tabbar").style.display="none";
+  const app=el("app");
+  app.innerHTML=`
+  <div class="screen no-tab">
+    <div class="topbar"><button class="backbtn" data-act="back-home">${I.back}</button><h1 style="font-size:22px">Настройки</h1></div>
+    <p class="pagesub">Управление кошельком и ваши предпочтения</p>
+    <div class="setcard">
+      ${setRow("seed",I.wallet,"Seed фраза","Резервная копия")}
+      ${setRow("notif",I.bell,"Уведомления",S.settings.notifications?"Включены":"Выключены")}
+      ${setRow("currency",I.swap,"Валюта",S.settings.currency)}
+      ${setRow("security",I.shield,"Безопасность","Защита доступа")}
+      ${setRow("network",I.globe,"Сеть",networkLabel())}
+      ${setRow("theme",I.moon,"Тема",S.settings.theme==="dark"?"Тёмная":"Светлая")}
+      ${setRow("lang",I.user,"Язык",S.settings.lang)}
+      ${setRow("support",I.help,"Поддержка","Помощь")}
+    </div>
+    <p class="pagenote">PMR Wallet · некастодиальный кошелёк сети TON. Версия 1.0</p>
+  </div>`;
+}
+function setRow(key,icon,title,sub){
+  return `<div class="setrow" data-act="set" data-key="${key}"><span class="si">${icon}</span><div class="st"><b>${title}</b><span>${esc(sub)}</span></div><span class="ch">${I.chev}</span></div>`;
+}
+function renderSettingsSub(key){
+  el("tabbar").style.display="none";
+  const app=el("app");
+  const head=(title,sub="")=>`<div class="topbar"><button class="backbtn" data-act="go-settings">${I.back}</button><h1 style="font-size:21px">${title}</h1></div>${sub?`<p class="pagesub">${sub}</p>`:""}`;
+  if(key==="currency"){
+    app.innerHTML=`<div class="screen no-tab">${head("Валюта","Основная валюта для оценки баланса")}
+      <div class="setcard">${["USD","RUB","EUR","UAH","KZT"].map(c=>`<div class="setrow" data-act="pick-currency" data-v="${c}"><div class="st"><b>${c}</b></div><span class="ch">${S.settings.currency===c?I.check:""}</span></div>`).join("")}</div>
+      <div class="infobox" style="margin-top:14px">${I.info}<div>Оценка в фиате рассчитывается по курсам CoinGecko. Расчёты в USD наиболее точны.</div></div></div>`;
+  } else if(key==="theme"){
+    app.innerHTML=`<div class="screen no-tab">${head("Тема")}
+      <div class="setcard">
+        <div class="setrow" data-act="pick-theme" data-v="dark"><span class="si">${I.moon}</span><div class="st"><b>Тёмная</b></div><span class="ch">${S.settings.theme==="dark"?I.check:""}</span></div>
+        <div class="setrow" data-act="pick-theme" data-v="light"><span class="si">${I.palette}</span><div class="st"><b>Светлая</b></div><span class="ch">${S.settings.theme==="light"?I.check:""}</span></div>
+      </div></div>`;
+  } else if(key==="lang"){
+    app.innerHTML=`<div class="screen no-tab">${head("Язык")}
+      <div class="setcard">${["Русский","English","Українська"].map(l=>`<div class="setrow" data-act="pick-lang" data-v="${l}"><div class="st"><b>${l}</b></div><span class="ch">${S.settings.lang===l?I.check:""}</span></div>`).join("")}</div>
+      <div class="infobox" style="margin-top:14px">${I.info}<div>Интерфейс сейчас на русском. Другие языки — в ближайших обновлениях.</div></div></div>`;
+  } else if(key==="notif"){
+    app.innerHTML=`<div class="screen no-tab">${head("Уведомления")}
+      <div class="setcard"><div class="setrow"><span class="si">${I.bell}</span><div class="st"><b>Push-уведомления</b><span>О входящих переводах и сделках</span></div><button class="tgl ${S.settings.notifications?"on":""}" data-act="toggle-notif"></button></div></div>
+      <div class="infobox" style="margin-top:14px">${I.info}<div>Локальные уведомления о входящих переводах при открытом приложении.</div></div></div>`;
+  } else if(key==="network"){
+    app.innerHTML=`<div class="screen no-tab">${head("Сеть","Рабочая сеть блокчейна TON")}
+      <div class="setcard">
+        <div class="setrow" data-act="pick-net" data-v="mainnet"><span class="si">${I.globe}</span><div class="st"><b>Mainnet</b><span>Реальные средства</span></div><span class="ch">${S.network==="mainnet"?I.check:""}</span></div>
+        <div class="setrow" data-act="pick-net" data-v="testnet"><span class="si">${I.globe}</span><div class="st"><b>Testnet</b><span>Тестовые монеты, безопасно</span></div><span class="ch">${S.network==="testnet"?I.check:""}</span></div>
+      </div>
+      <div class="warnbox" style="margin-top:14px">${I.warn}<div>В Mainnet вы работаете с настоящими деньгами. Для проверки сначала попробуйте Testnet — монеты там бесплатны (@testgiver_ton_bot).</div></div></div>`;
+  } else if(key==="security"){
+    app.innerHTML=`<div class="screen no-tab">${head("Безопасность","Защита доступа к кошельку")}
+      <div class="setcard">
+        <div class="setrow" data-act="change-pw"><span class="si">${I.key}</span><div class="st"><b>Сменить пароль</b><span>Пароль шифрует seed-фразу</span></div><span class="ch">${I.chev}</span></div>
+        <div class="setrow" data-act="set" data-key="seed"><span class="si">${I.wallet}</span><div class="st"><b>Показать seed-фразу</b><span>Требует пароль</span></div><span class="ch">${I.chev}</span></div>
+        <div class="setrow" data-act="lock-now"><span class="si">${I.lock}</span><div class="st"><b>Заблокировать сейчас</b></div><span class="ch">${I.chev}</span></div>
+      </div>
+      <div class="setcard" style="margin-top:12px"><div class="setrow" data-act="wipe"><span class="si danger">${I.warn}</span><div class="st"><b class="danger">Удалить кошелёк</b><span>Стереть данные с устройства</span></div><span class="ch">${I.chev}</span></div></div></div>`;
+  } else if(key==="support"){
+    app.innerHTML=`<div class="screen no-tab">${head("Поддержка","Помощь и обратная связь")}
+      <div class="infobox">${I.info}<div>PMR Wallet — некастодиальный кошелёк. Ключи и seed-фраза хранятся только на вашем устройстве в зашифрованном виде. Разработчики не имеют доступа к средствам и не смогут восстановить потерянную seed-фразу.</div></div>
+      <div class="setcard" style="margin-top:12px">
+        <div class="setrow" data-act="view-explorer"><span class="si">${I.globe}</span><div class="st"><b>Открыть в обозревателе</b><span>Tonviewer</span></div><span class="ch">${I.out}</span></div>
+      </div></div>`;
+  } else if(key==="seed"){
+    renderRevealSeed(); return;
+  }
+}
+
+/* ---------- reveal seed (password gated) ---------- */
+function renderRevealSeed(){
+  el("tabbar").style.display="none";
+  el("app").innerHTML=`<div class="screen no-tab">
+    <div class="topbar"><button class="backbtn" data-act="go-settings">${I.back}</button><h1 style="font-size:21px">Seed фраза</h1></div>
+    <div class="warnbox">${I.warn}<div>Убедитесь, что никто не видит экран. Эти 24 слова дают полный доступ к вашим средствам.</div></div>
+    <div class="field"><label>Введите пароль для показа</label>
+      <input class="input" id="seedPw" type="password" placeholder="Пароль">
+    </div>
+    <button class="btn btn-primary btn-block" data-act="reveal-seed">Показать фразу</button>
+    <div id="seedReveal" style="margin-top:14px"></div>
+  </div>`;
+}
+
+/* ---------- tabbar ---------- */
+function renderTabbar(){
+  const t=el("tabbar");
+  const tab=(k,ic,lbl)=>`<button class="tab ${view===k?"on":""}" data-act="tab" data-tab="${k}">${ic}<span>${lbl}</span></button>`;
+  t.innerHTML=`<div class="tabbar-inner">${tab("home",I.home,"Главная")}${tab("p2p",I.swap,"P2P")}${tab("profile",I.user,"Профиль")}</div>`;
+}
+
+/* ===================== MODALS ===================== */
+function openModal(html,center=false){
+  const m=el("modal");
+  m.innerHTML=`<div class="modal-bg" data-act="close-modal"></div><div class="sheet ${center?"center":""}">${html}</div>`;
+  m.classList.add("open");
+}
+function closeModal(){ el("modal").classList.remove("open"); el("modal").innerHTML=""; }
+function sheetHead(title){ return `<div class="sheet-head"><h3>${title}</h3><button class="x" data-act="close-modal">${I.x}</button></div>`; }
+
+/* deposit */
+async function modalDeposit(){
+  const addr=friendlyAddr();
+  openModal(`${sheetHead("Пополнить")}
+    <p class="dim" style="margin-bottom:14px">Переведите TON или USDT на адрес кошелька в сети TON.</p>
+    <div class="qrwrap" id="qrbox"><div class="center-load" style="min-height:188px;width:188px">QR…</div></div>
+    <div class="field"><label>Адрес кошелька${S.network==="testnet"?" (Testnet)":""}</label>
+      <div class="addrbox"><div class="a">${esc(addr||"—")}</div><button class="cp" data-act="copy-addr">${I.copy}</button></div>
+    </div>
+    <div class="infobox">${I.info}<div>Отправляйте на этот адрес только активы сети TON (TON, USDT-TON). Монеты других сетей будут потеряны.</div></div>`);
+  if(addr){
+    await loadLibs();
+    const box=el("qrbox");
+    if(QR){ try{ const c=document.createElement("canvas"); await QR.toCanvas(c,addr,{width:188,margin:1,color:{dark:"#0f1319",light:"#ffffff"}}); box.innerHTML=""; box.appendChild(c); return; }catch(e){} }
+    box.innerHTML=`<img alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=188x188&data=${encodeURIComponent(addr)}">`;
+  }
+}
+
+/* send */
+let sendState={asset:"USDT",to:"",amount:""};
+function modalSend(preAsset){
+  sendState={asset:preAsset||"USDT",to:"",amount:""};
+  renderSendForm();
+}
+function renderSendForm(){
+  const a=sendState.asset;
+  const avail=availableFor(a);
+  const assetBtns=["USDT","GRAM"].map(x=>`<button class="chip ${a===x?"on":""}" data-act="send-asset" data-v="${x}">${x}</button>`).join("");
+  openModal(`${sheetHead("Отправить")}
+    <div class="chips">${assetBtns}</div>
+    <div class="field"><label>Адрес получателя</label>
+      <input class="input mono" id="sendTo" placeholder="Введите адрес в сети TON" value="${esc(sendState.to)}">
+    </div>
+    <div class="field"><label>Сумма, ${a}</label>
+      <input class="input" id="sendAmt" inputmode="decimal" placeholder="0.00" value="${esc(sendState.amount)}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <span class="hint" style="margin:0">Доступно: ${fmtCrypto(avail)} ${a}${lockedFor(a)>0?` · 🔒 ${fmtCrypto(lockedFor(a))} в ордере`:""}</span>
+        <button class="chip" data-act="send-max">МАКС</button>
+      </div>
+    </div>
+    ${a==="USDT"?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Для перевода USDT нужен небольшой запас TON на газ (≈0.1 TON).</div></div>`:""}
+    ${S.network==="testnet"?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Testnet: отправляются тестовые монеты. ${a==="USDT"?"USDT-джеттон недоступен в Testnet.":""}</div></div>`:""}
+    <button class="btn btn-primary btn-lg btn-block" data-act="send-next">Продолжить ${I.chev}</button>`);
+  setTimeout(()=>{ const to=el("sendTo"),am=el("sendAmt"); if(to)to.addEventListener("input",e=>sendState.to=e.target.value); if(am)am.addEventListener("input",e=>sendState.amount=e.target.value); },30);
+}
+function modalSendConfirm(){
+  const {asset,to,amount}=sendState;
+  const usd=usdOf(asset,Number(amount));
+  openModal(`${sheetHead("Подтверждение")}
+    <div style="padding:6px 2px 10px">
+      <div class="kv"><span class="k">Актив</span><span class="v">${asset}</span></div>
+      <div class="kv"><span class="k">Сумма</span><span class="v">${fmtCrypto(Number(amount))} ${asset}${usd?` · ${fmtUsd(usd)}`:""}</span></div>
+      <div class="kv"><span class="k">Получатель</span><span class="v">${esc(shortAddr(to))}</span></div>
+      <div class="kv"><span class="k">Сеть</span><span class="v">TON ${networkLabel()}</span></div>
+      <div class="kv"><span class="k">Комиссия сети</span><span class="v">≈ ${asset==="USDT"?"0.1":"0.005"} TON</span></div>
+    </div>
+    <div class="warnbox">${I.warn}<div>Переводы в блокчейне необратимы. Проверьте адрес получателя.</div></div>
+    <button class="btn btn-primary btn-lg btn-block" id="sendGo" data-act="send-go">Подтвердить и отправить</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px" data-act="send-back">Назад</button>`);
+}
+
+/* create offer */
+let offerDraft={side:"sell",crypto:"USDT",fiat:"USD",price:"",min:"",max:"",method:"Банковский перевод",pin:0};
+function modalCreateOffer(){
+  offerDraft={side:"sell",crypto:"USDT",fiat:"USD",price:"",min:"",max:"",method:"Банковский перевод",pin:0};
+  renderOfferForm();
+}
+function renderOfferForm(){
+  const sel=(id,opts,val)=>`<select class="select" id="${id}">${opts.map(o=>`<option ${o===val?"selected":""}>${esc(o)}</option>`).join("")}</select>`;
+  openModal(`${sheetHead("Создать оффер")}
+    <div class="field"><label>Тип оффера</label>${sel("ofSide",["Продажа","Покупка"],offerDraft.side==="sell"?"Продажа":"Покупка")}</div>
+    <div class="row2">
+      <div class="field"><label>Криптовалюта</label>${sel("ofCrypto",CRYPTOS,offerDraft.crypto)}</div>
+      <div class="field"><label>Валюта оплаты</label>${sel("ofFiat",FIATS,offerDraft.fiat)}</div>
+    </div>
+    <div class="field"><label>Цена за единицу</label><input class="input" id="ofPrice" inputmode="decimal" placeholder="1.00" value="${esc(offerDraft.price)}"></div>
+    <div class="row2">
+      <div class="field"><label>Мин. лимит</label><input class="input" id="ofMin" inputmode="decimal" placeholder="10" value="${esc(offerDraft.min)}"></div>
+      <div class="field"><label>Макс. лимит</label><input class="input" id="ofMax" inputmode="decimal" placeholder="500" value="${esc(offerDraft.max)}"></div>
+    </div>
+    <p class="hint">Лимиты указываются в валюте оплаты.</p>
+    <div class="field"><label>Способ оплаты</label>${sel("ofMethod",METHODS,offerDraft.method)}</div>
+    <div class="pinbox">
+      <div class="lbl">${I.clock} Срок закрепления</div>
+      <div class="pin-grid" id="pinGrid">
+        ${PINS.map((p,i)=>`<div class="pin-opt ${i===0?"wide":""} ${offerDraft.pin===p.h?"on":""}" data-act="pick-pin" data-h="${p.h}">
+          <span class="rad"></span><span class="pt">${p.label}</span>${p.price?`<span class="pp">$${p.price}</span>`:`<span class="free">Бесплатно</span>`}</div>`).join("")}
+      </div>
+    </div>
+    <p class="hint" style="margin-top:12px">Закреплённый оффер показывается выше остальных до конца выбранного срока. В демо оплата закрепления не списывается.</p>
+    <div id="offerFreeze"></div>
+    <button class="btn btn-primary btn-lg btn-block" data-act="offer-submit">Опубликовать оффер</button>`);
+  const bind=()=>{
+    const g=(id)=>el(id);
+    g("ofSide").onchange=e=>{offerDraft.side=e.target.value==="Продажа"?"sell":"buy"; updateFreezeNote();};
+    g("ofCrypto").onchange=e=>{offerDraft.crypto=e.target.value; updateFreezeNote();};
+    g("ofFiat").onchange=e=>offerDraft.fiat=e.target.value;
+    g("ofPrice").oninput=e=>{offerDraft.price=e.target.value; updateFreezeNote();};
+    g("ofMin").oninput=e=>offerDraft.min=e.target.value;
+    g("ofMax").oninput=e=>{offerDraft.max=e.target.value; updateFreezeNote();};
+    g("ofMethod").onchange=e=>offerDraft.method=e.target.value;
+  };
+  setTimeout(()=>{bind();updateFreezeNote();},30);
+}
+function freezeAmount(){
+  const price=Number(String(offerDraft.price).replace(",",".")), max=Number(String(offerDraft.max).replace(",","."));
+  if(offerDraft.side!=="sell"||!price||!max) return 0;
+  return max/price; // crypto units to lock
+}
+function updateFreezeNote(){
+  const box=el("offerFreeze"); if(!box) return;
+  if(offerDraft.side!=="sell"){ box.innerHTML=`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Оффер на покупку не блокирует ваши средства.</div></div>`; return; }
+  const amt=freezeAmount(); const a=offerDraft.crypto;
+  if(!amt){ box.innerHTML=""; return; }
+  const avail=availableFor(a);
+  const enough=avail>=amt && ASSET_META[a].onTon;
+  box.innerHTML=`<div class="${enough?"infobox":"warnbox"}" style="margin-bottom:14px">${enough?I.info:I.warn}<div>
+    При публикации будет заблокировано <b>${fmtCrypto(amt)} ${a}</b> (под макс. лимит). Доступно: ${fmtCrypto(avail)} ${a}.
+    ${!ASSET_META[a].onTon?" Этот актив вне сети TON — блокировка недоступна.":(enough?"":" Недостаточно средств.")}</div></div>`;
+}
+
+/* filters */
+function modalFilters(){
+  const sel=(id,opts,val)=>`<select class="select" id="${id}">${opts.map(o=>`<option ${o===val?"selected":""}>${esc(o)}</option>`).join("")}</select>`;
+  openModal(`${sheetHead("Фильтры")}
+    <div class="field"><label>Тип оффера</label>${sel("fSide",["Все","Продажа","Покупка"],p2pFilter.side)}</div>
+    <div class="field"><label>Криптовалюта</label>${sel("fCrypto",["Все",...CRYPTOS],p2pFilter.crypto)}</div>
+    <div class="field"><label>Валюта оплаты</label>${sel("fFiat",["Все",...FIATS],p2pFilter.fiat)}</div>
+    <button class="btn btn-primary btn-lg btn-block" data-act="apply-filters">Применить фильтры</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px" data-act="reset-filters">Сбросить</button>`);
+}
+
+/* offer details */
+function modalOffer(id){
+  const o=S.offers.find(x=>x.id===id); if(!o) return;
+  const sideTxt=o.side==="sell"?"Продажа":"Покупка";
+  let actions;
+  if(o.mine){
+    const lk=S.locks.find(l=>l.offerId===o.id);
+    actions=`
+      ${lk?`<div class="infobox" style="margin-bottom:12px">${I.lock}<div>Заблокировано под оффер: <b>${fmtCrypto(lk.amount)} ${lk.asset}</b>. Снятие оффера вернёт средства.</div></div>`:""}
+      ${lk?`<button class="btn btn-primary btn-lg btn-block" data-act="offer-release" data-id="${o.id}">Отпустить средства покупателю</button>`:""}
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" data-act="offer-cancel" data-id="${o.id}">Снять оффер${lk?" и разблокировать":""}</button>`;
+  } else {
+    actions=`
+      <div class="infobox" style="margin-bottom:12px">${I.info}<div>${o.demo?"Демонстрационный оффер. ":""}Оплата происходит вне платформы выбранным способом. Для реальной сделки договоритесь с продавцом и обменяйтесь адресами.</div></div>
+      <button class="btn btn-primary btn-lg btn-block" data-act="offer-start" data-id="${o.id}">Начать сделку</button>`;
+  }
+  openModal(`${sheetHead(esc(o.name))}
+    <div style="display:flex;gap:8px;margin-bottom:12px"><span class="badge ${o.side}">${sideTxt}</span>${o.pin?`<span class="pill">Закреплён</span>`:""}${o.demo?`<span class="pill">Демо</span>`:(o.mine?`<span class="pill">Ваш оффер</span>`:"")}</div>
+    <div class="kv"><span class="k">Цена</span><span class="v">${fmtNum(o.price,2)} ${esc(o.fiat)} / ${esc(o.crypto)}</span></div>
+    <div class="kv"><span class="k">Лимиты</span><span class="v">${fmtNum(o.min,0)}–${fmtNum(o.max,0)} ${esc(o.fiat)}</span></div>
+    <div class="kv"><span class="k">Способ оплаты</span><span class="v">${esc(o.method)}</span></div>
+    <div class="kv"><span class="k">Актив</span><span class="v">${esc(o.crypto)}</span></div>
+    <div style="height:14px"></div>
+    ${actions}`);
+}
+
+/* release funds (real transfer) */
+function modalRelease(id){
+  const o=S.offers.find(x=>x.id===id); const lk=S.locks.find(l=>l.offerId===id);
+  if(!o||!lk) return;
+  openModal(`${sheetHead("Отпустить средства")}
+    <p class="dim" style="margin-bottom:14px">Переведите крипту покупателю после получения оплаты. Это реальная транзакция в сети TON.</p>
+    <div class="field"><label>Адрес покупателя (сеть TON)</label><input class="input mono" id="relTo" placeholder="UQ..."></div>
+    <div class="field"><label>Сумма, ${esc(lk.asset)}</label><input class="input" id="relAmt" inputmode="decimal" placeholder="0.00" value="${fmtCrypto(lk.amount).replace(/\s/g,"")}">
+      <p class="hint">Заблокировано под оффер: ${fmtCrypto(lk.amount)} ${esc(lk.asset)}</p>
+    </div>
+    <div class="warnbox">${I.warn}<div>Отправляйте только после подтверждённого получения оплаты. Переводы необратимы.</div></div>
+    <button class="btn btn-primary btn-lg btn-block" data-act="release-go" data-id="${id}">Отправить и завершить</button>`);
+}
+
+/* result */
+function modalResult(ok,title,msg,link){
+  openModal(`<div style="text-align:center;padding:10px 4px">
+    <div class="hero-badge" style="margin:4px auto 16px;width:72px;height:72px;border-radius:22px;background:${ok?"linear-gradient(140deg,#2ebd85,#1f8f63)":"linear-gradient(140deg,#f6465d,#c42f43)"}">${ok?I.check:I.warn}</div>
+    <h3 style="font-size:20px;margin-bottom:8px">${esc(title)}</h3>
+    <p class="dim" style="margin-bottom:16px">${msg}</p>
+    ${link?`<a class="tlink" href="${link}" target="_blank" rel="noopener">Открыть в обозревателе ↗</a>`:""}
+    <button class="btn btn-primary btn-lg btn-block" style="margin-top:18px" data-act="close-modal">Готово</button>
+  </div>`,true);
+}
+
+/* password set (center) */
+function modalSetPassword(onDone,{title="Задайте пароль",sub="Пароль шифрует seed-фразу на устройстве. Без него доступ не восстановить."}={}){
+  openModal(`${sheetHead(title)}
+    <p class="dim" style="margin-bottom:14px">${sub}</p>
+    <div class="field"><label>Пароль</label><input class="input" id="pw1" type="password" placeholder="Минимум 4 символа"></div>
+    <div class="field"><label>Повторите пароль</label><input class="input" id="pw2" type="password" placeholder="Ещё раз"></div>
+    <button class="btn btn-primary btn-lg btn-block" id="pwGo">Сохранить</button>`,true);
+  setTimeout(()=>{ el("pwGo").onclick=async()=>{
+    const a=el("pw1").value, b=el("pw2").value;
+    if(a.length<4) return toast("Пароль слишком короткий","err");
+    if(a!==b) return toast("Пароли не совпадают","err");
+    await onDone(a);
+  }; },30);
+}
+
+/* ===================== ACTIONS ===================== */
+async function act(name,ds={}){
+  switch(name){
+    /* onboarding */
+    case "onb-create":{
+      toast("Генерация ключей…");
+      if(!await loadLibs()){ return toast("Нет связи с крипто-библиотекой. Проверьте интернет.","err"); }
+      onbMnemonic=await TCRYPTO.mnemonicNew(24);
+      onbStep=2; renderOnboarding(); break;
+    }
+    case "onb-back": onbStep=1; onbMnemonic=null; renderOnboarding(); break;
+    case "copy-seed": if(onbMnemonic){ await copy(onbMnemonic.join(" ")); toast("Seed-фраза скопирована","ok"); } break;
+    case "onb-confirm": await finalizeCreate(); break;
+    case "onb-import": await modalImport(); break;
+
+    /* lock */
+    case "unlock": await doUnlock(); break;
+    case "forgot": await modalImport(true); break;
+    case "lock-now": lockWallet(); break;
+
+    /* nav */
+    case "tab": view=ds.tab; hideModalNav(); render(); break;
+    case "go-settings": view="settings"; render(); break;
+    case "back-home": view="home"; render(); break;
+    case "go-history": modalHistory(); break;
+    case "refresh": toast("Обновление…"); await refreshBalances(); await fetchPrices(); break;
+    case "toggle-balance": hideBalance=!hideBalance; renderCurrent(); break;
+
+    /* wallet */
+    case "deposit": await modalDeposit(); break;
+    case "send": modalSend(ds.asset); break;
+    case "asset": { const a=ds.asset; if(ASSET_META[a]&&ASSET_META[a].onTon) modalSend(a); else toast(`${a}: приём/отправка доступны для активов сети TON`,""); } break;
+    case "copy-addr": { const a=friendlyAddr(); if(a){ await copy(a); toast("Адрес скопирован","ok"); } } break;
+    case "send-asset": sendState.asset=ds.v; renderSendForm(); break;
+    case "send-max": { const a=sendState.asset; let m=availableFor(a); if(a==="GRAM") m=Math.max(0,m-0.05); sendState.amount=String(Number(m.toFixed(6))); renderSendForm(); } break;
+    case "send-next": await sendNext(); break;
+    case "send-back": renderSendForm(); break;
+    case "send-go": await sendGo(); break;
+
+    /* p2p */
+    case "create-offer": modalCreateOffer(); break;
+    case "filters": modalFilters(); break;
+    case "pick-pin": offerDraft.pin=Number(ds.h); document.querySelectorAll("#pinGrid .pin-opt").forEach(n=>n.classList.toggle("on",Number(n.dataset.h)===offerDraft.pin)); break;
+    case "offer-submit": await submitOffer(); break;
+    case "apply-filters": readFilters(); closeModal(); renderP2P(); toast("Фильтры применены","ok"); break;
+    case "reset-filters": p2pFilter={side:"Все",crypto:"Все",fiat:"Все"}; closeModal(); renderP2P(); break;
+    case "offer": modalOffer(ds.id); break;
+    case "offer-cancel": cancelOffer(ds.id); break;
+    case "offer-release": modalRelease(ds.id); break;
+    case "offer-start": startTrade(ds.id); break;
+    case "release-go": await releaseGo(ds.id); break;
+    case "scroll-offers": { const a=el("offersAnchor"); if(a)a.scrollIntoView({behavior:"smooth"}); } break;
+
+    /* settings */
+    case "set": {
+      const k=ds.key;
+      if(k==="seed"){ view="settings-seed"; renderRevealSeed(); }
+      else { view="settings-"+k; renderSettingsSub(k); }
+      break;
+    }
+    case "reveal-seed": await revealSeed(); break;
+    case "pick-currency": S.settings.currency=ds.v; save(); view="settings"; render(); break;
+    case "pick-theme": S.settings.theme=ds.v; document.documentElement.setAttribute("data-theme",ds.v); save(); renderSettingsSub("theme"); break;
+    case "pick-lang": S.settings.lang=ds.v; save(); view="settings"; render(); break;
+    case "toggle-notif": S.settings.notifications=!S.settings.notifications; save(); renderSettingsSub("notif"); break;
+    case "pick-net": await switchNetwork(ds.v); break;
+    case "change-pw": modalChangePw(); break;
+    case "view-explorer": { const a=friendlyAddr(); if(a) window.open(`${SCAN[S.network]}/${a}`,"_blank"); } break;
+    case "wipe": await wipeWallet(); break;
+
+    /* modal */
+    case "close-modal": closeModal(); break;
+    default: break;
+  }
+}
+function hideModalNav(){ if(el("modal").classList.contains("open")) closeModal(); }
+
+async function copy(text){
+  try{ await navigator.clipboard.writeText(text); }
+  catch(e){ const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(_){} ta.remove(); }
+}
+
+/* ---------- create / import / unlock ---------- */
+async function finalizeCreate(){
+  modalSetPassword(async(pw)=>{
+    try{
+      const words=onbMnemonic;
+      const d=await deriveFromMnemonic(words);
+      S.enc=await encryptSeed(words.join(" "),pw);
+      S.addressRaw=d.raw; S.pubkey=Buffer.from(d.key.publicKey).toString("hex");
+      S.hasWallet=true; S.locked=false; S.seedConfirmed=true;
+      session.mnemonic=words; session.key=d.key; session.unlocked=true;
+      onbMnemonic=null; save(); closeModal(); view="home";
+      toast("Кошелёк создан","ok"); render();
+      refreshBalances(); fetchPrices();
+    }catch(e){ console.error(e); toast("Ошибка создания кошелька","err"); }
+  });
+}
+async function modalImport(fromForgot){
+  openModal(`${sheetHead("Импорт кошелька")}
+    <p class="dim" style="margin-bottom:14px">Введите 24 слова seed-фразы через пробел.</p>
+    <div class="field"><textarea class="input mono" id="impWords" rows="4" placeholder="word1 word2 word3 ..."></textarea></div>
+    <button class="btn btn-primary btn-lg btn-block" id="impGo">Продолжить</button>`,true);
+  setTimeout(()=>{ el("impGo").onclick=async()=>{
+    const raw=el("impWords").value.trim().toLowerCase().split(/\s+/);
+    if(raw.length!==24) return toast("Нужно ровно 24 слова","err");
+    toast("Проверка фразы…");
+    if(!await loadLibs()) return toast("Нет связи с крипто-библиотекой","err");
+    const ok=await TCRYPTO.mnemonicValidate(raw).catch(()=>false);
+    if(!ok) return toast("Неверная seed-фраза","err");
+    onbMnemonic=raw;
+    modalSetPassword(async(pw)=>{
+      try{
+        const d=await deriveFromMnemonic(raw);
+        S.enc=await encryptSeed(raw.join(" "),pw);
+        S.addressRaw=d.raw; S.pubkey=Buffer.from(d.key.publicKey).toString("hex");
+        S.hasWallet=true; S.locked=false; S.seedConfirmed=true;
+        session.mnemonic=raw; session.key=d.key; session.unlocked=true;
+        onbMnemonic=null; save(); closeModal(); view="home";
+        toast("Кошелёк импортирован","ok"); render(); refreshBalances(); fetchPrices();
+      }catch(e){ toast("Ошибка импорта","err"); }
+    },{title:"Задайте пароль"});
+  }; },30);
+}
+async function doUnlock(){
+  const pw=el("lockPw")?.value||"";
+  if(!pw) return toast("Введите пароль","err");
+  if(!await loadLibs()) return toast("Нет связи с крипто-библиотекой","err");
+  try{
+    const words=(await decryptSeed(S.enc,pw)).split(" ");
+    const d=await deriveFromMnemonic(words);
+    session.mnemonic=words; session.key=d.key; session.unlocked=true;
+    S.locked=false; save(); view="home"; render();
+    refreshBalances(); fetchPrices();
+  }catch(e){ toast("Неверный пароль","err"); }
+}
+function lockWallet(){ S.locked=true; session={mnemonic:null,key:null,unlocked:false}; save(); view="home"; render(); }
+
+async function revealSeed(){
+  const pw=el("seedPw")?.value||"";
+  if(!pw) return toast("Введите пароль","err");
+  try{
+    const mn=await decryptSeed(S.enc,pw);
+    const words=mn.split(" ");
+    el("seedReveal").innerHTML=`<div class="seed-wrap"><div class="seed-grid">${words.map((w,i)=>`<div class="seed-word"><i>${i+1}</i><b>${esc(w)}</b></div>`).join("")}</div></div>
+      <button class="btn btn-ghost btn-block" style="margin-top:12px" onclick="(async()=>{try{await navigator.clipboard.writeText('${esc(mn)}')}catch(e){}})()">${I.copy} Скопировать</button>`;
+  }catch(e){ toast("Неверный пароль","err"); }
+}
+function modalChangePw(){
+  openModal(`${sheetHead("Сменить пароль")}
+    <div class="field"><label>Текущий пароль</label><input class="input" id="cpOld" type="password"></div>
+    <div class="field"><label>Новый пароль</label><input class="input" id="cpNew" type="password"></div>
+    <div class="field"><label>Повторите новый</label><input class="input" id="cpNew2" type="password"></div>
+    <button class="btn btn-primary btn-lg btn-block" id="cpGo">Сохранить</button>`,true);
+  setTimeout(()=>{ el("cpGo").onclick=async()=>{
+    const o=el("cpOld").value,n=el("cpNew").value,n2=el("cpNew2").value;
+    if(n.length<4) return toast("Новый пароль слишком короткий","err");
+    if(n!==n2) return toast("Пароли не совпадают","err");
+    try{ const mn=await decryptSeed(S.enc,o); S.enc=await encryptSeed(mn,n); save(); closeModal(); toast("Пароль изменён","ok"); }
+    catch(e){ toast("Неверный текущий пароль","err"); }
+  }; },30);
+}
+async function wipeWallet(){
+  openModal(`${sheetHead("Удалить кошелёк")}
+    <div class="warnbox">${I.warn}<div>Все данные кошелька будут стёрты с этого устройства. Доступ к средствам останется только по seed-фразе. Убедитесь, что она записана!</div></div>
+    <button class="btn btn-ghost btn-block" data-act="close-modal">Отмена</button>
+    <button class="btn btn-primary btn-lg btn-block danger" style="margin-top:10px;background:var(--sell);box-shadow:none" id="wipeGo">Удалить без возврата</button>`,true);
+  setTimeout(()=>{ el("wipeGo").onclick=()=>{ localStorage.removeItem(LS); S=defaultState(); S.seeded=true; seedDemoOffers(); session={mnemonic:null,key:null,unlocked:false}; onbStep=1; onbMnemonic=null; closeModal(); view="home"; render(); toast("Кошелёк удалён",""); }; },30);
+}
+async function switchNetwork(net){
+  if(net===S.network){ return; }
+  S.network=net; S.balances={GRAM:"0",USDT:"0"}; save();
+  renderSettingsSub("network");
+  toast(`Сеть: ${networkLabel()}`,"ok");
+  refreshBalances();
+}
+
+/* ---------- send flow ---------- */
+async function sendNext(){
+  const {asset,to,amount}=sendState;
+  const amt=Number(String(amount).replace(",","."));
+  if(!to||to.length<10) return toast("Введите адрес получателя","err");
+  if(!cryptoReady){ return toast("Нет связи с сетью TON","err"); }
+  try{ TON.Address.parse(to); }catch(e){ return toast("Некорректный TON-адрес","err"); }
+  if(!amt||amt<=0) return toast("Введите сумму","err");
+  if(asset==="USDT"&&S.network==="testnet") return toast("USDT недоступен в Testnet","err");
+  const avail=availableFor(asset);
+  if(amt>avail) return toast(`Недостаточно средств. Доступно ${fmtCrypto(avail)} ${asset}`,"err");
+  if(asset==="USDT"){ // need TON for gas
+    const tonAvail=availableFor("GRAM");
+    if(tonAvail<0.12) return toast("Нужно ≈0.12 TON на газ для перевода USDT","err");
+  }
+  modalSendConfirm();
+}
+async function sendGo(){
+  const {asset,to,amount}=sendState;
+  const amt=Number(String(amount).replace(",","."));
+  const btn=el("sendGo"); if(btn){ btn.disabled=true; btn.innerHTML=`<span class="spin"></span> Отправка…`; }
+  try{
+    if(asset==="USDT") await sendJetton(to,amt); else await sendTon(to,amt);
+    S.history.unshift({id:"h"+Date.now(),type:"send",asset,amount:amt,addr:to,ts:Date.now(),net:S.network,status:"sent"});
+    save();
+    const a=friendlyAddr();
+    closeModal();
+    modalResult(true,"Отправлено","Транзакция передана в сеть. Баланс обновится после подтверждения.",`${SCAN[S.network]}/${a}`);
+    setTimeout(refreshBalances,6000);
+  }catch(e){
+    console.error(e);
+    closeModal();
+    modalResult(false,"Не удалось отправить", esc((e&&e.message)||"Ошибка сети. Попробуйте позже."));
+  }
+}
+
+/* ---------- p2p logic ---------- */
+function readFilters(){
+  p2pFilter.side=el("fSide").value; p2pFilter.crypto=el("fCrypto").value; p2pFilter.fiat=el("fFiat").value;
+}
+async function submitOffer(){
+  const d=offerDraft;
+  const price=Number(String(d.price).replace(",",".")), min=Number(String(d.min).replace(",",".")), max=Number(String(d.max).replace(",","."));
+  if(!price||price<=0) return toast("Укажите цену","err");
+  if(!min||!max||min<=0||max<min) return toast("Проверьте лимиты","err");
+  let lock=null;
+  if(d.side==="sell"){
+    if(!ASSET_META[d.crypto].onTon) return toast(`${d.crypto} вне сети TON — продажа недоступна`,"err");
+    const amt=max/price;
+    const avail=availableFor(d.crypto);
+    if(amt>avail) return toast(`Недостаточно средств для блокировки. Нужно ${fmtCrypto(amt)} ${d.crypto}, доступно ${fmtCrypto(avail)}`,"err");
+    lock={amount:amt,asset:d.crypto};
+  }
+  const id="of"+Date.now();
+  const offer={id,side:d.side,crypto:d.crypto,fiat:d.fiat,price,min,max,method:d.method,pin:d.pin,mine:true,name:"Мой оффер",demo:false,ts:Date.now()};
+  S.offers.unshift(offer);
+  if(lock){ S.locks.push({id:"lk"+Date.now(),asset:lock.asset,amount:lock.amount,reason:"offer",offerId:id,ts:Date.now()}); }
+  save(); closeModal(); renderP2P();
+  toast(lock?`Оффер опубликован · ${fmtCrypto(lock.amount)} ${lock.asset} заблокировано`:"Оффер опубликован","ok");
+}
+function cancelOffer(id){
+  S.offers=S.offers.filter(o=>o.id!==id);
+  const had=S.locks.some(l=>l.offerId===id);
+  S.locks=S.locks.filter(l=>l.offerId!==id);
+  save(); closeModal(); renderP2P();
+  toast(had?"Оффер снят · средства разблокированы":"Оффер снят","ok");
+}
+function startTrade(id){
+  const o=S.offers.find(x=>x.id===id); if(!o) return;
+  closeModal();
+  if(o.side==="sell"){
+    modalResult(true,"Сделка начата",`Свяжитесь с «${esc(o.name)}», оплатите ${esc(o.fiat)} способом «${esc(o.method)}» и получите ${esc(o.crypto)} на свой адрес. Без бэкенда автосведение сделок недоступно — это демонстрация потока.`);
+  } else {
+    modalResult(true,"Сделка начата",`«${esc(o.name)}» покупает ${esc(o.crypto)}. Договоритесь об оплате и отправьте ${esc(o.crypto)} на адрес покупателя через «Отправить».`);
+  }
+}
+async function releaseGo(id){
+  const o=S.offers.find(x=>x.id===id); const lk=S.locks.find(l=>l.offerId===id);
+  if(!o||!lk) return;
+  const to=el("relTo").value.trim();
+  const amt=Number(String(el("relAmt").value).replace(",","."));
+  if(!cryptoReady) return toast("Нет связи с сетью TON","err");
+  try{ TON.Address.parse(to); }catch(e){ return toast("Некорректный адрес","err"); }
+  if(!amt||amt<=0||amt>lk.amount+1e-9) return toast("Сумма больше заблокированной","err");
+  if(lk.asset==="USDT"&&availableFor("GRAM")<0.12) return toast("Нужно ≈0.12 TON на газ","err");
+  const btn=document.querySelector('[data-act="release-go"]'); if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin"></span> Отправка…`;}
+  try{
+    if(lk.asset==="USDT") await sendJetton(to,amt); else await sendTon(to,amt);
+    // reduce / remove lock
+    lk.amount=Math.max(0,lk.amount-amt);
+    if(lk.amount<1e-9){ S.locks=S.locks.filter(l=>l.id!==lk.id); S.offers=S.offers.filter(x=>x.id!==id); }
+    S.history.unshift({id:"h"+Date.now(),type:"p2p-release",asset:lk.asset,amount:amt,addr:to,ts:Date.now(),net:S.network,status:"sent"});
+    save(); closeModal();
+    modalResult(true,"Средства отправлены","Сделка завершена, перевод передан в сеть.",`${SCAN[S.network]}/${friendlyAddr()}`);
+    setTimeout(()=>{refreshBalances();renderP2P();},6000);
+  }catch(e){ closeModal(); modalResult(false,"Ошибка перевода",esc((e&&e.message)||"Попробуйте позже.")); }
+}
+
+/* ---------- history ---------- */
+function modalHistory(){
+  const h=S.history;
+  const rows=h.length?h.map(x=>{
+    const sign=x.type==="receive"?"+":"−";
+    const color=x.type==="receive"?"var(--buy)":"var(--ink)";
+    const t=x.type==="send"?"Отправка":x.type==="receive"?"Пополнение":x.type==="p2p-release"?"P2P выплата":x.type;
+    return `<div class="asset" style="border-top:1px solid var(--line)">
+      <div class="coin" style="width:36px;height:36px;background:var(--panel-3);color:var(--ink-2)">${x.type==="receive"?I.down:I.up}</div>
+      <div class="nm"><b>${t}</b><span>${esc(shortAddr(x.addr))} · ${nowShort(x.ts)}</span></div>
+      <div class="bal"><b style="color:${color}">${sign}${fmtCrypto(x.amount)} ${x.asset}</b><span>${x.net}</span></div>
+    </div>`;
+  }).join(""):`<div class="empty">Пока нет операций.</div>`;
+  openModal(`${sheetHead("История")}
+    <div class="assets" style="background:transparent;border:none">${rows}</div>
+    ${h.length?`<a class="tlink" style="display:block;text-align:center;margin-top:14px" href="${SCAN[S.network]}/${friendlyAddr()}" target="_blank" rel="noopener">Все операции в обозревателе ↗</a>`:""}`);
+}
+
+/* ===================== boot ===================== */
+function bindEvents(){
+  document.body.addEventListener("click",e=>{
+    const t=e.target.closest("[data-act]");
+    if(!t) return;
+    const name=t.dataset.act;
+    const ds={...t.dataset};
+    act(name,ds);
+  });
+}
+function applyTheme(){ document.documentElement.setAttribute("data-theme",S.settings.theme||"dark"); }
+
+async function boot(){
+  load(); applyTheme(); bindEvents();
+  // Session key lives only in memory; after any reload it is gone, so a saved
+  // "unlocked" flag must never grant access — always require the password.
+  if(S.hasWallet) S.locked=true;
+  render();
+  // background: libs + data
+  loadLibs().then(ok=>{
+    if(!S.hasWallet) return;
+    if(!S.locked){ refreshBalances(); }
+    renderCurrent();
+  });
+  fetchPrices();
+  // periodic refresh when unlocked
+  refreshTimer=setInterval(()=>{ if(S.hasWallet&&!S.locked&&cryptoReady&&view==="home") refreshBalances(); },30000);
+}
+boot();
+</script>
+</body>
+</html>
