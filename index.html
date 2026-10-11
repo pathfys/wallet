@@ -81,13 +81,13 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .balance .mini{width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.16);display:grid;place-items:center;}
 .balance .mini svg{width:17px;height:17px;}
 /* EMV chip on the balance card */
-.chip{position:absolute;right:20px;top:56px;width:46px;height:34px;border-radius:7px;z-index:1;overflow:hidden;
-  background:linear-gradient(135deg,#f7e9ad,#d9b451 45%,#b8922f);
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.22),0 2px 7px rgba(0,0,0,.4);}
-.chip::before{content:"";position:absolute;inset:0;background:
-  linear-gradient(to right,transparent 29%,rgba(90,68,16,.55) 29%,rgba(90,68,16,.55) 31%,transparent 31%,transparent 69%,rgba(90,68,16,.55) 69%,rgba(90,68,16,.55) 71%,transparent 71%),
-  linear-gradient(to bottom,transparent 31%,rgba(90,68,16,.55) 31%,rgba(90,68,16,.55) 33%,transparent 33%,transparent 67%,rgba(90,68,16,.55) 67%,rgba(90,68,16,.55) 69%,transparent 69%);}
-.chip::after{content:"";position:absolute;left:31%;top:33%;right:31%;bottom:33%;border:1.4px solid rgba(90,68,16,.55);border-radius:2px;}
+.card-chip{position:absolute;right:20px;top:56px;width:46px;height:34px;border-radius:7px;z-index:1;overflow:hidden;
+  background:linear-gradient(135deg,#fdf1b8 0%,#ecce70 34%,#d4ab45 62%,#f6e29a 100%);
+  box-shadow:inset 0 0 0 1px rgba(150,112,30,.55),inset 0 1px 2px rgba(255,255,255,.65),0 2px 7px rgba(0,0,0,.33);}
+.card-chip::before{content:"";position:absolute;inset:0;background:
+  linear-gradient(to right,transparent 30%,rgba(122,92,24,.42) 30%,rgba(122,92,24,.42) 31%,transparent 31%,transparent 69%,rgba(122,92,24,.42) 69%,rgba(122,92,24,.42) 70%,transparent 70%),
+  linear-gradient(to bottom,transparent 32%,rgba(122,92,24,.42) 32%,rgba(122,92,24,.42) 33%,transparent 33%,transparent 67%,rgba(122,92,24,.42) 67%,rgba(122,92,24,.42) 68%,transparent 68%);}
+.card-chip::after{content:"";position:absolute;left:31%;top:33%;right:31%;bottom:33%;border:1px solid rgba(122,92,24,.45);border-radius:2px;}
 /* card skins (собственные, без внешних картинок) */
 .skin-blue{background:linear-gradient(140deg,#6a97ff 0%,#2f6bff 46%,#1f4fd6 100%);}
 .skin-obsidian{background:repeating-linear-gradient(135deg,rgba(255,255,255,.028) 0 2px,transparent 2px 7px),radial-gradient(130% 100% at 80% -15%,#343842 0%,transparent 55%),linear-gradient(145deg,#1b1d24 0%,#0a0b0e 72%);}
