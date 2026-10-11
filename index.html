@@ -970,6 +970,19 @@ async function modalDeposit(){
   }
 }
 
+/* card skin picker */
+function modalCardSkin(){
+  const skins=[{k:"blue",n:"Синяя"},{k:"obsidian",n:"Чёрная"},{k:"graphite",n:"Графит"},{k:"emerald",n:"Изумруд"}];
+  openModal(`${sheetHead("Фон карты")}
+    <p class="dim" style="margin-bottom:14px">Выберите оформление карты баланса.</p>
+    <div class="skin-grid">
+      ${skins.map(s=>`<button class="skin-opt ${S.cardSkin===s.k?"on":""}" data-act="pick-skin" data-v="${s.k}">
+        <div class="skin-sw skin-${s.k}"></div>
+        <div class="skin-nm">${s.n}${S.cardSkin===s.k?` ${I.check}`:""}</div>
+      </button>`).join("")}
+    </div>`);
+}
+
 /* send */
 let sendState={asset:"USDT",to:"",amount:""};
 function modalSend(preAsset){
@@ -1177,6 +1190,8 @@ async function act(name,ds={}){
     case "go-history": modalHistory(); break;
     case "refresh": toast("Обновление…"); await refreshBalances(); await fetchPrices(); break;
     case "toggle-balance": hideBalance=!hideBalance; renderCurrent(); break;
+    case "card-skin": modalCardSkin(); break;
+    case "pick-skin": S.cardSkin=ds.v; save(); closeModal(); renderHome(); toast("Фон карты обновлён","ok"); break;
 
     /* wallet */
     case "deposit": await modalDeposit(); break;
