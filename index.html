@@ -148,6 +148,10 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .seed-word{display:flex;gap:8px;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:14px;}
 .seed-word i{color:var(--ink-4);font-style:normal;font-size:11px;width:16px;text-align:right;font-family:var(--mono);}
 .seed-word b{font-weight:600;}
+.seed-input{padding:9px 11px;cursor:text;}
+.seed-word:focus-within{border-color:var(--primary);background:var(--panel);}
+.sw-in{flex:1;min-width:0;width:100%;background:none;border:none;font-size:14px;font-weight:600;color:var(--ink);font-family:var(--font);}
+.sw-in:focus{outline:none;}
 .seed-blur{filter:blur(7px);transition:.2s;}
 .warnbox{display:flex;gap:11px;background:var(--warn-ghost);border:1px solid rgba(240,185,11,.28);border-radius:14px;padding:13px 14px;color:#f4cf5e;font-size:13px;line-height:1.5;margin:14px 0;}
 .warnbox svg{width:18px;height:18px;flex:0 0 auto;color:var(--warn);margin-top:1px;}
@@ -295,23 +299,32 @@ a.tlink{color:var(--primary-2);font-weight:600;}
 
 /* ---------- lazy crypto libs ---------- */
 let TON=null, TCRYPTO=null, QR=null, cryptoReady=false, libsPromise=null;
-const CDN={
-  buffer:"https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm",
-  crypto:"https://cdn.jsdelivr.net/npm/@ton/crypto@3.3.0/+esm",
-  ton:"https://cdn.jsdelivr.net/npm/@ton/ton@15.1.0/+esm",
-  qr:"https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm",
-};
+// Несколько CDN-зеркал. Если одно заблокировано/недоступно — берём следующее,
+// поэтому ошибка «нет связи» появляется только при полном отсутствии интернета.
+const CDN_PROVIDERS=[
+  (p)=>`https://esm.sh/${p}`,
+  (p)=>`https://cdn.jsdelivr.net/npm/${p}/+esm`,
+  (p)=>`https://unpkg.com/${p}?module`,
+];
+async function importPkg(pkg){
+  let err;
+  for(const make of CDN_PROVIDERS){
+    try{ return await import(make(pkg)); }
+    catch(e){ err=e; }
+  }
+  throw err||new Error("import failed: "+pkg);
+}
 async function loadLibs(){
   if(cryptoReady) return true;
   if(libsPromise) return libsPromise;
   libsPromise=(async()=>{
     try{
-      const buf=await import(CDN.buffer); globalThis.Buffer=globalThis.Buffer||buf.Buffer;
-      TCRYPTO=await import(CDN.crypto);
-      TON=await import(CDN.ton);
-      try{ QR=(await import(CDN.qr)).default; }catch(e){ QR=null; }
+      try{ const buf=await importPkg("buffer@6.0.3"); globalThis.Buffer=globalThis.Buffer||buf.Buffer; }catch(e){}
+      TCRYPTO=await importPkg("@ton/crypto@3.3.0");
+      TON=await importPkg("@ton/ton@15.1.0");
+      try{ QR=(await importPkg("qrcode@1.5.4")).default; }catch(e){ QR=null; }
       cryptoReady=true; return true;
-    }catch(e){ console.warn("[PMR] crypto libs failed:",e); cryptoReady=false; return false; }
+    }catch(e){ console.warn("[PMR] crypto libs failed:",e); cryptoReady=false; libsPromise=null; return false; }
   })();
   return libsPromise;
 }
@@ -1214,14 +1227,20 @@ async function finalizeCreate(){
 }
 async function modalImport(fromForgot){
   openModal(`${sheetHead("Импорт кошелька")}
-    <p class="dim" style="margin-bottom:14px">Введите 24 слова seed-фразы через пробел.</p>
-    <div class="field"><textarea class="input mono" id="impWords" rows="4" placeholder="word1 word2 word3 ..."></textarea></div>
-    <button class="btn btn-primary btn-lg btn-block" id="impGo">Продолжить</button>`,true);
-  setTimeout(()=>{ el("impGo").onclick=async()=>{
-    const raw=el("impWords").value.trim().toLowerCase().split(/\s+/);
-    if(raw.length!==24) return toast("Нужно ровно 24 слова","err");
+    <p class="dim" style="margin-bottom:14px">Введите seed-фразу — по одному слову в каждое поле. Можно вставить всю фразу в первое поле, остальные заполнятся сами.</p>
+    <div class="seed-wrap"><div class="seed-grid" id="impGrid">
+      ${Array.from({length:24},(_,i)=>`<label class="seed-word seed-input"><i>${i+1}</i><input class="sw-in" id="iw${i}" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next"></label>`).join("")}
+    </div></div>
+    <button class="btn btn-ghost btn-block" style="margin-top:12px" id="impPaste">${I.copy} Вставить всю фразу из буфера</button>
+    <button class="btn btn-primary btn-lg btn-block" style="margin-top:10px" id="impGo">Продолжить ${I.chev}</button>`,true);
+  const fill=(arr,start=0)=>{ arr.forEach((w,k)=>{ const inp=el("iw"+(start+k)); if(inp) inp.value=w.toLowerCase(); }); const n=el("iw"+Math.min(23,start+arr.length)); if(n) n.focus(); };
+  const distribute=(text,start=0)=>{ const words=String(text||"").trim().toLowerCase().split(/[\s,;]+/).filter(Boolean); if(words.length>1){ fill(words.slice(0,24-start),start); return true; } return false; };
+  const collect=()=>{ const r=[]; for(let i=0;i<24;i++){ r.push(((el("iw"+i)||{}).value||"").trim().toLowerCase()); } return r; };
+  const doImport=async()=>{
+    const raw=collect();
+    if(raw.some(w=>!w)) return toast("Заполните все 24 слова","err");
     toast("Проверка фразы…");
-    if(!await loadLibs()) return toast("Нет связи с крипто-библиотекой","err");
+    if(!await loadLibs()) return toast("Крипто-модуль ещё грузится — повторите через пару секунд","err");
     const ok=await TCRYPTO.mnemonicValidate(raw).catch(()=>false);
     if(!ok) return toast("Неверная seed-фраза","err");
     onbMnemonic=raw;
@@ -1236,7 +1255,18 @@ async function modalImport(fromForgot){
         toast("Кошелёк импортирован","ok"); render(); refreshBalances(); fetchPrices();
       }catch(e){ toast("Ошибка импорта","err"); }
     },{title:"Задайте пароль"});
-  }; },30);
+  };
+  setTimeout(()=>{
+    for(let i=0;i<24;i++){
+      const inp=el("iw"+i); if(!inp) continue;
+      inp.addEventListener("paste",e=>{ const t=(e.clipboardData||window.clipboardData).getData("text"); if(distribute(t,i)) e.preventDefault(); });
+      inp.addEventListener("input",e=>{ const v=e.target.value; if(/\s/.test(v)){ const parts=v.trim().split(/\s+/); e.target.value=parts[0]; if(parts.length>1) fill(parts.slice(1),i+1); else { const n=el("iw"+(i+1)); if(n)n.focus(); } } });
+      inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const n=el("iw"+(i+1)); if(n)n.focus(); else doImport(); } });
+    }
+    const f=el("iw0"); if(f) f.focus();
+    el("impPaste").onclick=async()=>{ try{ const t=await navigator.clipboard.readText(); if(distribute(t,0)) toast("Фраза вставлена","ok"); else toast("В буфере нет фразы из нескольких слов",""); }catch(e){ toast("Нет доступа к буферу — вставьте вручную","err"); } };
+    el("impGo").onclick=doImport;
+  },40);
 }
 async function doUnlock(){
   const pw=el("lockPw")?.value||"";
