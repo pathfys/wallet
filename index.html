@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 /* ===================== design tokens ===================== */
 :root{
@@ -125,7 +126,6 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .back-sign .cvv{font-family:var(--mono);color:#15171c;font-size:13px;letter-spacing:3px;font-style:italic;font-weight:700;}
 .back-brand{position:absolute;left:20px;bottom:13px;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.72);}
 .back-logo{position:absolute;right:18px;bottom:11px;font-size:15px;font-weight:800;letter-spacing:-.01em;color:#fff;}
-/* real 3D sphere on the card back (shaded orb + specular highlight + globe grid) */
 /* thin lines along the whole card back */
 .card-sphere{position:absolute;inset:0;z-index:0;opacity:.4;pointer-events:none;
   background-repeat:no-repeat;background-position:center;background-size:100% 100%;
@@ -439,8 +439,8 @@ let refreshTimer=null;
 function defaultState(){
   return {
     hasWallet:false, locked:true, network:"mainnet", cardSkin:"blue",
-    addressRaw:null, pubkey:null, enc:null,
-    settings:{currency:"USD", theme:"light", lang:"Русский", notifications:false},
+    addressRaw:null, pubkey:null, enc:null, bioCredId:null, bioPw:null,
+    settings:{currency:"USD", theme:"light", lang:"Русский", notifications:false, biometric:false},
     balances:{GRAM:"0", USDT:"0"},           // raw units (string of bigint) by asset
     locks:[],                                 // {id, asset, amount(human float), reason, offerId, ts}
     offers:[],                                // user + demo offers
@@ -554,6 +554,54 @@ async function decryptSeed(enc,pw){
   return new TextDecoder().decode(pt);
 }
 
+/* ---------- biometrics (Face ID / Touch ID) ---------- */
+function tgBio(){ try{ return window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.BiometricManager; }catch(e){ return null; } }
+function bioSecret(){ return "pmr-bio-"+(navigator.userAgent||"x"); }
+async function bioAvailable(){
+  const b=tgBio();
+  if(b){ return await new Promise(r=>{ try{ if(b.isInited) return r(!!b.isBiometricAvailable); b.init(()=>r(!!b.isBiometricAvailable)); }catch(e){ r(false); } }); }
+  if(window.PublicKeyCredential){ try{ return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }catch(e){} }
+  return false;
+}
+async function bioEnroll(password){
+  const b=tgBio();
+  if(b){ return await new Promise(res=>{ const run=()=>{ try{ b.requestAccess({reason:"Вход и подтверждение переводов по Face ID"},(granted)=>{ if(!granted) return res(false); try{ b.updateBiometricToken(password,(ok)=>res(!!ok)); }catch(e){ res(false); } }); }catch(e){ res(false); } }; if(b.isInited) run(); else b.init(run); }); }
+  try{
+    if(!window.PublicKeyCredential) return false;
+    const uid=crypto.getRandomValues(new Uint8Array(16));
+    const cred=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:"PMR Wallet"},user:{id:uid,name:"pmr-wallet",displayName:"PMR Wallet"},pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required",residentKey:"preferred"},timeout:60000,attestation:"none"}});
+    if(!cred) return false;
+    S.bioCredId=b64(new Uint8Array(cred.rawId));
+    S.bioPw=await encryptSeed(password, bioSecret());
+    return true;
+  }catch(e){ console.warn("bio enroll",e); return false; }
+}
+async function bioAuth(){ // -> password string on success, null on fail/cancel
+  const b=tgBio();
+  if(b){ return await new Promise(res=>{ const run=()=>{ try{ b.authenticate({reason:"Подтвердите по Face ID"},(ok,token)=>res(ok?(token||""):null)); }catch(e){ res(null); } }; if(b.isInited) run(); else b.init(run); }); }
+  try{
+    if(!window.PublicKeyCredential) return null;
+    const asrt=await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:S.bioCredId?[{type:"public-key",id:ub64(S.bioCredId)}]:[],userVerification:"required",timeout:60000}});
+    if(!asrt) return null;
+    return S.bioPw?await decryptSeed(S.bioPw,bioSecret()):"";
+  }catch(e){ console.warn("bio auth",e); return null; }
+}
+async function bioDisable(){
+  const b=tgBio();
+  if(b){ try{ await new Promise(r=>{ const run=()=>{ try{ b.updateBiometricToken("",()=>r()); }catch(e){ r(); } }; if(b.isInited) run(); else b.init(run); }); }catch(e){} }
+  S.bioCredId=null; S.bioPw=null;
+}
+async function notify(title,body){
+  try{ const tg=window.Telegram&&window.Telegram.WebApp; if(tg&&tg.HapticFeedback){ try{ tg.HapticFeedback.notificationOccurred("success"); }catch(e){} } }catch(e){}
+  if(S.settings.notifications && ("Notification" in window)){
+    try{
+      if(Notification.permission==="granted"){ new Notification(title,{body}); return; }
+      if(Notification.permission!=="denied"){ const p=await Notification.requestPermission(); if(p==="granted"){ new Notification(title,{body}); return; } }
+    }catch(e){}
+  }
+  toast(title+(body?" · "+body:""),"ok");
+}
+
 /* ---------- TON wallet ops ---------- */
 function getClient(){
   if(!cryptoReady||!TON) throw new Error("libs");
@@ -660,6 +708,7 @@ const I={
   home:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>`,
   user:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>`,
   copy:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`,
+  face:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 10v1M15 10v1M12 9v3.5M10 15.5a3 3 0 0 0 4 0"/></svg>`,
   x:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
   plus:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>`,
   filter:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16M7 12h10M10 19h4"/></svg>`,
@@ -767,10 +816,11 @@ function renderLock(){
     <div style="width:100%;max-width:340px;margin:0 auto">
       <input class="input" id="lockPw" type="password" placeholder="Пароль" autocomplete="current-password">
       <button class="btn btn-primary btn-lg btn-block" style="margin-top:12px" data-act="unlock">Разблокировать</button>
+      ${S.settings.biometric?`<button class="btn btn-ghost btn-block" style="margin-top:10px" data-act="bio-unlock">${I.face} Войти по Face ID</button>`:""}
       <button class="linkbtn" data-act="forgot">Забыли пароль? Восстановить по seed-фразе</button>
     </div>
   </div>`;
-  setTimeout(()=>{const i=el("lockPw"); if(i){ i.focus(); i.addEventListener("keydown",e=>{if(e.key==="Enter")act("unlock");}); }},60);
+  setTimeout(()=>{const i=el("lockPw"); if(i){ i.focus(); i.addEventListener("keydown",e=>{if(e.key==="Enter")act("unlock");}); } if(S.settings.biometric) doBioUnlock();},200);
 }
 
 /* ---------- home ---------- */
@@ -986,6 +1036,7 @@ function renderSettingsSub(key){
   } else if(key==="security"){
     app.innerHTML=`<div class="screen no-tab">${head("Безопасность","Защита доступа к кошельку")}
       <div class="setcard">
+        <div class="setrow"><span class="si">${I.face}</span><div class="st"><b>Face ID</b><span>Вход и подтверждение переводов</span></div><button class="tgl ${S.settings.biometric?"on":""}" data-act="toggle-bio"></button></div>
         <div class="setrow" data-act="change-pw"><span class="si">${I.key}</span><div class="st"><b>Сменить пароль</b><span>Пароль шифрует seed-фразу</span></div><span class="ch">${I.chev}</span></div>
         <div class="setrow" data-act="set" data-key="seed"><span class="si">${I.wallet}</span><div class="st"><b>Показать seed-фразу</b><span>Требует пароль</span></div><span class="ch">${I.chev}</span></div>
         <div class="setrow" data-act="lock-now"><span class="si">${I.lock}</span><div class="st"><b>Заблокировать сейчас</b></div><span class="ch">${I.chev}</span></div>
@@ -1266,6 +1317,8 @@ async function act(name,ds={}){
 
     /* lock */
     case "unlock": await doUnlock(); break;
+    case "bio-unlock": await doBioUnlock(); break;
+    case "toggle-bio": await toggleBio(); break;
     case "forgot": await modalImport(true); break;
     case "lock-now": lockWallet(); break;
 
@@ -1408,6 +1461,42 @@ async function doUnlock(){
 }
 function lockWallet(){ S.locked=true; session={mnemonic:null,key:null,unlocked:false}; save(); view="home"; render(); }
 
+async function doBioUnlock(){
+  if(!S.settings.biometric) return;
+  const pw=await bioAuth();
+  if(pw==null) return;
+  if(!await loadLibs()) return toast("Нет связи с крипто-библиотекой","err");
+  try{
+    const words=(await decryptSeed(S.enc,pw)).split(" ");
+    const d=await deriveFromMnemonic(words);
+    session.mnemonic=words; session.key=d.key; session.unlocked=true;
+    S.locked=false; save(); view="home"; render();
+    notify("Вход по Face ID","Выполнен вход в PMR Wallet");
+    refreshBalances(); fetchPrices();
+  }catch(e){ toast("Не удалось войти по Face ID","err"); }
+}
+async function toggleBio(){
+  if(S.settings.biometric){ await bioDisable(); S.settings.biometric=false; save(); renderSettingsSub("security"); toast("Face ID отключён",""); return; }
+  if(!await bioAvailable()){ toast("Биометрия недоступна на этом устройстве","err"); return; }
+  modalBioEnroll();
+}
+function modalBioEnroll(){
+  openModal(`${sheetHead("Включить Face ID")}
+    <p class="dim" style="margin-bottom:14px">Введите пароль кошелька — он будет защищён вашим Face ID для входа и подтверждения переводов.</p>
+    <div class="field"><input class="input" id="bioPwIn" type="password" placeholder="Пароль"></div>
+    <button class="btn btn-primary btn-lg btn-block" id="bioGo">Включить Face ID</button>`,true);
+  setTimeout(()=>{ const g=el("bioGo"); if(g) g.onclick=async()=>{
+    const pw=el("bioPwIn").value;
+    try{ await decryptSeed(S.enc,pw); }catch(e){ return toast("Неверный пароль","err"); }
+    toast("Настройка Face ID…");
+    const ok=await bioEnroll(pw);
+    if(!ok) return toast("Не удалось включить Face ID","err");
+    S.settings.biometric=true; save(); closeModal();
+    if(view==="settings-security") renderSettingsSub("security");
+    notify("Face ID включён","Вход и переводы теперь подтверждаются по Face ID");
+  }; },30);
+}
+
 async function revealSeed(){
   const pw=el("seedPw")?.value||"";
   if(!pw) return toast("Введите пароль","err");
@@ -1428,7 +1517,7 @@ function modalChangePw(){
     const o=el("cpOld").value,n=el("cpNew").value,n2=el("cpNew2").value;
     if(n.length<4) return toast("Новый пароль слишком короткий","err");
     if(n!==n2) return toast("Пароли не совпадают","err");
-    try{ const mn=await decryptSeed(S.enc,o); S.enc=await encryptSeed(mn,n); save(); closeModal(); toast("Пароль изменён","ok"); }
+    try{ const mn=await decryptSeed(S.enc,o); S.enc=await encryptSeed(mn,n); if(S.settings.biometric){ await bioEnroll(n); } save(); closeModal(); toast("Пароль изменён","ok"); }
     catch(e){ toast("Неверный текущий пароль","err"); }
   }; },30);
 }
@@ -1467,11 +1556,13 @@ async function sendNext(){
 async function sendGo(){
   const {asset,to,amount}=sendState;
   const amt=Number(String(amount).replace(",","."));
+  if(S.settings.biometric){ const ok=await bioAuth(); if(ok==null) return toast("Перевод не подтверждён по Face ID","err"); }
   const btn=el("sendGo"); if(btn){ btn.disabled=true; btn.innerHTML=`<span class="spin"></span> Отправка…`; }
   try{
     if(asset==="USDT") await sendJetton(to,amt); else await sendTon(to,amt);
     S.history.unshift({id:"h"+Date.now(),type:"send",asset,amount:amt,addr:to,ts:Date.now(),net:S.network,status:"sent"});
     save();
+    notify("Перевод отправлен",`${fmtCrypto(amt)} ${asset}`);
     const a=friendlyAddr();
     closeModal();
     modalResult(true,"Отправлено","Транзакция передана в сеть. Баланс обновится после подтверждения.",`${SCAN[S.network]}/${a}`);
@@ -1532,9 +1623,11 @@ async function releaseGo(id){
   try{ TON.Address.parse(to); }catch(e){ return toast("Некорректный адрес","err"); }
   if(!amt||amt<=0||amt>lk.amount+1e-9) return toast("Сумма больше заблокированной","err");
   if(lk.asset==="USDT"&&availableFor("GRAM")<0.12) return toast("Нужно ≈0.12 TON на газ","err");
+  if(S.settings.biometric){ const ok=await bioAuth(); if(ok==null) return toast("Перевод не подтверждён по Face ID","err"); }
   const btn=document.querySelector('[data-act="release-go"]'); if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin"></span> Отправка…`;}
   try{
     if(lk.asset==="USDT") await sendJetton(to,amt); else await sendTon(to,amt);
+    notify("Средства отправлены",`${fmtCrypto(amt)} ${lk.asset}`);
     // reduce / remove lock
     lk.amount=Math.max(0,lk.amount-amt);
     if(lk.amount<1e-9){ S.locks=S.locks.filter(l=>l.id!==lk.id); S.offers=S.offers.filter(x=>x.id!==id); }
