@@ -54,7 +54,7 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);}
 
 /* ===================== app frame ===================== */
-#app{min-height:100%;max-width:520px;margin:0 auto;position:relative;display:flex;flex-direction:column;}
+#app{min-height:100%;width:100%;margin:0;position:relative;display:flex;flex-direction:column;padding-top:var(--tg-safe-area-inset-top,0px);}
 .screen{flex:1;min-width:0;padding:14px var(--gut) calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom));}
 .screen.no-tab{padding-bottom:calc(28px + env(safe-area-inset-bottom));}
 
@@ -307,7 +307,7 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .tgl.on{background:var(--primary);border-color:var(--primary);} .tgl.on::after{left:20px;background:#fff;}
 
 /* ===================== tabbar ===================== */
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;max-width:520px;margin:0 auto;padding:10px var(--gut) calc(10px + env(safe-area-inset-bottom));}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px var(--gut) calc(10px + env(safe-area-inset-bottom) + var(--tg-safe-area-inset-bottom,0px));}
 .tabbar-inner{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
   background:color-mix(in srgb,var(--panel) 68%,transparent);
   backdrop-filter:blur(28px) saturate(185%);-webkit-backdrop-filter:blur(28px) saturate(185%);
@@ -1666,10 +1666,27 @@ function bindEvents(){
     act(name,ds);
   });
 }
-function applyTheme(){ document.documentElement.setAttribute("data-theme",S.settings.theme||"dark"); }
+function applyTheme(){ document.documentElement.setAttribute("data-theme",S.settings.theme||"dark"); syncTgColors(); }
+function syncTgColors(){
+  try{ const tg=window.Telegram&&window.Telegram.WebApp; if(!tg) return; const light=(S.settings.theme||"light")!=="dark";
+    if(tg.setBackgroundColor) tg.setBackgroundColor(light?"#f3f5f9":"#0c0d10");
+    if(tg.setHeaderColor) tg.setHeaderColor(light?"#ffffff":"#0c0d10");
+    if(tg.setBottomBarColor) tg.setBottomBarColor(light?"#ffffff":"#0c0d10");
+  }catch(e){}
+}
+function tgInit(){
+  try{
+    const tg=window.Telegram&&window.Telegram.WebApp; if(!tg) return;
+    try{ tg.ready(); }catch(e){}
+    try{ tg.expand(); }catch(e){}
+    try{ if(tg.requestFullscreen) tg.requestFullscreen(); }catch(e){}
+    try{ if(tg.disableVerticalSwipes) tg.disableVerticalSwipes(); }catch(e){}
+    syncTgColors();
+  }catch(e){}
+}
 
 async function boot(){
-  load(); applyTheme(); bindEvents();
+  load(); tgInit(); applyTheme(); bindEvents();
   // Session key lives only in memory; after any reload it is gone, so a saved
   // "unlocked" flag must never grant access — always require the password.
   if(S.hasWallet) S.locked=true;
