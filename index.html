@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru" data-theme="dark">
+<html lang="ru" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#0c0d10">
+<meta name="theme-color" content="#ffffff">
 <meta name="description" content="PMR Wallet — некастодиальный криптокошелёк сети TON: TON (GRAM) и USDT, приём и отправка, P2P с блокировкой средств.">
 <title>PMR Wallet</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f6bff'/%3E%3Cpath d='M9 12h11a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H9z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='19' cy='17' r='1.6' fill='%23fff'/%3E%3C/svg%3E">
@@ -70,7 +70,7 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .balance{position:relative;border-radius:var(--r-xl);padding:20px 20px 18px;color:#fff;overflow:hidden;
   background:linear-gradient(140deg,#6a97ff 0%,#2f6bff 46%,#1f4fd6 100%);box-shadow:var(--sh-card);}
 .balance::after{content:"";position:absolute;inset:0;background:
-  radial-gradient(120% 90% at 85% -10%,rgba(255,255,255,.28),transparent 55%);pointer-events:none;}
+  radial-gradient(120% 90% at 85% -10%,rgba(255,255,255,.36),transparent 55%);pointer-events:none;}
 .balance .row1{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}
 .balance .lbl{font-size:12.5px;font-weight:600;opacity:.9;}
 .balance .big{font-family:var(--mono);font-weight:700;font-size:40px;letter-spacing:-.03em;margin:8px 0 6px;position:relative;z-index:1;}
@@ -93,7 +93,11 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .skin-obsidian{background:repeating-linear-gradient(135deg,rgba(255,255,255,.045) 0 2px,transparent 2px 7px),radial-gradient(130% 100% at 80% -15%,#434a5a 0%,transparent 52%),linear-gradient(145deg,#232732 0%,#030406 80%);}
 .skin-graphite{background:repeating-linear-gradient(115deg,rgba(255,255,255,.07) 0 1px,transparent 1px 4px),linear-gradient(145deg,#646b78 0%,#2b2f38 50%,#090a0d 100%);}
 .skin-emerald{background:repeating-linear-gradient(135deg,rgba(255,255,255,.045) 0 2px,transparent 2px 8px),radial-gradient(130% 100% at 80% -15%,#26a673 0%,transparent 56%),linear-gradient(150deg,#0b462f 0%,#010c07 82%);}
-.balance.skin-obsidian,.balance.skin-graphite,.balance.skin-emerald{box-shadow:0 22px 52px -26px rgba(0,0,0,.85);}
+/* glowing cards */
+.balance.skin-blue{box-shadow:0 6px 26px -4px rgba(47,107,255,.55),0 26px 66px -24px rgba(47,107,255,.6);}
+.balance.skin-obsidian{box-shadow:0 6px 26px -6px rgba(110,130,180,.4),0 24px 60px -24px rgba(0,0,0,.65);}
+.balance.skin-graphite{box-shadow:0 6px 26px -6px rgba(150,160,180,.45),0 24px 60px -24px rgba(0,0,0,.6);}
+.balance.skin-emerald{box-shadow:0 6px 26px -4px rgba(38,180,120,.55),0 24px 60px -24px rgba(5,45,28,.6);}
 /* card skin picker */
 .skin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .skin-opt{text-align:left;padding:0;background:none;border:none;}
@@ -121,10 +125,16 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .back-sign .cvv{font-family:var(--mono);color:#15171c;font-size:13px;letter-spacing:3px;font-style:italic;font-weight:700;}
 .back-brand{position:absolute;left:20px;bottom:13px;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.72);}
 .back-logo{position:absolute;right:18px;bottom:11px;font-size:15px;font-weight:800;letter-spacing:-.01em;color:#fff;}
-/* decorative striped "sphere" — curved lines spanning the whole card back */
-.card-sphere{position:absolute;inset:0;z-index:0;opacity:.5;pointer-events:none;
-  background-repeat:no-repeat;background-position:center;background-size:112% 110%;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20340%20140'%20preserveAspectRatio='none'%3E%3Cg%20fill='none'%20stroke='%23ffffff'%20stroke-width='1'%3E%3Cpath%20d='M0%2018%20Q170%201%20340%2018'/%3E%3Cpath%20d='M0%2028%20Q170%2014%20340%2028'/%3E%3Cpath%20d='M0%2038%20Q170%2028%20340%2038'/%3E%3Cpath%20d='M0%2048%20Q170%2041%20340%2048'/%3E%3Cpath%20d='M0%2058%20Q170%2055%20340%2058'/%3E%3Cpath%20d='M0%2068%20Q170%2068%20340%2068'/%3E%3Cpath%20d='M0%2078%20Q170%2081%20340%2078'/%3E%3Cpath%20d='M0%2088%20Q170%2095%20340%2088'/%3E%3Cpath%20d='M0%2098%20Q170%20108%20340%2098'/%3E%3Cpath%20d='M0%20108%20Q170%20122%20340%20108'/%3E%3Cpath%20d='M0%20118%20Q170%20135%20340%20118'/%3E%3C/g%3E%3C/svg%3E");}
+/* real 3D sphere on the card back (shaded orb + specular highlight + globe grid) */
+.card-sphere{position:absolute;right:-8px;bottom:-18px;width:142px;height:142px;border-radius:50%;z-index:0;pointer-events:none;
+  background:radial-gradient(circle at 34% 30%,#eaf1ff 0%,#aecaff 13%,#4a7bff 40%,#1f49cf 66%,#0a1f6e 100%);
+  box-shadow:inset -16px -20px 46px rgba(3,10,40,.6),inset 9px 11px 26px rgba(255,255,255,.4),0 16px 44px rgba(20,45,130,.5);
+  animation:orbFloat 6.5s ease-in-out infinite;}
+.card-sphere::before{content:"";position:absolute;left:21%;top:14%;width:30%;height:22%;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.95),rgba(255,255,255,0) 72%);filter:blur(1px);}
+.card-sphere::after{content:"";position:absolute;inset:0;border-radius:50%;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Cg%20fill='none'%20stroke='%23ffffff'%20stroke-width='0.8'%3E%3Ccircle%20cx='50'%20cy='50'%20r='48'/%3E%3Cellipse%20cx='50'%20cy='50'%20rx='48'%20ry='16'/%3E%3Cellipse%20cx='50'%20cy='50'%20rx='48'%20ry='33'/%3E%3Cellipse%20cx='50'%20cy='50'%20rx='33'%20ry='48'/%3E%3Cellipse%20cx='50'%20cy='50'%20rx='16'%20ry='48'/%3E%3Cline%20x1='2'%20y1='50'%20x2='98'%20y2='50'/%3E%3Cline%20x1='50'%20y1='2'%20x2='50'%20y2='98'/%3E%3C/g%3E%3C/svg%3E");}
+@keyframes orbFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
 
 /* primary actions */
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
@@ -176,6 +186,11 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .hero-badge .shield{position:absolute;right:-10px;bottom:-10px;width:40px;height:40px;border-radius:13px;background:var(--primary);
   display:grid;place-items:center;box-shadow:0 10px 24px -10px rgba(var(--primary-rgb),.9);}
 .hero-badge .shield svg{width:20px;height:20px;color:#fff;}
+/* light theme adjustments */
+:root[data-theme="light"] .onb{background:radial-gradient(130% 80% at 50% -5%,#dbe7ff 0%,var(--bg) 54%);}
+:root[data-theme="light"] .hero-badge{background:linear-gradient(150deg,#dbe7ff,#f1f5fb);box-shadow:0 30px 70px -30px rgba(var(--primary-rgb),.45),0 0 0 1px var(--line) inset;}
+:root[data-theme="light"] .hero-badge svg{color:var(--primary);}
+:root[data-theme="light"] body::after{display:none;}
 .onb .kicker{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--primary-2);text-transform:uppercase;}
 .onb h2{font-size:33px;font-weight:800;line-height:1.08;letter-spacing:-.02em;margin:4px 0 8px;max-width:11ch;}
 .onb .lead{color:var(--ink-2);font-size:15px;max-width:30ch;margin-bottom:14px;}
@@ -401,7 +416,7 @@ const ASSET_META={
 const ASSET_ICONS={GRAM:"data:image/png;base64,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",BTC:"data:image/png;base64,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",USDT:"data:image/png;base64,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",ETH:"data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2072%2072%27%3E%3Ccircle%20cx=%2736%27%20cy=%2736%27%20r=%2736%27%20fill=%27%23627eea%27/%3E%3Cg%20fill=%27%23ffffff%27%3E%3Cpath%20fill-opacity=%27.6%27%20d=%27M36%2013v17.4l14%206.3z%27/%3E%3Cpath%20d=%27M36%2013%2022%2036.7l14-6.3z%27/%3E%3Cpath%20fill-opacity=%27.6%27%20d=%27M36%2047.6V59l14-19.4z%27/%3E%3Cpath%20d=%27M36%2059V47.6L22%2039.6z%27/%3E%3Cpath%20fill-opacity=%27.2%27%20d=%27M36%2044.9l14-8.2-14-6.3z%27/%3E%3Cpath%20fill-opacity=%27.6%27%20d=%27M22%2036.7l14%208.2V30.4z%27/%3E%3C/g%3E%3C/svg%3E"};
 const FIATS=["RUB(ПМР)","RUB(РФ)","USD","EUR","UAH","KZT"];
 const CRYPTOS=["USDT","GRAM","BTC","ETH"];
-const METHODS=["АПБ","ЭксимБанк","Сбербанк","Наличные"];
+const METHODS=["АПБ","ЭксимБанк","Сбербанк","Наличные","Банковский перевод","СБП"];
 const PINS=[
   {h:0,  price:0,  label:"Без закрепления"},
   {h:3,  price:1,  label:"3 ч"},
@@ -422,7 +437,7 @@ function defaultState(){
   return {
     hasWallet:false, locked:true, network:"mainnet", cardSkin:"blue",
     addressRaw:null, pubkey:null, enc:null,
-    settings:{currency:"USD", theme:"dark", lang:"Русский", notifications:false},
+    settings:{currency:"USD", theme:"light", lang:"Русский", notifications:false},
     balances:{GRAM:"0", USDT:"0"},           // raw units (string of bigint) by asset
     locks:[],                                 // {id, asset, amount(human float), reason, offerId, ts}
     offers:[],                                // user + demo offers
@@ -439,7 +454,7 @@ function load(){
 }
 function save(){ try{ localStorage.setItem(LS,JSON.stringify(S)); }catch(e){} }
 function seedDemoOffers(){
-   S.offers.push(
+  S.offers.push(
     {id:"demo-sell1", side:"sell", crypto:"USDT", fiat:"RUB(ПМР)", price:15.9, min:500, max:30000,
      method:"АПБ", pin:0, mine:false, name:"PMR Exchange", demo:true, ts:Date.now()},
     {id:"demo-sell2", side:"sell", crypto:"USDT", fiat:"RUB(ПМР)", price:16.0, min:1000, max:50000,
@@ -449,6 +464,7 @@ function seedDemoOffers(){
     {id:"demo-buy2", side:"buy", crypto:"USDT", fiat:"RUB(ПМР)", price:15.5, min:1000, max:25000,
      method:"Наличные", pin:0, mine:false, name:"Cash Point", demo:true, ts:Date.now()},
   );
+}
 
 /* ---------- helpers ---------- */
 const $=(s,r=document)=>r.querySelector(s);
@@ -834,7 +850,7 @@ function renderP2P(){
       <span class="pill ${S.network==="testnet"?"test":"net"}">${networkLabel()}</span>
     </div>
     <button class="bigcta" data-act="create-offer"><span class="pl">${I.plus}</span>Создать оффер</button>
-      <div class="twocard">
+    <div class="twocard">
       <div class="flatcard" data-act="scroll-offers"><span class="ic">${I.grid}</span><b>Офферы</b></div>
       <div class="flatcard" data-act="filters"><span class="ic">${I.filter}</span><b>Фильтры</b></div>
     </div>
@@ -865,10 +881,11 @@ function offerCard(o){
     </div>
     <div class="price"><b>${fmtNum(o.price,2)}</b><span>${esc(o.fiat)} / ${esc(o.crypto)}</span></div>
     <div class="meta">
-          <div><span class="mm">Лимиты:</span> ${fmtNum(o.min,0)}–${fmtNum(o.max,0)} ${esc(o.fiat)}</div>
+      <div><span class="mm">Лимиты:</span> ${fmtNum(o.min,0)}–${fmtNum(o.max,0)} ${esc(o.fiat)}</div>
     </div>
     <div class="pays"><span class="pay-pill">${esc(o.method)}</span></div>
     <div class="tagline">${o.pin?`${I.clock}закреплён · `:""}${esc(tag)}</div>
+  </div>`;
 }
 
 /* ---------- profile ---------- */
@@ -1084,9 +1101,9 @@ function modalSendConfirm(){
 }
 
 /* create offer */
-let offerDraft={side:"sell",crypto:"USDT",fiat:"RUB(ПМР)",price:"",min:"",max:"",method:"АПБ",pin:0}
+let offerDraft={side:"sell",crypto:"USDT",fiat:"RUB(ПМР)",price:"",min:"",max:"",method:"АПБ",pin:0};
 function modalCreateOffer(){
-  offerDraft={side:"sell",crypto:"USDT",fiat:"RUB(ПМР)",price:"",min:"",max:"",method:"АПБ",pin:0}
+  offerDraft={side:"sell",crypto:"USDT",fiat:"RUB(ПМР)",price:"",min:"",max:"",method:"АПБ",pin:0};
   renderOfferForm();
 }
 function renderOfferForm(){
@@ -1147,7 +1164,6 @@ function updateFreezeNote(){
 function modalFilters(){
   const sel=(id,opts,val)=>`<select class="select" id="${id}">${opts.map(o=>`<option ${o===val?"selected":""}>${esc(o)}</option>`).join("")}</select>`;
   openModal(`${sheetHead("Фильтры")}
-    <div class="field"><label>Тип оффера</label>${sel("fSide",["Все","Продажа","Покупка"],p2pFilter.side)}</div>
     <div class="field"><label>Криптовалюта</label>${sel("fCrypto",["Все",...CRYPTOS],p2pFilter.crypto)}</div>
     <div class="field"><label>Валюта оплаты</label>${sel("fFiat",["Все",...FIATS],p2pFilter.fiat)}</div>
     <button class="btn btn-primary btn-lg btn-block" data-act="apply-filters">Применить фильтры</button>
@@ -1456,7 +1472,7 @@ async function sendGo(){
 
 /* ---------- p2p logic ---------- */
 function readFilters(){
-  p2pFilter.side=el("fSide").value; p2pFilter.crypto=el("fCrypto").value; p2pFilter.fiat=el("fFiat").value;
+  p2pFilter.crypto=el("fCrypto").value; p2pFilter.fiat=el("fFiat").value;
 }
 async function submitOffer(){
   const d=offerDraft;
