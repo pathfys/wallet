@@ -267,7 +267,7 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .pays{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;}
 .pay-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:9px;background:var(--panel-2);border:1px solid var(--line-2);color:var(--ink-2);}
 .book-toggle{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0 4px;}
-.book-tab{padding:13px;border-radius:13px;font-weight:700;font-size:15px;border:1px solid var(--line);background:var(--panel);color:var(--ink-3);transition:.15s var(--ease);}
+.book-tab{padding:13px;border-radius:13px;font-weight:700;font-size:15px;border:1px solid var(--line);background:var(--panel);color:var(--ink-3);transition:background .28s var(--ease),border-color .28s var(--ease),color .28s var(--ease),transform .15s var(--ease);}
 .book-tab.buy.on{background:var(--buy-ghost);border-color:var(--buy);color:var(--buy);}
 .book-tab.sell.on{background:var(--sell-ghost);border-color:var(--sell);color:var(--sell);}
 .book-tab:active{transform:scale(.98);}
@@ -301,18 +301,26 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .pagesub{color:var(--primary-2);font-size:12.5px;font-weight:600;margin:2px 2px 16px;}
 
 /* toggle */
-.tgl{width:46px;height:28px;border-radius:15px;background:var(--panel-3);border:1px solid var(--line-2);position:relative;transition:.2s;flex:0 0 auto;margin-left:auto;}
+.tgl{width:46px;height:28px;border-radius:15px;background:var(--panel-3);border:1px solid var(--line-2);position:relative;transition:background .28s var(--ease),border-color .28s var(--ease);flex:0 0 auto;margin-left:auto;}
+.tgl::after{transition:left .28s var(--ease),background .28s var(--ease);}
 .tgl::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:var(--ink-2);transition:.2s;}
 .tgl.on{background:var(--primary);border-color:var(--primary);} .tgl.on::after{left:20px;background:#fff;}
 
 /* ===================== tabbar ===================== */
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;max-width:520px;margin:0 auto;padding:10px var(--gut) calc(10px + env(safe-area-inset-bottom));}
-.tabbar-inner{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:color-mix(in srgb,var(--panel) 92%,transparent);
-  backdrop-filter:blur(20px);border:1px solid var(--line);border-radius:22px;padding:7px;box-shadow:0 20px 44px -26px rgba(0,0,0,.8);}
-.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:9px 4px;border-radius:15px;
-  color:var(--ink-4);font-size:10.5px;font-weight:700;transition:.16s var(--ease);}
+.tabbar-inner{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+  background:color-mix(in srgb,var(--panel) 68%,transparent);
+  backdrop-filter:blur(28px) saturate(185%);-webkit-backdrop-filter:blur(28px) saturate(185%);
+  border:1px solid color-mix(in srgb,var(--line) 70%,transparent);border-radius:22px;padding:7px;
+  box-shadow:0 -2px 18px -8px rgba(0,0,0,.12),0 22px 48px -26px rgba(0,0,0,.55);}
+.tab-ind{position:absolute;top:7px;bottom:7px;left:7px;width:calc((100% - 26px)/3);border-radius:15px;z-index:0;
+  background:var(--panel-3);box-shadow:0 2px 10px -4px rgba(0,0,0,.25);transition:transform .36s var(--ease);}
+.tab{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:9px 4px;border-radius:15px;
+  color:var(--ink-4);font-size:10.5px;font-weight:700;background:transparent;transition:color .3s var(--ease);}
 .tab svg{width:21px;height:21px;}
-.tab.on{color:var(--ink);background:var(--panel-3);}
+.tab.on{color:var(--ink);background:transparent;}
+@keyframes viewIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.view-anim{animation:viewIn .32s var(--ease);}
 
 /* ===================== modal ===================== */
 .modal-root{position:fixed;inset:0;z-index:60;display:none;}
@@ -683,6 +691,8 @@ function render(){
   renderCurrent();
   renderTabbar();
 }
+let lastView=null;
+function viewAnim(){ if(lastView!==view){ lastView=view; const r=el("app").firstElementChild; if(r) r.classList.add("view-anim"); } }
 function renderCurrent(){
   if(!S.hasWallet || S.locked) return;
   if(view==="home") renderHome();
@@ -690,6 +700,7 @@ function renderCurrent(){
   else if(view==="profile") renderProfile();
   else if(view==="settings") renderSettings();
   else if(view.startsWith("settings-")) renderSettingsSub(view.slice(9));
+  viewAnim();
 }
 
 /* ---------- onboarding ---------- */
@@ -1008,8 +1019,15 @@ function renderRevealSeed(){
 /* ---------- tabbar ---------- */
 function renderTabbar(){
   const t=el("tabbar");
-  const tab=(k,ic,lbl)=>`<button class="tab ${view===k?"on":""}" data-act="tab" data-tab="${k}">${ic}<span>${lbl}</span></button>`;
-  t.innerHTML=`<div class="tabbar-inner">${tab("home",I.home,"Главная")}${tab("p2p",I.swap,"P2P")}${tab("profile",I.user,"Профиль")}</div>`;
+  const order=["home","p2p","profile"];
+  const idx=Math.max(0,order.indexOf(view));
+  if(!t.querySelector(".tabbar-inner")){
+    const tab=(k,ic,lbl)=>`<button class="tab" data-act="tab" data-tab="${k}">${ic}<span>${lbl}</span></button>`;
+    t.innerHTML=`<div class="tabbar-inner"><div class="tab-ind"></div>${tab("home",I.home,"Главная")}${tab("p2p",I.swap,"P2P")}${tab("profile",I.user,"Профиль")}</div>`;
+  }
+  const ind=t.querySelector(".tab-ind");
+  if(ind) ind.style.transform=`translateX(calc(${idx} * (100% + 6px)))`;
+  t.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on", b.dataset.tab===view));
 }
 
 /* ===================== MODALS ===================== */
@@ -1276,7 +1294,7 @@ async function act(name,ds={}){
     /* p2p */
     case "create-offer": modalCreateOffer(); break;
     case "filters": modalFilters(); break;
-    case "book": p2pSide=ds.v; renderP2P(); break;
+    case "book": p2pSide=ds.v; lastView=null; renderCurrent(); break;
     case "pick-pin": offerDraft.pin=Number(ds.h); document.querySelectorAll("#pinGrid .pin-opt").forEach(n=>n.classList.toggle("on",Number(n.dataset.h)===offerDraft.pin)); break;
     case "offer-submit": await submitOffer(); break;
     case "apply-filters": readFilters(); closeModal(); renderP2P(); toast("Фильтры применены","ok"); break;
@@ -1292,7 +1310,7 @@ async function act(name,ds={}){
     case "set": {
       const k=ds.key;
       if(k==="seed"){ view="settings-seed"; renderRevealSeed(); }
-      else { view="settings-"+k; renderSettingsSub(k); }
+      else { view="settings-"+k; renderCurrent(); }
       break;
     }
     case "reveal-seed": await revealSeed(); break;
