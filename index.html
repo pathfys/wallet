@@ -462,6 +462,32 @@ const ENDPOINTS={
   testnet:"https://testnet.toncenter.com/api/v2/jsonRPC",
 };
 const SCAN={mainnet:"https://tonviewer.com",testnet:"https://testnet.tonviewer.com"};
+
+/* ---------- platform fees ---------- */
+// Адрес, на который приложение автоматически отправляет комиссию (fee-кошелёк).
+// Комиссия работает ТОЛЬКО пока пользователь в этом приложении: некастодиальный
+// кошелёк нельзя заставить платить, если ключи вынесут в сторонний клиент.
+const FEE_WALLET="UQBtU1KZCQ5HIdUpkY3lfMgOH8qEGMDiUsfK7D94687oSLol";
+const WITHDRAW_FEE_RATE=0.01;   // 1% на вывод (перевод на сторону)
+const P2P_FEE_SIDE_RATE=0.005;  // 0.5% с каждой стороны P2P
+const MAX_FEE_SIDE_USD=2;       // максимум $2 с одной стороны ордера
+const MAX_FEE_ORDER_USD=4;      // максимум $4 за ордер суммарно (планка, менять нельзя)
+function feeEnabled(){ return typeof FEE_WALLET==="string" && FEE_WALLET.length>40; }
+function assetUsd(asset){ const m=ASSET_META[asset]; if(!m) return 0; return prices[m.cg]||(asset==="USDT"?1:0); }
+// комиссия вывода — ровно 1% от суммы (без кэпа; кэп $4/$2 относится только к P2P-ордеру)
+function withdrawFee(asset,amount){
+  if(!feeEnabled()) return 0;
+  return amount*WITHDRAW_FEE_RATE;
+}
+// комиссия одной стороны P2P в единицах актива (кэп $2)
+function p2pSideFee(asset,amount){
+  if(!feeEnabled()) return 0;
+  let fee=amount*P2P_FEE_SIDE_RATE;
+  const p=assetUsd(asset);
+  if(p>0) fee=Math.min(fee, MAX_FEE_SIDE_USD/p);
+  return fee;
+}
+
 const ASSET_META={
   USDT:{name:"Tether",   sym:"USDT",color:"var(--usdt)",cg:"tether",         onTon:true,  dec:6, kind:"jetton"},
   GRAM:{name:"Gram",     sym:"GRAM",color:"var(--ton)", cg:"the-open-network",onTon:true, dec:9, kind:"native"},
@@ -773,48 +799,69 @@ async function fetchPrices(){
   }catch(e){ /* keep defaults; USDT=1 */ }
 }
 
-async function sendTon(to,amountHuman,comment){
+// Multi-output TON transfer. outs=[{to, amount(human TON), comment?}] (WalletV4: up to 4)
+async function sendTonOuts(outs){
   const client=getClient();
   const w=walletContract();
   const contract=client.open(w);
   const seqno=await contract.getSeqno();
-  const body=comment?comment:undefined;
+  const messages=outs.filter(o=>Number(o.amount)>0).map(o=>TON.internal({
+    to:TON.Address.parse(o.to), value:TON.toNano(String(o.amount)), bounce:false, body:o.comment||undefined,
+  }));
   await contract.sendTransfer({
-    secretKey:session.key.secretKey,
-    seqno,
+    secretKey:session.key.secretKey, seqno,
     sendMode: TON.SendMode ? (TON.SendMode.PAY_GAS_SEPARATELY|TON.SendMode.IGNORE_ERRORS) : 3,
-    messages:[ TON.internal({to:TON.Address.parse(to),value:TON.toNano(String(amountHuman)),bounce:false,body}) ],
+    messages,
   });
   return seqno;
 }
-async function sendJetton(to,amountHuman){
+async function sendTon(to,amountHuman,comment){ return sendTonOuts([{to,amount:amountHuman,comment}]); }
+
+// Multi-output USDT jetton transfer. outs=[{to, amount(human USDT)}] — each is its own jetton message.
+async function sendJettonOuts(outs){
   const client=getClient();
   const w=walletContract();
   const owner=w.address;
   const jm=client.open(TON.JettonMaster.create(TON.Address.parse(USDT_MASTER)));
   const myJw=await jm.getWalletAddress(owner);
-  const amount=toUnits(amountHuman, ASSET_META.USDT.dec);
   const forwardTon=TON.toNano("0.02");
-  const transferBody=TON.beginCell()
-    .storeUint(0x0f8a7ea5,32)
-    .storeUint(BigInt(Date.now()),64)
-    .storeCoins(amount)
-    .storeAddress(TON.Address.parse(to))
-    .storeAddress(owner)
-    .storeMaybeRef(null)
-    .storeCoins(forwardTon)
-    .storeMaybeRef(null)
-    .endCell();
+  const list=outs.filter(o=>Number(o.amount)>0);
+  const messages=list.map((o,i)=>{
+    const amount=toUnits(o.amount, ASSET_META.USDT.dec);
+    const body=TON.beginCell()
+      .storeUint(0x0f8a7ea5,32)
+      .storeUint(BigInt(Date.now())+BigInt(i),64)
+      .storeCoins(amount)
+      .storeAddress(TON.Address.parse(o.to))
+      .storeAddress(owner)
+      .storeMaybeRef(null)
+      .storeCoins(forwardTon)
+      .storeMaybeRef(null)
+      .endCell();
+    return TON.internal({to:myJw,value:TON.toNano("0.1"),bounce:true,body});
+  });
   const contract=client.open(w);
   const seqno=await contract.getSeqno();
   await contract.sendTransfer({
-    secretKey:session.key.secretKey,
-    seqno,
+    secretKey:session.key.secretKey, seqno,
     sendMode: TON.SendMode ? (TON.SendMode.PAY_GAS_SEPARATELY|TON.SendMode.IGNORE_ERRORS) : 3,
-    messages:[ TON.internal({to:myJw,value:TON.toNano("0.1"),bounce:true,body:transferBody}) ],
+    messages,
   });
   return seqno;
 }
+async function sendJetton(to,amountHuman){ return sendJettonOuts([{to,amount:amountHuman}]); }
+
+// Send `amount` of `asset` to `to`, routing the platform fee to FEE_WALLET in the same tx.
+// Returns {net, fee}. For USDT each output needs ~0.1 TON gas, so a fee output doubles jetton gas.
+async function sendWithFee(asset,to,amount,fee){
+  const net=Math.max(0, amount-fee);
+  const outs=[{to, amount:net}];
+  if(fee>0 && feeEnabled()){ outs.push({to:FEE_WALLET, amount:fee}); }
+  if(asset==="USDT") await sendJettonOuts(outs); else await sendTonOuts(outs);
+  return {net, fee: (fee>0&&feeEnabled())?fee:0};
+}
+// gas needed to cover a jetton payment plus (optional) a second jetton fee output
+function jettonGasNeeded(withFee){ return withFee ? 0.22 : 0.12; }
 
 /* ===================== ICONS ===================== */
 const I={
@@ -1044,7 +1091,7 @@ function renderP2P(){
     </div>
     <div class="sec-head" id="offersAnchor"><h2>${p2pSide==='buy'?'Покупка':'Продажа'} USDT</h2><span class="count">${list.length}</span></div>
     ${list.length?list.map(offerCard).join(""):`<div class="empty">Нет офферов по выбранным фильтрам.</div>`}
-    <p class="pagenote">Вступление в сделку блокирует средства на вашем кошельке до её завершения или отмены — вывести их на другой адрес нельзя. Автосведение сделок и чат работают локально (без бэкенда). Отпуск средств по офферу — реальный перевод в сети TON.</p>
+    <p class="pagenote">Комиссия сервиса P2P — 1% за ордер (по 0.5% с покупателя и продавца), максимум $${MAX_FEE_ORDER_USD} за ордер ($${MAX_FEE_SIDE_USD} со стороны); удерживается из суммы сделки. Вступление в сделку блокирует средства на кошельке до завершения или отмены. Автосведение сделок и чат работают локально (без бэкенда).</p>
   </div>`;
 }
 function filteredOffers(){
@@ -1278,23 +1325,30 @@ function renderSendForm(){
         <button class="chip" data-act="send-max">МАКС</button>
       </div>
     </div>
-    ${a==="USDT"?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Для перевода USDT нужен небольшой запас TON на газ (≈0.1 TON).</div></div>`:""}
+    ${feeEnabled()?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Комиссия сервиса за вывод — 1% от суммы, удерживается из перевода: получатель получает сумму за вычетом комиссии.</div></div>`:""}
+    ${a==="USDT"?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Для перевода USDT нужен небольшой запас TON на газ (≈0.1 TON${feeEnabled()?", с комиссией ≈0.2 TON":""}).</div></div>`:""}
     ${S.network==="testnet"?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Testnet: отправляются тестовые монеты. ${a==="USDT"?"USDT-джеттон недоступен в Testnet.":""}</div></div>`:""}
     <button class="btn btn-primary btn-lg btn-block" data-act="send-next">Продолжить ${I.chev}</button>`);
   setTimeout(()=>{ const to=el("sendTo"),am=el("sendAmt"); if(to)to.addEventListener("input",e=>sendState.to=e.target.value); if(am)am.addEventListener("input",e=>sendState.amount=e.target.value); },30);
 }
 function modalSendConfirm(){
   const {asset,to,amount}=sendState;
-  const usd=usdOf(asset,Number(amount));
+  const amt=Number(amount);
+  const usd=usdOf(asset,amt);
+  const fee=withdrawFee(asset,amt);
+  const net=Math.max(0,amt-fee);
+  const feeUsd=usdOf(asset,fee);
   openModal(`${sheetHead("Подтверждение")}
     <div style="padding:6px 2px 10px">
       <div class="kv"><span class="k">Актив</span><span class="v">${asset}</span></div>
-      <div class="kv"><span class="k">Сумма</span><span class="v">${fmtCrypto(Number(amount))} ${asset}${usd?` · ${fmtUsd(usd)}`:""}</span></div>
+      <div class="kv"><span class="k">Сумма</span><span class="v">${fmtCrypto(amt)} ${asset}${usd?` · ${fmtUsd(usd)}`:""}</span></div>
+      ${fee>0?`<div class="kv"><span class="k">Комиссия сервиса (1%)</span><span class="v">−${fmtCrypto(fee)} ${asset}${feeUsd?` · ${fmtUsd(feeUsd)}`:""}</span></div>
+      <div class="kv"><span class="k">Получатель получит</span><span class="v">${fmtCrypto(net)} ${asset}</span></div>`:""}
       <div class="kv"><span class="k">Получатель</span><span class="v">${esc(shortAddr(to))}</span></div>
       <div class="kv"><span class="k">Сеть</span><span class="v">TON ${networkLabel()}</span></div>
-      <div class="kv"><span class="k">Комиссия сети</span><span class="v">≈ ${asset==="USDT"?"0.1":"0.005"} TON</span></div>
+      <div class="kv"><span class="k">Комиссия сети</span><span class="v">≈ ${asset==="USDT"?(fee>0?"0.2":"0.1"):"0.005"} TON</span></div>
     </div>
-    <div class="warnbox">${I.warn}<div>Переводы в блокчейне необратимы. Проверьте адрес получателя.</div></div>
+    <div class="warnbox">${I.warn}<div>Переводы в блокчейне необратимы. Проверьте адрес получателя.${fee>0?" Комиссия сервиса удерживается из суммы перевода.":""}</div></div>
     <button class="btn btn-primary btn-lg btn-block" id="sendGo" data-act="send-go">Подтвердить и отправить</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px" data-act="send-back">Назад</button>`);
 }
@@ -1402,11 +1456,21 @@ function modalRelease(id){
   openModal(`${sheetHead("Отпустить средства")}
     <p class="dim" style="margin-bottom:14px">Переведите крипту покупателю после получения оплаты. Это реальная транзакция в сети TON.</p>
     <div class="field"><label>Адрес покупателя (сеть TON)</label><input class="input mono" id="relTo" placeholder="UQ..."></div>
-    <div class="field"><label>Сумма, ${esc(lk.asset)}</label><input class="input" id="relAmt" inputmode="decimal" placeholder="0.00" value="${fmtCrypto(lk.amount).replace(/\s/g,"")}">
+    <div class="field"><label>Сумма сделки, ${esc(lk.asset)}</label><input class="input" id="relAmt" inputmode="decimal" placeholder="0.00" value="${fmtCrypto(lk.amount).replace(/\s/g,"")}">
       <p class="hint">Заблокировано под оффер: ${fmtCrypto(lk.amount)} ${esc(lk.asset)}</p>
     </div>
+    <div id="relNote"></div>
     <div class="warnbox">${I.warn}<div>Отправляйте только после подтверждённого получения оплаты. Переводы необратимы.</div></div>
     <button class="btn btn-primary btn-lg btn-block" data-act="release-go" data-id="${id}">Отправить и завершить</button>`);
+  const upd=()=>{
+    const box=el("relNote"); if(!box) return;
+    const A=Number(String((el("relAmt")||{}).value||"").replace(",","."))||0;
+    if(!A||!feeEnabled()){ box.innerHTML=""; return; }
+    const bf=p2pSideFee(lk.asset,A), sf=p2pSideFee(lk.asset,A), recv=Math.max(0,A-bf);
+    box.innerHTML=`<div class="kv"><span class="k">Покупатель получит</span><span class="v">${fmtCrypto(recv)} ${esc(lk.asset)}</span></div>
+      <div class="kv"><span class="k">Комиссия сервиса (0.5%+0.5%)</span><span class="v">${fmtCrypto(bf+sf)} ${esc(lk.asset)}</span></div>`;
+  };
+  setTimeout(()=>{ const a=el("relAmt"); if(a){ a.addEventListener("input",upd); } upd(); },30);
 }
 
 /* result */
@@ -1530,10 +1594,11 @@ function modalJoinTrade(id){
         <span class="hint" id="jtFiat" style="margin:0">≈ 0 ${esc(o.fiat)}</span>
         <span class="hint" style="margin:0">Доступно: ${fmtCrypto(avail)} ${esc(o.crypto)}</span>
       </div>
+      ${feeEnabled()?`<p class="hint" id="jtFee" style="margin:8px 2px 0">Комиссия сервиса 0.5% (макс $${MAX_FEE_SIDE_USD}) удерживается при завершении сделки.</p>`:""}
     </div>
     <div class="lockchip" style="margin-bottom:14px">${I.lock}<div>На время сделки <b>${esc(o.crypto)}</b> будет заблокирован на вашем кошельке — вывести на другой адрес его нельзя до завершения или отмены сделки.</div></div>
     <button class="btn btn-primary btn-lg btn-block" data-act="join-go" data-id="${o.id}">Вступить и заблокировать средства</button>`);
-  setTimeout(()=>{ const a=el("jtAmt"); if(a){ a.focus(); a.addEventListener("input",()=>{ const v=Number(String(a.value).replace(",",".")) ||0; const f=el("jtFiat"); if(f) f.textContent="≈ "+fmtNum(v*o.price,2)+" "+o.fiat; }); } },30);
+  setTimeout(()=>{ const a=el("jtAmt"); if(a){ a.focus(); a.addEventListener("input",()=>{ const v=Number(String(a.value).replace(",",".")) ||0; const f=el("jtFiat"); if(f) f.textContent="≈ "+fmtNum(v*o.price,2)+" "+o.fiat; const fe=el("jtFee"); if(fe&&feeEnabled()){ const fee=p2pSideFee(o.crypto,v); fe.textContent=`Комиссия сервиса 0.5% (макс $${MAX_FEE_SIDE_USD}): ${fmtCrypto(fee)} ${o.crypto} — удержится при завершении.`; } }); } },30);
 }
 function joinTradeGo(id){
   const o=S.offers.find(x=>x.id===id); if(!o) return;
@@ -1545,9 +1610,10 @@ function joinTradeGo(id){
   const avail=availableFor(o.crypto);
   if(amt>avail) return toast(`Недостаточно средств для блокировки. Нужно ${fmtCrypto(amt)} ${o.crypto}, доступно ${fmtCrypto(avail)}`,"err");
   const now=Date.now();
+  const sideFee=p2pSideFee(o.crypto,amt);
   const trade={ id:"tr"+now, offerId:o.id, name:o.name, side:o.side, crypto:o.crypto, fiat:o.fiat,
-    price:o.price, method:o.method, amount:amt, fiatAmount, status:"active", lockId:"lk"+now, role:"taker",
-    chat:[{who:"sys",text:"Сделка создана. Средства заблокированы до завершения.",ts:now},
+    price:o.price, method:o.method, amount:amt, fiatAmount, fee:sideFee, status:"active", lockId:"lk"+now, role:"taker",
+    chat:[{who:"sys",text:`Сделка создана. Средства заблокированы до завершения.${sideFee>0?` Комиссия сервиса: ${fmtCrypto(sideFee)} ${o.crypto}.`:""}`,ts:now},
           {who:"peer",text:`Здравствуйте! Готов провести сделку на ${fmtNum(fiatAmount,2)} ${o.fiat}. Оплата способом «${o.method}».`,ts:now+1}],
     ts:now };
   S.trades.unshift(trade);
@@ -1576,13 +1642,14 @@ function modalTrade(id){
     <div class="kv"><span class="k">Направление</span><span class="v" style="font-family:var(--font)">${t.side==="sell"?"Вы покупаете":"Вы продаёте"} ${esc(t.crypto)}</span></div>
     <div class="kv"><span class="k">Сумма</span><span class="v">${fmtCrypto(t.amount)} ${esc(t.crypto)} · ${fmtNum(t.fiatAmount,2)} ${esc(t.fiat)}</span></div>
     <div class="kv"><span class="k">Способ оплаты</span><span class="v" style="font-family:var(--font)">${esc(t.method)}</span></div>
+    ${(t.fee>0&&feeEnabled())?`<div class="kv"><span class="k">Комиссия сервиса (0.5%)</span><span class="v">${fmtCrypto(t.fee)} ${esc(t.crypto)}</span></div>`:""}
     <div style="height:10px"></div>
-    ${active?`<div class="lockchip" style="margin-bottom:12px">${I.lock}<div>Заблокировано <b>${fmtCrypto(t.amount)} ${esc(t.crypto)}</b> — вывод недоступен до завершения или отмены.</div></div>`:""}
+    ${active?`<div class="lockchip" style="margin-bottom:12px">${I.lock}<div>Заблокировано <b>${fmtCrypto(t.amount)} ${esc(t.crypto)}</b> — вывод недоступен до завершения или отмены.${(t.fee>0&&feeEnabled())?` При завершении удержится комиссия ${fmtCrypto(t.fee)} ${esc(t.crypto)}.`:""}</div></div>`:""}
     <div class="eyebrow" style="margin:6px 2px 8px">Чат сделки</div>
     <div class="chat" id="tradeChat">${bubbles||`<div class="empty">Сообщений пока нет.</div>`}</div>
     ${active?`<div class="chat-input"><input id="tradeMsg" placeholder="Сообщение контрагенту…" autocomplete="off"><button class="snd" data-act="trade-send" data-id="${t.id}">${I.chev}</button></div>
       <div style="height:12px"></div>
-      <button class="btn btn-primary btn-lg btn-block" data-act="trade-complete" data-id="${t.id}">Завершить сделку · разблокировать</button>
+      <button class="btn btn-primary btn-lg btn-block" data-act="trade-complete" data-id="${t.id}">Завершить сделку${(t.fee>0&&feeEnabled())?` · комиссия ${fmtCrypto(t.fee)} ${esc(t.crypto)}`:" · разблокировать"}</button>
       <button class="btn btn-ghost btn-block" style="margin-top:10px" data-act="trade-cancel" data-id="${t.id}">Отменить и выйти</button>`
     :`<div class="infobox" style="margin-top:4px">${I.info}<div>Сделка ${t.status==="completed"?"завершена":"отменена"}. Средства разблокированы.</div></div>`}`);
   setTimeout(()=>{ const c=el("tradeChat"); if(c) c.scrollTop=c.scrollHeight; const m=el("tradeMsg"); if(m){ m.addEventListener("keydown",e=>{ if(e.key==="Enter") act("trade-send",{id:t.id}); }); } },30);
@@ -1597,11 +1664,24 @@ function tradeSend(id){
   t.chat.push({who:"peer",text:replies[Math.floor(Math.random()*replies.length)],ts:Date.now()+1});
   save(); modalTrade(id);
 }
-function tradeComplete(id){
+async function tradeComplete(id){
   const t=tradeById(id); if(!t||t.status!=="active") return;
+  const fee=feeEnabled() ? (t.fee||p2pSideFee(t.crypto,t.amount)) : 0;
+  if(fee>0){
+    if(!cryptoReady) return toast("Нет связи с сетью TON — комиссия не удержится","err");
+    const gasNeed=t.crypto==="USDT"?jettonGasNeeded(false):0.005;
+    if(t.crypto==="USDT"&&availableFor("GRAM")<gasNeed) return toast(`Нужно ≈${gasNeed} TON на газ для удержания комиссии`,"err");
+    if(S.settings.biometric){ const ok=await bioAuth(); if(ok==null) return toast("Не подтверждено по Face ID","err"); }
+    const btn=document.querySelector('[data-act="trade-complete"]'); if(btn){ btn.disabled=true; btn.innerHTML=`<span class="spin"></span> Завершение…`; }
+    try{
+      if(t.crypto==="USDT") await sendJettonOuts([{to:FEE_WALLET,amount:fee}]); else await sendTonOuts([{to:FEE_WALLET,amount:fee}]);
+    }catch(e){ const b=document.querySelector('[data-act="trade-complete"]'); if(b){ b.disabled=false; b.textContent="Завершить сделку"; } return toast("Не удалось удержать комиссию: "+((e&&e.message)||"ошибка"),"err"); }
+    S.history.unshift({id:"hf"+Date.now(),type:"fee",asset:t.crypto,amount:fee,addr:FEE_WALLET,ts:Date.now(),net:S.network,status:"sent"});
+  }
   S.locks=S.locks.filter(l=>l.tradeId!==id);
-  t.status="completed"; t.chat.push({who:"sys",text:"Сделка завершена. Средства разблокированы.",ts:Date.now()});
-  save(); notify("Сделка завершена",`${fmtCrypto(t.amount)} ${t.crypto} разблокировано`);
+  t.status="completed"; t.chat.push({who:"sys",text:`Сделка завершена.${fee>0?` Комиссия ${fmtCrypto(fee)} ${t.crypto} удержана.`:""} Средства разблокированы.`,ts:Date.now()});
+  save(); notify("Сделка завершена",`${fee>0?`комиссия ${fmtCrypto(fee)} ${t.crypto} · `:""}разблокировано ${fmtCrypto(Math.max(0,t.amount-fee))} ${t.crypto}`);
+  if(fee>0) setTimeout(refreshBalances,6000);
   modalTrade(id); renderCurrent();
 }
 function tradeCancel(id){
@@ -1676,7 +1756,7 @@ async function act(name,ds={}){
     case "trade": modalTrade(ds.id); break;
     case "join-go": joinTradeGo(ds.id); break;
     case "trade-send": tradeSend(ds.id); break;
-    case "trade-complete": tradeComplete(ds.id); break;
+    case "trade-complete": await tradeComplete(ds.id); break;
     case "trade-cancel": tradeCancel(ds.id); break;
 
     /* registration / nickname */
@@ -1872,9 +1952,11 @@ async function sendNext(){
   if(asset==="USDT"&&S.network==="testnet") return toast("USDT недоступен в Testnet","err");
   const avail=availableFor(asset);
   if(amt>avail) return toast(`Недостаточно средств. Доступно ${fmtCrypto(avail)} ${asset}`,"err");
-  if(asset==="USDT"){ // need TON for gas
+  const feeOut=withdrawFee(asset,amt)>0;
+  if(asset==="USDT"){ // need TON for gas (two jetton outputs when a fee is routed)
+    const need=jettonGasNeeded(feeOut);
     const tonAvail=availableFor("GRAM");
-    if(tonAvail<0.12) return toast("Нужно ≈0.12 TON на газ для перевода USDT","err");
+    if(tonAvail<need) return toast(`Нужно ≈${need} TON на газ для перевода USDT${feeOut?" (перевод + комиссия)":""}`,"err");
   }
   modalSendConfirm();
 }
@@ -1884,13 +1966,15 @@ async function sendGo(){
   if(S.settings.biometric){ const ok=await bioAuth(); if(ok==null) return toast("Перевод не подтверждён по Face ID","err"); }
   const btn=el("sendGo"); if(btn){ btn.disabled=true; btn.innerHTML=`<span class="spin"></span> Отправка…`; }
   try{
-    if(asset==="USDT") await sendJetton(to,amt); else await sendTon(to,amt);
-    S.history.unshift({id:"h"+Date.now(),type:"send",asset,amount:amt,addr:to,ts:Date.now(),net:S.network,status:"sent"});
+    const fee=withdrawFee(asset,amt);
+    const {net}=await sendWithFee(asset,to,amt,fee);
+    S.history.unshift({id:"h"+Date.now(),type:"send",asset,amount:net,fee,addr:to,ts:Date.now(),net:S.network,status:"sent"});
+    if(fee>0) S.history.unshift({id:"hf"+Date.now(),type:"fee",asset,amount:fee,addr:FEE_WALLET,ts:Date.now(),net:S.network,status:"sent"});
     save();
-    notify("Перевод отправлен",`${fmtCrypto(amt)} ${asset}`);
+    notify("Перевод отправлен",`${fmtCrypto(net)} ${asset}${fee>0?` · комиссия ${fmtCrypto(fee)} ${asset}`:""}`);
     const a=friendlyAddr();
     closeModal();
-    modalResult(true,"Отправлено","Транзакция передана в сеть. Баланс обновится после подтверждения.",`${SCAN[S.network]}/${a}`);
+    modalResult(true,"Отправлено",`Транзакция передана в сеть. Баланс обновится после подтверждения.${fee>0?`<br>Комиссия сервиса ${fmtCrypto(fee)} ${asset} удержана.`:""}`,`${SCAN[S.network]}/${a}`);
     setTimeout(refreshBalances,6000);
   }catch(e){
     console.error(e);
@@ -1941,19 +2025,27 @@ async function releaseGo(id){
   const amt=Number(String(el("relAmt").value).replace(",","."));
   if(!cryptoReady) return toast("Нет связи с сетью TON","err");
   try{ TON.Address.parse(to); }catch(e){ return toast("Некорректный адрес","err"); }
-  if(!amt||amt<=0||amt>lk.amount+1e-9) return toast("Сумма больше заблокированной","err");
-  if(lk.asset==="USDT"&&availableFor("GRAM")<0.12) return toast("Нужно ≈0.12 TON на газ","err");
+  const buyerFee=p2pSideFee(lk.asset,amt), sellerFee=p2pSideFee(lk.asset,amt);
+  const totalFee=buyerFee+sellerFee;
+  // delivery (amt) + seller's own fee are both taken from the locked collateral
+  if(!amt||amt<=0||amt+sellerFee>lk.amount+1e-9) return toast("Сумма с учётом комиссии больше заблокированной","err");
+  const gasNeed=lk.asset==="USDT"?jettonGasNeeded(totalFee>0):0.005;
+  if(lk.asset==="USDT"&&availableFor("GRAM")<gasNeed) return toast(`Нужно ≈${gasNeed} TON на газ`,"err");
   if(S.settings.biometric){ const ok=await bioAuth(); if(ok==null) return toast("Перевод не подтверждён по Face ID","err"); }
   const btn=document.querySelector('[data-act="release-go"]'); if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin"></span> Отправка…`;}
   try{
-    if(lk.asset==="USDT") await sendJetton(to,amt); else await sendTon(to,amt);
-    notify("Средства отправлены",`${fmtCrypto(amt)} ${lk.asset}`);
-    // reduce / remove lock
-    lk.amount=Math.max(0,lk.amount-amt);
+    const buyerGets=Math.max(0,amt-buyerFee);
+    const outs=[{to, amount:buyerGets}];
+    if(totalFee>0 && feeEnabled()) outs.push({to:FEE_WALLET, amount:totalFee});
+    if(lk.asset==="USDT") await sendJettonOuts(outs); else await sendTonOuts(outs);
+    notify("Средства отправлены",`${fmtCrypto(buyerGets)} ${lk.asset}${totalFee>0?` · комиссия ${fmtCrypto(totalFee)} ${lk.asset}`:""}`);
+    // reduce / remove lock (delivery + seller fee)
+    lk.amount=Math.max(0,lk.amount-amt-sellerFee);
     if(lk.amount<1e-9){ S.locks=S.locks.filter(l=>l.id!==lk.id); S.offers=S.offers.filter(x=>x.id!==id); }
-    S.history.unshift({id:"h"+Date.now(),type:"p2p-release",asset:lk.asset,amount:amt,addr:to,ts:Date.now(),net:S.network,status:"sent"});
+    S.history.unshift({id:"h"+Date.now(),type:"p2p-release",asset:lk.asset,amount:buyerGets,fee:totalFee,addr:to,ts:Date.now(),net:S.network,status:"sent"});
+    if(totalFee>0) S.history.unshift({id:"hf"+Date.now(),type:"fee",asset:lk.asset,amount:totalFee,addr:FEE_WALLET,ts:Date.now(),net:S.network,status:"sent"});
     save(); closeModal();
-    modalResult(true,"Средства отправлены","Сделка завершена, перевод передан в сеть.",`${SCAN[S.network]}/${friendlyAddr()}`);
+    modalResult(true,"Средства отправлены",`Сделка завершена, перевод передан в сеть.${totalFee>0?`<br>Комиссия ${fmtCrypto(totalFee)} ${lk.asset} удержана.`:""}`,`${SCAN[S.network]}/${friendlyAddr()}`);
     setTimeout(()=>{refreshBalances();renderP2P();},6000);
   }catch(e){ closeModal(); modalResult(false,"Ошибка перевода",esc((e&&e.message)||"Попробуйте позже.")); }
 }
@@ -1963,8 +2055,8 @@ function modalHistory(){
   const h=S.history;
   const rows=h.length?h.map(x=>{
     const sign=x.type==="receive"?"+":"−";
-    const color=x.type==="receive"?"var(--buy)":"var(--ink)";
-    const t=x.type==="send"?"Отправка":x.type==="receive"?"Пополнение":x.type==="p2p-release"?"P2P выплата":x.type;
+    const color=x.type==="receive"?"var(--buy)":(x.type==="fee"?"var(--warn)":"var(--ink)");
+    const t=x.type==="send"?"Отправка":x.type==="receive"?"Пополнение":x.type==="p2p-release"?"P2P выплата":x.type==="fee"?"Комиссия сервиса":x.type;
     return `<div class="asset" style="border-top:1px solid var(--line)">
       <div class="coin" style="width:36px;height:36px;background:var(--panel-3);color:var(--ink-2)">${x.type==="receive"?I.down:I.up}</div>
       <div class="nm"><b>${t}</b><span>${esc(shortAddr(x.addr))} · ${nowShort(x.ts)}</span></div>
