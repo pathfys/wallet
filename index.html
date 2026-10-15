@@ -9,7 +9,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f6bff'/%3E%3Cpath d='M9 12h11a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H9z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='19' cy='17' r='1.6' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 /* ===================== design tokens ===================== */
@@ -24,9 +24,9 @@
   --sell:#f6465d; --sell-ghost:rgba(246,70,93,.14);
   --warn:#f0b90b; --warn-ghost:rgba(240,185,11,.14);
   --btc:#f7931a; --eth:#627eea; --usdt:#26a17b; --ton:#0098ea;
-  --font:"Plus Jakarta Sans","Segoe UI","Helvetica Neue",Arial,sans-serif;
+  --font:"Inter","Segoe UI","Helvetica Neue",Arial,sans-serif;
   --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
-  --display:"Space Grotesk","Plus Jakarta Sans",sans-serif;
+  --display:"Inter","Segoe UI",sans-serif;
   --r-sm:9px; --r-md:14px; --r-lg:20px; --r-xl:26px;
   --gut:16px; --tabbar-h:72px;
   --sh-1:0 1px 0 rgba(255,255,255,.03) inset,0 10px 30px -18px rgba(0,0,0,.8);
@@ -76,18 +76,21 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 /* background figure: topographic contours (D) + soft aurora depth (C) */
 .card-fig{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;border-radius:inherit;}
 .card-fig::before{content:"";position:absolute;inset:0;background:
-  radial-gradient(58% 78% at 80% 94%,rgba(255,255,255,.22),transparent 60%),
-  radial-gradient(46% 60% at 99% 26%,rgba(255,255,255,.14),transparent 62%);}
+  radial-gradient(62% 84% at 82% 100%,rgba(255,255,255,.26),transparent 62%),
+  radial-gradient(50% 64% at 100% 20%,rgba(255,255,255,.12),transparent 64%),
+  radial-gradient(40% 50% at 8% 2%,rgba(255,255,255,.1),transparent 55%);}
 /* soft diagonal light sweep for a polished, glossy finish */
 .card-fig::after{content:"";position:absolute;inset:0;pointer-events:none;background:
-  linear-gradient(118deg,transparent 36%,rgba(255,255,255,.1) 48%,rgba(255,255,255,.02) 54%,transparent 66%);}
-.card-fig .fig-topo{position:absolute;inset:0;width:100%;height:100%;opacity:.28;}
+  linear-gradient(118deg,transparent 40%,rgba(255,255,255,.08) 49%,rgba(255,255,255,.015) 54%,transparent 68%);}
+.card-fig .fig-topo{position:absolute;inset:0;width:100%;height:100%;opacity:.16;}
 .balance .row1{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}
-.balance .lbl{font-size:12.5px;font-weight:600;opacity:.9;}
-.balance .big{font-family:var(--display);font-weight:700;font-size:42px;letter-spacing:-.02em;margin:10px 0 6px;position:relative;z-index:1;font-variant-numeric:tabular-nums;}
-.balance .big small{font-size:24px;opacity:.78;}
+.balance .lbl{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.82;}
+.balance .big{font-family:var(--display);font-weight:800;font-size:44px;letter-spacing:-.025em;margin:12px 0 10px;position:relative;z-index:1;font-variant-numeric:tabular-nums;}
+.balance .big small{font-size:24px;opacity:.72;font-weight:700;}
 .balance .foot{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}
-.balance .chg{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:5px;}
+.balance .chg{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;letter-spacing:-.01em;padding:5px 10px;border-radius:10px;background:rgba(8,12,20,.22);}
+.balance .chg.up{color:#4cf0ad;} .balance .chg.down{color:#ff8192;}
+.balance .chg .chg-sub{color:rgba(255,255,255,.7);font-weight:600;font-size:10.5px;}
 .balance .cur{font-size:11px;font-weight:700;letter-spacing:.04em;background:rgba(255,255,255,.18);padding:4px 9px;border-radius:8px;}
 .balance .mini{width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.16);display:grid;place-items:center;}
 .balance .mini svg{width:17px;height:17px;}
@@ -493,7 +496,7 @@ const SCAN={mainnet:"https://tonviewer.com",testnet:"https://testnet.tonviewer.c
 // Адрес, на который приложение автоматически отправляет комиссию (fee-кошелёк).
 // Комиссия работает ТОЛЬКО пока пользователь в этом приложении: некастодиальный
 // кошелёк нельзя заставить платить, если ключи вынесут в сторонний клиент.
-const FEE_WALLET="UQBtU1KZCQ5HIdUpkY3lfMgOH8qEGMDiUsfK7D94687oSLol";
+const FEE_WALLET="UQAtqU5yzF4yMzJqqvCSJxH9dgaOr8Mciuikl3ws66scVoaW";
 const WITHDRAW_FEE_RATE=0.01;   // 1% на вывод (перевод на сторону)
 const P2P_FEE_SIDE_RATE=0.005;  // 0.5% с каждой стороны P2P
 const MAX_FEE_SIDE_USD=2;       // максимум $2 с одной стороны ордера
@@ -642,6 +645,21 @@ function totalUsd(){
   let t=0;
   for(const a of CRYPTOS) t+=usdOf(a,humanBal(a));
   return t;
+}
+// 24h portfolio change in USD + %, from each held asset's price move
+function portfolioChange(){
+  let now=0, then=0, has=false;
+  for(const a of CRYPTOS){
+    const amt=humanBal(a); if(amt<=0) continue;
+    const p=assetUsd(a); if(!p) continue;
+    const vNow=amt*p; now+=vNow;
+    const chg=prices._chg[ASSET_META[a].cg];
+    if(typeof chg==="number" && (1+chg/100)>0){ then+=vNow/(1+chg/100); has=true; }
+    else { then+=vNow; }
+  }
+  const usd=now-then;
+  const pct= then>0 ? usd/then*100 : 0;
+  return {usd, pct, up: usd>=0, has: has && now>0};
 }
 function networkLabel(){ return S.network==="testnet"?"Testnet":"Mainnet"; }
 
@@ -1101,9 +1119,8 @@ function renderHome(){
   const app=el("app");
   const introCls=cardIntroPlayed?"":"intro"; cardIntroPlayed=true;
   const total=totalUsd();
-  const tonChg=prices._chg["the-open-network"];
-  const chgTxt=(typeof tonChg==="number")?`${tonChg>=0?"↗":"↘"} ${Math.abs(tonChg).toFixed(2)}% за 24ч`:"— за 24ч";
-  const chgCls=(typeof tonChg==="number"&&tonChg<0)?"":"";
+  const pc=portfolioChange();
+  const plTxt=pc.has?`${pc.up?"+":"−"}${Math.abs(pc.pct).toFixed(2)}%  ·  ${pc.up?"+":"−"}$${Math.abs(pc.usd).toFixed(2)}`:"—";
   const netOk=cryptoReady;
   app.innerHTML=`
   <div class="screen">
@@ -1117,19 +1134,19 @@ function renderHome(){
       <div class="card-float">
       <div class="card-inner ${cardFlipped?'flipped':''}">
           <div class="balance card-face front skin-${esc(S.cardSkin||'midnight')}">
-            <div class="card-fig" aria-hidden="true"><svg class="fig-topo" viewBox="0 0 340 150" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#fff" stroke-width="0.9"><ellipse cx="268" cy="120" rx="34" ry="22"/><ellipse cx="268" cy="120" rx="62" ry="40"/><ellipse cx="268" cy="120" rx="92" ry="60"/><ellipse cx="268" cy="120" rx="126" ry="82"/><ellipse cx="268" cy="120" rx="164" ry="106"/><ellipse cx="268" cy="120" rx="206" ry="132"/></g></svg></div>
+            <div class="card-fig" aria-hidden="true"><svg class="fig-topo" viewBox="0 0 340 150" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#fff" stroke-width="0.65"><ellipse cx="268" cy="120" rx="34" ry="22"/><ellipse cx="268" cy="120" rx="62" ry="40"/><ellipse cx="268" cy="120" rx="92" ry="60"/><ellipse cx="268" cy="120" rx="126" ry="82"/><ellipse cx="268" cy="120" rx="164" ry="106"/><ellipse cx="268" cy="120" rx="206" ry="132"/></g></svg></div>
             <div class="row1">
               <span class="lbl">Общий баланс${S.network==="testnet"?" · TESTNET":""}</span>
               <button class="mini" data-act="card-skin" title="Фон карты">${I.palette}</button>
             </div>
             <div class="big">${hideBalance?"••••••":("$"+ (Math.floor(total)).toLocaleString("en-US") + "<small>."+ (total.toFixed(2).split(".")[1]) +"</small>")}</div>
             <div class="foot">
-              <span class="chg">${chgTxt}</span>
+              <span class="chg ${pc.has?(pc.up?"up":"down"):""}">${plTxt}<span class="chg-sub">за 24ч</span></span>
               <span class="cur">${esc(S.profile&&S.profile.nick?("@"+S.profile.nick):"crypto assets")}</span>
             </div>
           </div>
           <div class="balance card-face back skin-${esc(S.cardSkin||'midnight')}">
-            <div class="card-fig" aria-hidden="true"><svg class="fig-topo" viewBox="0 0 340 150" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#fff" stroke-width="0.9"><ellipse cx="268" cy="120" rx="34" ry="22"/><ellipse cx="268" cy="120" rx="62" ry="40"/><ellipse cx="268" cy="120" rx="92" ry="60"/><ellipse cx="268" cy="120" rx="126" ry="82"/><ellipse cx="268" cy="120" rx="164" ry="106"/><ellipse cx="268" cy="120" rx="206" ry="132"/></g></svg></div>
+            <div class="card-fig" aria-hidden="true"><svg class="fig-topo" viewBox="0 0 340 150" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#fff" stroke-width="0.65"><ellipse cx="268" cy="120" rx="34" ry="22"/><ellipse cx="268" cy="120" rx="62" ry="40"/><ellipse cx="268" cy="120" rx="92" ry="60"/><ellipse cx="268" cy="120" rx="126" ry="82"/><ellipse cx="268" cy="120" rx="164" ry="106"/><ellipse cx="268" cy="120" rx="206" ry="132"/></g></svg></div>
             <div class="back-name"><span class="nm">${esc(firstName())}</span><span class="tag">Cardholder</span></div>
             <div class="back-brand">PMR Wallet · TON</div>
             <div class="back-logo">PMR</div>
@@ -1279,7 +1296,6 @@ function renderSettings(){
       ${setRow("currency",I.swap,"Валюта",S.settings.currency)}
       ${setRow("security",I.shield,"Безопасность","Защита доступа")}
       ${setRow("network",I.globe,"Сеть",networkLabel())}
-      ${setRow("theme",I.moon,"Тема",S.settings.theme==="dark"?"Тёмная":"Светлая")}
       ${setRow("lang",I.user,"Язык",S.settings.lang)}
       ${setRow("support",I.help,"Поддержка","Помощь")}
     </div>
@@ -1297,12 +1313,6 @@ function renderSettingsSub(key){
     app.innerHTML=`<div class="screen no-tab">${head("Валюта","Основная валюта для оценки баланса")}
       <div class="setcard">${["USD","RUB","EUR","UAH","KZT"].map(c=>`<div class="setrow" data-act="pick-currency" data-v="${c}"><div class="st"><b>${c}</b></div><span class="ch">${S.settings.currency===c?I.check:""}</span></div>`).join("")}</div>
       <div class="infobox" style="margin-top:14px">${I.info}<div>Оценка в фиате рассчитывается по курсам CoinGecko. Расчёты в USD наиболее точны.</div></div></div>`;
-  } else if(key==="theme"){
-    app.innerHTML=`<div class="screen no-tab">${head("Тема")}
-      <div class="setcard">
-        <div class="setrow" data-act="pick-theme" data-v="dark"><span class="si">${I.moon}</span><div class="st"><b>Тёмная</b></div><span class="ch">${S.settings.theme==="dark"?I.check:""}</span></div>
-        <div class="setrow" data-act="pick-theme" data-v="light"><span class="si">${I.palette}</span><div class="st"><b>Светлая</b></div><span class="ch">${S.settings.theme==="light"?I.check:""}</span></div>
-      </div></div>`;
   } else if(key==="lang"){
     app.innerHTML=`<div class="screen no-tab">${head("Язык")}
       <div class="setcard">${["Русский","English","Українська"].map(l=>`<div class="setrow" data-act="pick-lang" data-v="${l}"><div class="st"><b>${l}</b></div><span class="ch">${S.settings.lang===l?I.check:""}</span></div>`).join("")}</div>
@@ -1958,7 +1968,6 @@ async function act(name,ds={}){
     }
     case "reveal-seed": await revealSeed(); break;
     case "pick-currency": S.settings.currency=ds.v; save(); view="settings"; render(); break;
-    case "pick-theme": S.settings.theme=ds.v; document.documentElement.setAttribute("data-theme",ds.v); save(); renderSettingsSub("theme"); break;
     case "pick-lang": S.settings.lang=ds.v; save(); view="settings"; render(); break;
     case "toggle-notif": S.settings.notifications=!S.settings.notifications; save(); renderSettingsSub("notif"); break;
     case "pick-net": await switchNetwork(ds.v); break;
@@ -2263,12 +2272,12 @@ function bindEvents(){
     act(name,ds);
   });
 }
-function applyTheme(){ document.documentElement.setAttribute("data-theme",S.settings.theme||"dark"); syncTgColors(); }
+function applyTheme(){ S.settings.theme="light"; document.documentElement.setAttribute("data-theme","light"); syncTgColors(); }
 function syncTgColors(){
-  try{ const tg=window.Telegram&&window.Telegram.WebApp; if(!tg) return; const light=(S.settings.theme||"light")!=="dark";
-    if(tg.setBackgroundColor) tg.setBackgroundColor(light?"#f3f5f9":"#0c0d10");
-    if(tg.setHeaderColor) tg.setHeaderColor(light?"#ffffff":"#0c0d10");
-    if(tg.setBottomBarColor) tg.setBottomBarColor(light?"#ffffff":"#0c0d10");
+  try{ const tg=window.Telegram&&window.Telegram.WebApp; if(!tg) return;
+    if(tg.setBackgroundColor) tg.setBackgroundColor("#f3f5f9");
+    if(tg.setHeaderColor) tg.setHeaderColor("#ffffff");
+    if(tg.setBottomBarColor) tg.setBottomBarColor("#ffffff");
   }catch(e){}
 }
 function tgInit(){
