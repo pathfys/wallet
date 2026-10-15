@@ -779,9 +779,40 @@ async function notify(title,body){
 }
 
 /* ---------- TON wallet ops ---------- */
-function getClient(){
+// Resolve an RPC endpoint. Prefer Orbs ton-access (free, decentralised, no key,
+// avoids toncenter's harsh anonymous rate limit that caused HTTP 429), fall back
+// to toncenter (optionally with the user's API key).
+let _endpointCache={};
+async function resolveEndpoint(net){
+  if(_endpointCache[net]) return _endpointCache[net];
+  let ep=null;
+  try{ const ta=await importPkg("@orbs-network/ton-access@2.3.3"); ep=await ta.getHttpEndpoint({network:net}); }
+  catch(e){ ep=null; }
+  if(!ep) ep=ENDPOINTS[net];
+  _endpointCache[net]=ep;
+  return ep;
+}
+async function getClient(){
   if(!cryptoReady||!TON) throw new Error("libs");
-  return new TON.TonClient({endpoint:ENDPOINTS[S.network]});
+  const net=S.network;
+  const endpoint=await resolveEndpoint(net);
+  const opts={endpoint};
+  // an API key only helps the toncenter endpoint
+  if(S.tonApiKey && endpoint===ENDPOINTS[net]) opts.apiKey=S.tonApiKey;
+  return new TON.TonClient(opts);
+}
+// Retry transient RPC failures (429 rate-limit / 5xx) with exponential backoff.
+function isRateErr(e){
+  const s=(e&&e.response&&e.response.status)||e&&e.status||0;
+  return s===429 || s>=500 || /\b429\b|rate ?limit|too many/i.test(String((e&&e.message)||""));
+}
+async function withRetry(fn,tries=4){
+  let err;
+  for(let i=0;i<tries;i++){
+    try{ return await fn(); }
+    catch(e){ err=e; if(i<tries-1 && isRateErr(e)){ await new Promise(r=>setTimeout(r,500*Math.pow(2,i))); continue; } throw e; }
+  }
+  throw err;
 }
 function walletContract(){
   const pub=Buffer.from(S.pubkey,"hex");
@@ -793,26 +824,43 @@ async function deriveFromMnemonic(words){
   return {key, wallet:w, raw:w.address.toString()};
 }
 
+let balancesSynced=false; // first refresh sets the baseline; later ones notify on increase
 async function refreshBalances(){
   if(!await loadLibs()){ renderCurrent(); return; }
   if(!S.addressRaw) return;
   try{
-    const client=getClient();
+    const client=await getClient();
     const addr=TON.Address.parse(S.addressRaw);
-    const bal=await client.getBalance(addr);
-    S.balances.GRAM=bal.toString();
-    // USDT jetton (mainnet only)
+    const prevG=S.balances.GRAM, prevU=S.balances.USDT;
+    const bal=await withRetry(()=>client.getBalance(addr));
+    let newG=bal.toString(), newU="0";
     if(S.network==="mainnet"){
       try{
         const jm=client.open(TON.JettonMaster.create(TON.Address.parse(USDT_MASTER)));
-        const jwAddr=await jm.getWalletAddress(addr);
+        const jwAddr=await withRetry(()=>jm.getWalletAddress(addr));
         const jw=client.open(TON.JettonWallet.create(jwAddr));
-        const jb=await jw.getBalance();
-        S.balances.USDT=jb.toString();
-      }catch(e){ /* no jetton wallet yet => 0 */ S.balances.USDT="0"; }
-    } else { S.balances.USDT="0"; }
+        newU=(await withRetry(()=>jw.getBalance())).toString();
+      }catch(e){ /* no jetton wallet yet => 0 */ newU="0"; }
+    }
+    S.balances.GRAM=newG; S.balances.USDT=newU;
+    if(balancesSynced){ checkIncoming("GRAM",prevG,newG); checkIncoming("USDT",prevU,newU); }
+    balancesSynced=true;
     save(); renderCurrent();
   }catch(e){ console.warn("balance refresh failed",e); }
+}
+// notify + log history when a balance grows (an incoming deposit)
+function checkIncoming(asset,prevRaw,newRaw){
+  try{
+    const dec=ASSET_META[asset].dec;
+    const prev=BigInt(prevRaw||"0"), cur=BigInt(newRaw||"0");
+    if(cur<=prev) return;
+    const delta=fromUnits((cur-prev).toString(),dec);
+    const dust=asset==="GRAM"?0.002:0.0005; // skip gas-refund dust
+    if(delta<dust) return;
+    S.history.unshift({id:"hr"+Date.now(),type:"receive",asset,amount:delta,addr:"",ts:Date.now(),net:S.network,status:"done"});
+    save();
+    notify("Пополнение",`+${fmtCrypto(delta)} ${asset}`);
+  }catch(e){}
 }
 
 async function fetchPrices(){
@@ -830,29 +878,29 @@ async function fetchPrices(){
 
 // Multi-output TON transfer. outs=[{to, amount(human TON), comment?}] (WalletV4: up to 4)
 async function sendTonOuts(outs){
-  const client=getClient();
+  const client=await getClient();
   const w=walletContract();
   const contract=client.open(w);
-  const seqno=await contract.getSeqno();
+  const seqno=await withRetry(()=>contract.getSeqno());
   const messages=outs.filter(o=>Number(o.amount)>0).map(o=>TON.internal({
     to:TON.Address.parse(o.to), value:TON.toNano(String(o.amount)), bounce:false, body:o.comment||undefined,
   }));
-  await contract.sendTransfer({
+  await withRetry(()=>contract.sendTransfer({
     secretKey:session.key.secretKey, seqno,
     sendMode: TON.SendMode ? (TON.SendMode.PAY_GAS_SEPARATELY|TON.SendMode.IGNORE_ERRORS) : 3,
     messages,
-  });
+  }));
   return seqno;
 }
 async function sendTon(to,amountHuman,comment){ return sendTonOuts([{to,amount:amountHuman,comment}]); }
 
 // Multi-output USDT jetton transfer. outs=[{to, amount(human USDT)}] — each is its own jetton message.
 async function sendJettonOuts(outs){
-  const client=getClient();
+  const client=await getClient();
   const w=walletContract();
   const owner=w.address;
   const jm=client.open(TON.JettonMaster.create(TON.Address.parse(USDT_MASTER)));
-  const myJw=await jm.getWalletAddress(owner);
+  const myJw=await withRetry(()=>jm.getWalletAddress(owner));
   const forwardTon=TON.toNano("0.02");
   const list=outs.filter(o=>Number(o.amount)>0);
   const messages=list.map((o,i)=>{
@@ -870,12 +918,12 @@ async function sendJettonOuts(outs){
     return TON.internal({to:myJw,value:TON.toNano("0.1"),bounce:true,body});
   });
   const contract=client.open(w);
-  const seqno=await contract.getSeqno();
-  await contract.sendTransfer({
+  const seqno=await withRetry(()=>contract.getSeqno());
+  await withRetry(()=>contract.sendTransfer({
     secretKey:session.key.secretKey, seqno,
     sendMode: TON.SendMode ? (TON.SendMode.PAY_GAS_SEPARATELY|TON.SendMode.IGNORE_ERRORS) : 3,
     messages,
-  });
+  }));
   return seqno;
 }
 async function sendJetton(to,amountHuman){ return sendJettonOuts([{to,amount:amountHuman}]); }
@@ -943,6 +991,7 @@ let lastView=null;
 function viewAnim(){ if(lastView!==view){ lastView=view; const r=el("app").firstElementChild; if(r) r.classList.add("view-anim"); } }
 function renderCurrent(){
   if(!S.hasWallet || S.locked) return;
+  if(needsRegistration()) return; // don't overwrite the mandatory registration screen
   if(view==="home") renderHome();
   else if(view==="p2p") renderP2P();
   else if(view==="profile") renderProfile();
@@ -2071,7 +2120,7 @@ async function wipeWallet(){
 }
 async function switchNetwork(net){
   if(net===S.network){ return; }
-  S.network=net; S.balances={GRAM:"0",USDT:"0"}; save();
+  S.network=net; S.balances={GRAM:"0",USDT:"0"}; balancesSynced=false; save();
   renderSettingsSub("network");
   toast(`Сеть: ${networkLabel()}`,"ok");
   refreshBalances();
@@ -2246,8 +2295,8 @@ async function boot(){
     renderCurrent();
   });
   fetchPrices();
-  // periodic refresh when unlocked
-  refreshTimer=setInterval(()=>{ if(S.hasWallet&&!S.locked&&cryptoReady&&view==="home") refreshBalances(); },30000);
+  // periodic refresh when unlocked (any screen, so deposit alerts arrive everywhere)
+  refreshTimer=setInterval(()=>{ if(S.hasWallet&&!S.locked&&cryptoReady) refreshBalances(); },30000);
 }
 boot();
 </script>
