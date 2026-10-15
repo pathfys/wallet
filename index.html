@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#ffffff">
+<meta name="referrer" content="no-referrer">
+<!-- Hardening: block plugins/base-tag/form hijack, force https. (frame-ancestors
+     must be an HTTP header — set it at the host/CDN to restrict embedding.) -->
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
 <meta name="description" content="PMR Wallet — некастодиальный криптокошелёк сети TON: TON (GRAM) и USDT, приём и отправка, P2P с блокировкой средств.">
 <title>PMR Wallet</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f6bff'/%3E%3Cpath d='M9 12h11a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H9z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='19' cy='17' r='1.6' fill='%23fff'/%3E%3C/svg%3E">
@@ -548,6 +552,37 @@ const PINS=[
   {h:24, price:10, label:"24 ч"},
 ];
 
+/* ---------- environment gate (run only inside native Telegram) ---------- */
+// Opening the Mini App URL directly in a browser, or in Telegram Web (where the
+// iframe src is visible via devtools/F12), is refused. This is a client-side
+// deterrent — a real guarantee requires a backend that validates Telegram
+// initData (HMAC over the bot token) on every sensitive request.
+const ENFORCE_TG=true;                       // set false only for local testing
+const TG_WEB_PLATFORMS=["weba","webk","web"];// Telegram Web clients (devtools reachable)
+const TG_BOT_LINK="";                        // optional: "https://t.me/YourBot/app"
+function tgEnv(){
+  const tg=(window.Telegram&&window.Telegram.WebApp)||null;
+  return { tg, initData:(tg&&tg.initData)||"", platform:(tg&&tg.platform)||"unknown" };
+}
+function envAllowed(){
+  if(!ENFORCE_TG) return true;
+  try{ const h=location.hostname; if(h==="localhost"||h==="127.0.0.1"||h==="") return true; }catch(e){}
+  const {initData,platform}=tgEnv();
+  if(!initData) return false;                        // not launched from Telegram at all
+  if(TG_WEB_PLATFORMS.includes(platform)) return false; // Telegram Web → blocked
+  return true;
+}
+function renderBlocked(){
+  try{ el("tabbar").style.display="none"; }catch(e){}
+  el("app").innerHTML=`
+  <div class="onb" style="justify-content:center;text-align:center">
+    <div class="hero-badge" style="margin:0 auto 22px;width:92px;height:92px;border-radius:28px">${I.lock}</div>
+    <h2 style="margin:0 auto 8px">Откройте в Telegram</h2>
+    <p class="lead" style="margin:0 auto 18px">PMR Wallet работает только в мобильном или десктоп‑приложении Telegram. Веб‑версия Telegram и обычный браузер не поддерживаются в целях безопасности.</p>
+    ${TG_BOT_LINK?`<a class="btn btn-primary btn-lg" style="max-width:320px;margin:0 auto" href="${TG_BOT_LINK}">Открыть в Telegram</a>`:""}
+  </div>`;
+}
+
 /* ---------- state ---------- */
 const LS="pmr_wallet_v3";
 let S=null;         // persisted store
@@ -843,10 +878,13 @@ async function deriveFromMnemonic(words){
 }
 
 let balancesSynced=false; // first refresh sets the baseline; later ones notify on increase
+let _refreshing=false;    // in-flight guard: avoid overlapping refreshes / self-DoS of the RPC
 async function refreshBalances(){
-  if(!await loadLibs()){ renderCurrent(); return; }
-  if(!S.addressRaw) return;
+  if(_refreshing) return;
+  _refreshing=true;
   try{
+    if(!await loadLibs()){ renderCurrent(); return; }
+    if(!S.addressRaw) return;
     const client=await getClient();
     const addr=TON.Address.parse(S.addressRaw);
     const prevG=S.balances.GRAM, prevU=S.balances.USDT;
@@ -865,6 +903,7 @@ async function refreshBalances(){
     balancesSynced=true;
     save(); renderCurrent();
   }catch(e){ console.warn("balance refresh failed",e); }
+  finally{ _refreshing=false; }
 }
 // notify + log history when a balance grows (an incoming deposit)
 function checkIncoming(asset,prevRaw,newRaw){
@@ -900,11 +939,12 @@ async function sendTonOuts(outs){
   const w=walletContract();
   const contract=client.open(w);
   const seqno=await withRetry(()=>contract.getSeqno());
+  const validUntil=Math.floor(Date.now()/1000)+120; // replay/stale guard; seqno already dedupes on-chain
   const messages=outs.filter(o=>Number(o.amount)>0).map(o=>TON.internal({
     to:TON.Address.parse(o.to), value:TON.toNano(String(o.amount)), bounce:false, body:o.comment||undefined,
   }));
   await withRetry(()=>contract.sendTransfer({
-    secretKey:session.key.secretKey, seqno,
+    secretKey:session.key.secretKey, seqno, timeout:validUntil,
     sendMode: TON.SendMode ? (TON.SendMode.PAY_GAS_SEPARATELY|TON.SendMode.IGNORE_ERRORS) : 3,
     messages,
   }));
@@ -937,8 +977,9 @@ async function sendJettonOuts(outs){
   });
   const contract=client.open(w);
   const seqno=await withRetry(()=>contract.getSeqno());
+  const validUntil=Math.floor(Date.now()/1000)+120; // replay/stale guard; seqno already dedupes on-chain
   await withRetry(()=>contract.sendTransfer({
-    secretKey:session.key.secretKey, seqno,
+    secretKey:session.key.secretKey, seqno, timeout:validUntil,
     sendMode: TON.SendMode ? (TON.SendMode.PAY_GAS_SEPARATELY|TON.SendMode.IGNORE_ERRORS) : 3,
     messages,
   }));
@@ -1680,12 +1721,12 @@ function modalResult(ok,title,msg,link){
 function modalSetPassword(onDone,{title="Задайте пароль",sub="Пароль шифрует seed-фразу на устройстве. Без него доступ не восстановить."}={}){
   openModal(`${sheetHead(title)}
     <p class="dim" style="margin-bottom:14px">${sub}</p>
-    <div class="field"><label>Пароль</label><input class="input" id="pw1" type="password" placeholder="Минимум 4 символа"></div>
+    <div class="field"><label>Пароль</label><input class="input" id="pw1" type="password" placeholder="Минимум 8 символов"></div>
     <div class="field"><label>Повторите пароль</label><input class="input" id="pw2" type="password" placeholder="Ещё раз"></div>
     <button class="btn btn-primary btn-lg btn-block" id="pwGo">Сохранить</button>`,true);
   setTimeout(()=>{ el("pwGo").onclick=async()=>{
     const a=el("pw1").value, b=el("pw2").value;
-    if(a.length<4) return toast("Пароль слишком короткий","err");
+    if(a.length<8) return toast("Пароль слишком короткий (минимум 8 символов)","err");
     if(a!==b) return toast("Пароли не совпадают","err");
     await onDone(a);
   }; },30);
@@ -2114,7 +2155,7 @@ function modalChangePw(){
     <button class="btn btn-primary btn-lg btn-block" id="cpGo">Сохранить</button>`,true);
   setTimeout(()=>{ el("cpGo").onclick=async()=>{
     const o=el("cpOld").value,n=el("cpNew").value,n2=el("cpNew2").value;
-    if(n.length<4) return toast("Новый пароль слишком короткий","err");
+    if(n.length<8) return toast("Новый пароль слишком короткий (минимум 8 символов)","err");
     if(n!==n2) return toast("Пароли не совпадают","err");
     try{ const mn=await decryptSeed(S.enc,o); S.enc=await encryptSeed(mn,n); if(S.settings.biometric){ await bioEnroll(n); } save(); closeModal(); toast("Пароль изменён","ok"); }
     catch(e){ toast("Неверный текущий пароль","err"); }
@@ -2292,6 +2333,9 @@ function tgInit(){
 }
 
 async function boot(){
+  try{ const tg=window.Telegram&&window.Telegram.WebApp; if(tg&&tg.ready) tg.ready(); }catch(e){}
+  // Refuse to run outside a native Telegram client (blocks browser + Telegram Web).
+  if(!envAllowed()){ bindEvents(); renderBlocked(); return; }
   load(); tgInit(); applyTheme(); bindEvents();
   // Session key lives only in memory; after any reload it is gone, so a saved
   // "unlocked" flag must never grant access — always require the password.
