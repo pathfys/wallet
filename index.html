@@ -9,7 +9,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f6bff'/%3E%3Cpath d='M9 12h11a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H9z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='19' cy='17' r='1.6' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 /* ===================== design tokens ===================== */
@@ -76,9 +76,12 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 /* background figure: topographic contours (D) + soft aurora depth (C) */
 .card-fig{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;border-radius:inherit;}
 .card-fig::before{content:"";position:absolute;inset:0;background:
-  radial-gradient(56% 76% at 80% 94%,rgba(255,255,255,.16),transparent 60%),
-  radial-gradient(44% 58% at 99% 28%,rgba(255,255,255,.1),transparent 62%);}
-.card-fig .fig-topo{position:absolute;inset:0;width:100%;height:100%;opacity:.17;}
+  radial-gradient(58% 78% at 80% 94%,rgba(255,255,255,.22),transparent 60%),
+  radial-gradient(46% 60% at 99% 26%,rgba(255,255,255,.14),transparent 62%);}
+/* soft diagonal light sweep for a polished, glossy finish */
+.card-fig::after{content:"";position:absolute;inset:0;pointer-events:none;background:
+  linear-gradient(118deg,transparent 36%,rgba(255,255,255,.1) 48%,rgba(255,255,255,.02) 54%,transparent 66%);}
+.card-fig .fig-topo{position:absolute;inset:0;width:100%;height:100%;opacity:.28;}
 .balance .row1{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}
 .balance .lbl{font-size:12.5px;font-weight:600;opacity:.9;}
 .balance .big{font-family:var(--display);font-weight:700;font-size:42px;letter-spacing:-.02em;margin:10px 0 6px;position:relative;z-index:1;font-variant-numeric:tabular-nums;}
@@ -146,23 +149,27 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 @media (prefers-reduced-motion:reduce){.card3d::before,.card-float{animation:none;}}
 .card-inner{position:relative;transform-style:preserve-3d;transition:transform .85s cubic-bezier(.2,.75,.2,1);cursor:pointer;}
 .card-inner.flipped{transform:rotateY(180deg);}
-.card-face{backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:opacity 0s linear .34s;}
+.card-face{backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:opacity 0s linear .34s;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),inset 0 1px 1px rgba(255,255,255,.16),inset 0 -14px 30px -18px rgba(0,0,0,.4);}
 .card-face.front{opacity:1;}
 .card-face.back{position:absolute;inset:0;transform:rotateY(180deg);opacity:0;}
 .card-inner.flipped .card-face.front{opacity:0;}
 .card-inner.flipped .card-face.back{opacity:1;}
 @keyframes cardIn{0%{opacity:0;transform:perspective(1100px) rotateY(-26deg) translateY(10px) scale(.95);}100%{opacity:1;transform:perspective(1100px) rotateY(0) translateY(0) scale(1);}}
-/* back side: gold magnetic stripe with black bars */
-.magstripe{position:absolute;left:18px;right:18px;top:28px;height:30px;border-radius:9px;overflow:hidden;background:linear-gradient(180deg,#f6de8f 0%,#cda53d 55%,#9c7a28 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),inset 0 -2px 4px rgba(0,0,0,.3),0 2px 6px rgba(0,0,0,.25);}
-.magstripe .bars{position:absolute;inset:0;opacity:.7;background-repeat:repeat;background-size:7px 100%;background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='7'%20height='30'%20viewBox='0%200%207%2030'%3E%3Cpath%20d='M1%2031C2.6%2020%204%2012%206%20-1'%20fill='none'%20stroke='%23111111'%20stroke-width='0.65'%20stroke-linecap='round'/%3E%3C/svg%3E");}
-.back-sign{position:absolute;left:20px;right:20px;top:80px;height:26px;border-radius:5px;background:linear-gradient(180deg,#f4f5f7,#dde1e7);display:flex;align-items:center;justify-content:flex-end;padding:0 10px;}
-.back-sign .cvv{font-family:var(--mono);color:#15171c;font-size:13px;letter-spacing:3px;font-style:italic;font-weight:700;}
-.back-brand{position:absolute;left:20px;bottom:13px;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.72);}
-.back-logo{position:absolute;right:18px;bottom:11px;font-size:15px;font-weight:800;letter-spacing:-.01em;color:#fff;}
-/* thin lines along the whole card back */
-.card-sphere{position:absolute;inset:0;z-index:0;opacity:.4;pointer-events:none;
-  background-repeat:no-repeat;background-position:center;background-size:100% 100%;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20340%20140'%20preserveAspectRatio='none'%3E%3Cg%20stroke='%23ffffff'%20stroke-width='0.4'%3E%3Cline%20x1='0'%20y1='8'%20x2='340'%20y2='8'/%3E%3Cline%20x1='0'%20y1='15'%20x2='340'%20y2='15'/%3E%3Cline%20x1='0'%20y1='22'%20x2='340'%20y2='22'/%3E%3Cline%20x1='0'%20y1='29'%20x2='340'%20y2='29'/%3E%3Cline%20x1='0'%20y1='36'%20x2='340'%20y2='36'/%3E%3Cline%20x1='0'%20y1='43'%20x2='340'%20y2='43'/%3E%3Cline%20x1='0'%20y1='50'%20x2='340'%20y2='50'/%3E%3Cline%20x1='0'%20y1='57'%20x2='340'%20y2='57'/%3E%3Cline%20x1='0'%20y1='64'%20x2='340'%20y2='64'/%3E%3Cline%20x1='0'%20y1='71'%20x2='340'%20y2='71'/%3E%3Cline%20x1='0'%20y1='78'%20x2='340'%20y2='78'/%3E%3Cline%20x1='0'%20y1='85'%20x2='340'%20y2='85'/%3E%3Cline%20x1='0'%20y1='92'%20x2='340'%20y2='92'/%3E%3Cline%20x1='0'%20y1='99'%20x2='340'%20y2='99'/%3E%3Cline%20x1='0'%20y1='106'%20x2='340'%20y2='106'/%3E%3Cline%20x1='0'%20y1='113'%20x2='340'%20y2='113'/%3E%3Cline%20x1='0'%20y1='120'%20x2='340'%20y2='120'/%3E%3Cline%20x1='0'%20y1='127'%20x2='340'%20y2='127'/%3E%3C/g%3E%3C/svg%3E");}
+/* back side: clean white name strip, no black lines */
+.back-sheen{position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;background:
+  linear-gradient(120deg,transparent 38%,rgba(255,255,255,.1) 50%,transparent 62%),
+  radial-gradient(60% 80% at 85% 10%,rgba(255,255,255,.14),transparent 60%);}
+.back-name{position:absolute;left:20px;right:20px;top:34px;height:40px;border-radius:9px;z-index:1;
+  background:linear-gradient(180deg,#ffffff 0%,#eef1f6 100%);display:flex;align-items:center;gap:10px;padding:0 15px;
+  box-shadow:0 3px 10px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 2px rgba(0,0,0,.06);}
+.back-name .nm{font-family:"Caveat",cursive;font-weight:700;color:#171a21;font-size:28px;line-height:1;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.back-name .tag{margin-left:auto;font-size:8.5px;font-weight:800;letter-spacing:.14em;color:#9aa1b2;text-transform:uppercase;flex:0 0 auto;}
+.back-brand{position:absolute;left:20px;bottom:14px;z-index:1;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.72);}
+.back-logo{position:absolute;right:18px;bottom:11px;z-index:1;font-size:15px;font-weight:800;letter-spacing:-.01em;color:#fff;}
+/* faint TON-diamond watermark bottom-right */
+.back-mark{position:absolute;right:20px;top:92px;z-index:0;width:66px;height:66px;opacity:.14;pointer-events:none;}
+.back-mark svg{width:100%;height:100%;}
 
 /* primary actions */
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
@@ -643,6 +650,9 @@ function friendlyAddr(){
 function myNick(){ return (S.profile&&S.profile.nick)||null; }
 function displayName(){ return myNick()||"PMR Wallet"; }
 function needsRegistration(){ return S.hasWallet && !S.locked && !myNick(); }
+function tgUser(){ try{ return window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initDataUnsafe&&window.Telegram.WebApp.initDataUnsafe.user; }catch(e){ return null; } }
+// name printed on the card back strip: Telegram first name, else nick, else brand
+function firstName(){ const u=tgUser(); return (u&&u.first_name) || myNick() || "PMR Wallet"; }
 
 /* Basic profanity filter. Blocklist compiled from public open-source
    obscenity word lists (RU + EN roots). Input is normalised against common
@@ -914,11 +924,11 @@ function coinGlyph(sym){
 function render(){
   if(!S.hasWallet){ renderOnboarding(); return; }
   if(S.locked){ renderLock(); return; }
+  // mandatory registration — a dedicated screen after wallet creation / unlock
+  if(needsRegistration()){ renderRegister(); return; }
   el("tabbar").style.display= (view==="home"||view==="p2p"||view==="profile") ? "block":"none";
   renderCurrent();
   renderTabbar();
-  // one-time registration prompt (nickname) once the wallet is unlocked
-  if(needsRegistration() && !el("modal").classList.contains("open")) modalRegister();
 }
 let lastView=null;
 function viewAnim(){ if(lastView!==view){ lastView=view; const r=el("app").firstElementChild; if(r) r.classList.add("view-anim"); } }
@@ -1003,6 +1013,29 @@ function renderLock(){
   setTimeout(()=>{const i=el("lockPw"); if(i){ i.focus(); i.addEventListener("keydown",e=>{if(e.key==="Enter")act("unlock");}); } if(S.settings.biometric) doBioUnlock();},200);
 }
 
+/* ---------- mandatory registration screen ---------- */
+function renderRegister(){
+  el("tabbar").style.display="none";
+  el("app").innerHTML=`
+  <div class="onb" style="justify-content:center">
+    <div class="hero" style="flex:0 1 auto">
+      <div class="hero-badge" style="margin:0 auto 22px;width:96px;height:96px;border-radius:28px">${I.user}<span class="shield">${I.check}</span></div>
+      <span class="kicker">ПОЧТИ ГОТОВО</span>
+      <h2 style="font-size:28px">Выберите ник</h2>
+      <p class="lead">Его увидят участники P2P и он будет показан в ваших офферах. Указать можно только сейчас — позже доступна лишь одна смена.</p>
+    </div>
+    <div style="width:100%;max-width:360px;margin:8px auto 0">
+      <div class="field" style="margin-bottom:10px">
+        <input class="input" id="regNick" maxlength="16" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Например, tiraspol_trader">
+        <p class="hint" style="margin-top:8px">3–16 символов: буквы, цифры, _ . -</p>
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" data-act="register-go">Продолжить ${I.chev}</button>
+      <p class="note">Этот шаг обязателен для входа в кошелёк.</p>
+    </div>
+  </div>`;
+  setTimeout(()=>{ const i=el("regNick"); if(i){ i.focus(); i.addEventListener("keydown",e=>{ if(e.key==="Enter") act("register-go"); }); } },60);
+}
+
 /* ---------- home ---------- */
 let hideBalance=false;
 let cardFlipped=false, cardIntroPlayed=false;
@@ -1038,9 +1071,8 @@ function renderHome(){
             </div>
           </div>
           <div class="balance card-face back skin-${esc(S.cardSkin||'midnight')}">
-            <div class="card-sphere" aria-hidden="true"></div>
-            <div class="magstripe"><div class="bars"></div></div>
-            <div class="back-sign"><span class="cvv">7997</span></div>
+            <div class="card-fig" aria-hidden="true"><svg class="fig-topo" viewBox="0 0 340 150" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#fff" stroke-width="0.9"><ellipse cx="268" cy="120" rx="34" ry="22"/><ellipse cx="268" cy="120" rx="62" ry="40"/><ellipse cx="268" cy="120" rx="92" ry="60"/><ellipse cx="268" cy="120" rx="126" ry="82"/><ellipse cx="268" cy="120" rx="164" ry="106"/><ellipse cx="268" cy="120" rx="206" ry="132"/></g></svg></div>
+            <div class="back-name"><span class="nm">${esc(firstName())}</span><span class="tag">Cardholder</span></div>
             <div class="back-brand">PMR Wallet · TON</div>
             <div class="back-logo">PMR</div>
           </div>
@@ -1749,7 +1781,7 @@ async function act(name,ds={}){
     case "send-go": await sendGo(); break;
 
     /* p2p */
-    case "create-offer": if(!myNick()){ toast("Сначала задайте ник","err"); modalRegister(); } else modalCreateOffer(); break;
+    case "create-offer": if(!myNick()){ toast("Сначала задайте ник","err"); render(); } else modalCreateOffer(); break;
     case "filters": modalFilters(); break;
     case "book": p2pSide=ds.v; lastView=null; renderCurrent(); break;
     case "pick-pin": offerDraft.pin=Number(ds.h); document.querySelectorAll("#pinGrid .pin-opt").forEach(n=>n.classList.toggle("on",Number(n.dataset.h)===offerDraft.pin)); break;
@@ -1772,7 +1804,8 @@ async function act(name,ds={}){
     case "trade-cancel": tradeCancel(ds.id); break;
 
     /* registration / nickname */
-    case "register": modalRegister(); break;
+    case "register": render(); break;
+    case "register-go": saveNick((el("regNick")||{}).value||"", false); break;
     case "change-nick": modalChangeNick(); break;
     case "nick-locked": toast("Ник уже менялся — повторная смена недоступна","err"); break;
 
@@ -2027,7 +2060,7 @@ function cancelOffer(id){
   toast(had?"Оффер снят · средства разблокированы":"Оффер снят","ok");
 }
 function startTrade(id){
-  if(!myNick()){ closeModal(); toast("Сначала завершите регистрацию","err"); modalRegister(); return; }
+  if(!myNick()){ closeModal(); toast("Сначала завершите регистрацию","err"); render(); return; }
   modalJoinTrade(id);
 }
 async function releaseGo(id){
