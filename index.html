@@ -89,16 +89,33 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
   linear-gradient(to right,transparent 30%,rgba(122,92,24,.42) 30%,rgba(122,92,24,.42) 31%,transparent 31%,transparent 69%,rgba(122,92,24,.42) 69%,rgba(122,92,24,.42) 70%,transparent 70%),
   linear-gradient(to bottom,transparent 32%,rgba(122,92,24,.42) 32%,rgba(122,92,24,.42) 33%,transparent 33%,transparent 67%,rgba(122,92,24,.42) 67%,rgba(122,92,24,.42) 68%,transparent 68%);}
 .card-chip::after{content:"";position:absolute;left:31%;top:33%;right:31%;bottom:33%;border:1px solid rgba(122,92,24,.45);border-radius:2px;}
-/* card skins (собственные, без внешних картинок) */
+/* premium gloss highlight (top-left) on top of the top-right radial */
+.balance::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;
+  background:radial-gradient(135% 120% at 12% -8%,rgba(255,255,255,.26),transparent 44%);}
+/* card skins (собственные градиенты, без внешних картинок) */
+.skin-midnight{background:radial-gradient(130% 100% at 82% -16%,rgba(93,128,255,.55) 0%,transparent 52%),linear-gradient(150deg,#1b2a6b 0%,#122056 44%,#060b2a 100%);}
 .skin-blue{background:linear-gradient(140deg,#7ba3ff 0%,#2f6bff 42%,#0f3399 100%);}
+.skin-ocean{background:radial-gradient(120% 100% at 85% -12%,rgba(0,220,255,.45),transparent 55%),linear-gradient(140deg,#11b3f0 0%,#2f6bff 52%,#0b2a7a 100%);}
+.skin-aurora{background:linear-gradient(135deg,#17c0a6 0%,#2f6bff 48%,#8b5cf6 100%);}
+.skin-sunset{background:linear-gradient(135deg,#ff9150 0%,#f6465d 46%,#8b3bd6 100%);}
+.skin-magma{background:radial-gradient(120% 100% at 80% -14%,rgba(255,170,90,.5),transparent 54%),linear-gradient(140deg,#ff6a3d 0%,#e11d48 52%,#4a0b2e 100%);}
+.skin-amethyst{background:linear-gradient(140deg,#c4b5fd 0%,#7c3aed 48%,#3b1580 100%);}
+.skin-emerald{background:repeating-linear-gradient(135deg,rgba(255,255,255,.045) 0 2px,transparent 2px 8px),radial-gradient(130% 100% at 80% -15%,#26a673 0%,transparent 56%),linear-gradient(150deg,#0b462f 0%,#010c07 82%);}
 .skin-obsidian{background:repeating-linear-gradient(135deg,rgba(255,255,255,.045) 0 2px,transparent 2px 7px),radial-gradient(130% 100% at 80% -15%,#434a5a 0%,transparent 52%),linear-gradient(145deg,#232732 0%,#030406 80%);}
 .skin-graphite{background:repeating-linear-gradient(115deg,rgba(255,255,255,.07) 0 1px,transparent 1px 4px),linear-gradient(145deg,#646b78 0%,#2b2f38 50%,#090a0d 100%);}
-.skin-emerald{background:repeating-linear-gradient(135deg,rgba(255,255,255,.045) 0 2px,transparent 2px 8px),radial-gradient(130% 100% at 80% -15%,#26a673 0%,transparent 56%),linear-gradient(150deg,#0b462f 0%,#010c07 82%);}
+.skin-gold{background:repeating-linear-gradient(115deg,rgba(255,255,255,.08) 0 1px,transparent 1px 5px),linear-gradient(140deg,#f7e39b 0%,#d9b24e 42%,#8a6a1f 100%);}
 /* glowing cards */
+.balance.skin-midnight{box-shadow:0 6px 28px -6px rgba(47,107,255,.5),0 28px 70px -26px rgba(37,74,200,.72);}
 .balance.skin-blue{box-shadow:0 6px 26px -4px rgba(47,107,255,.55),0 26px 66px -24px rgba(47,107,255,.6);}
+.balance.skin-ocean{box-shadow:0 6px 28px -4px rgba(0,180,235,.55),0 26px 66px -24px rgba(11,42,122,.7);}
+.balance.skin-aurora{box-shadow:0 6px 28px -4px rgba(47,160,230,.55),0 26px 66px -24px rgba(124,58,237,.6);}
+.balance.skin-sunset{box-shadow:0 6px 28px -4px rgba(246,70,93,.55),0 26px 66px -24px rgba(139,59,214,.55);}
+.balance.skin-magma{box-shadow:0 6px 28px -4px rgba(255,106,61,.6),0 26px 66px -24px rgba(225,29,72,.6);}
+.balance.skin-amethyst{box-shadow:0 6px 28px -4px rgba(124,58,237,.6),0 26px 66px -24px rgba(59,21,128,.65);}
+.balance.skin-emerald{box-shadow:0 6px 26px -4px rgba(38,180,120,.55),0 24px 60px -24px rgba(5,45,28,.6);}
 .balance.skin-obsidian{box-shadow:0 6px 26px -6px rgba(110,130,180,.4),0 24px 60px -24px rgba(0,0,0,.65);}
 .balance.skin-graphite{box-shadow:0 6px 26px -6px rgba(150,160,180,.45),0 24px 60px -24px rgba(0,0,0,.6);}
-.balance.skin-emerald{box-shadow:0 6px 26px -4px rgba(38,180,120,.55),0 24px 60px -24px rgba(5,45,28,.6);}
+.balance.skin-gold{box-shadow:0 6px 26px -4px rgba(217,178,78,.55),0 24px 60px -24px rgba(90,70,20,.6);}
 /* card skin picker */
 .skin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .skin-opt{text-align:left;padding:0;background:none;border:none;}
@@ -109,7 +126,13 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .skin-opt.on .skin-sw{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary);}
 .skin-opt .skin-nm svg{width:15px;height:15px;color:var(--primary);}
 /* 3D flip card + entry (mobile-safe: single preserve-3d + opacity face-swap) */
-.card3d{perspective:1200px;}
+.card3d{perspective:1200px;position:relative;z-index:0;}
+/* animated glowing halo behind the card (colour comes from --card-glow) */
+.card3d::before{content:"";position:absolute;left:8px;right:8px;top:14px;bottom:-6px;z-index:-1;border-radius:var(--r-xl);
+  pointer-events:none;background:var(--card-glow,#2457e0);filter:blur(30px);opacity:.42;transform:scale(.96);
+  animation:cardPulse 4.6s var(--ease) infinite;}
+@keyframes cardPulse{0%,100%{opacity:.34;transform:scale(.94);}50%{opacity:.6;transform:scale(1.01);}}
+@media (prefers-reduced-motion:reduce){.card3d::before{animation:none;}}
 .card3d.intro{animation:cardIn .85s var(--ease) both;}
 .card-inner{position:relative;transform-style:preserve-3d;transition:transform .7s var(--ease);cursor:pointer;}
 .card-inner.flipped{transform:rotateY(180deg);}
@@ -357,6 +380,35 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .danger{color:var(--sell);}
 a.tlink{color:var(--primary-2);font-weight:600;}
 .empty{text-align:center;color:var(--ink-3);padding:30px 10px;font-size:13.5px;}
+
+/* ===================== P2P: my-orders button + chat ===================== */
+.myorders-btn{display:flex;align-items:center;gap:12px;width:100%;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r-lg);padding:14px 16px;margin-top:12px;transition:.14s var(--ease);}
+.myorders-btn:active{background:var(--panel-2);}
+.myorders-btn .ic{width:40px;height:40px;border-radius:12px;background:var(--primary-ghost);color:var(--primary-2);display:grid;place-items:center;flex:0 0 auto;}
+.myorders-btn .tx{text-align:left;min-width:0;margin-right:auto;}
+.myorders-btn .tx b{font-size:14.5px;font-weight:700;display:block;}
+.myorders-btn .tx span{font-size:12px;color:var(--ink-3);font-weight:600;}
+.myorders-btn .cnt{font-size:12.5px;font-weight:800;color:var(--primary-2);background:var(--primary-ghost);border-radius:9px;padding:4px 10px;}
+.statetag{font-size:10px;font-weight:800;letter-spacing:.04em;padding:4px 9px;border-radius:8px;text-transform:uppercase;}
+.statetag.active{background:var(--primary-ghost);color:var(--primary-2);}
+.statetag.completed{background:var(--buy-ghost);color:var(--buy);}
+.statetag.canceled{background:var(--sell-ghost);color:var(--sell);}
+/* chat */
+.chat{display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow-y:auto;padding:4px 2px 6px;margin-bottom:10px;}
+.msg{max-width:82%;padding:9px 13px;border-radius:15px;font-size:13.5px;line-height:1.4;word-break:break-word;}
+.msg .mt{display:block;font-size:9.5px;color:var(--ink-4);margin-top:3px;font-weight:600;letter-spacing:.02em;}
+.msg.me{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:5px;}
+.msg.me .mt{color:rgba(255,255,255,.7);}
+.msg.peer{align-self:flex-start;background:var(--panel-2);border:1px solid var(--line);border-bottom-left-radius:5px;}
+.msg.sys{align-self:center;background:var(--warn-ghost);color:var(--warn);font-size:11.5px;font-weight:600;text-align:center;border-radius:10px;max-width:92%;}
+.chat-input{display:flex;gap:8px;align-items:center;}
+.chat-input input{flex:1;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:13px;padding:12px 14px;font-size:14px;color:var(--ink);font-family:var(--font);}
+.chat-input input:focus{border-color:var(--primary);background:var(--panel);}
+.chat-input .snd{width:44px;height:44px;border-radius:13px;background:var(--primary);color:#fff;display:grid;place-items:center;flex:0 0 auto;}
+.chat-input .snd:active{transform:scale(.92);}
+.lockchip{display:inline-flex;align-items:center;gap:7px;background:var(--warn-ghost);border:1px solid rgba(240,185,11,.3);color:#f0b90b;border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:600;line-height:1.4;}
+.lockchip svg{width:16px;height:16px;flex:0 0 auto;}
 </style>
 </head>
 <body>
@@ -411,15 +463,28 @@ const ENDPOINTS={
 };
 const SCAN={mainnet:"https://tonviewer.com",testnet:"https://testnet.tonviewer.com"};
 const ASSET_META={
-  BTC :{name:"Bitcoin",  sym:"BTC", color:"var(--btc)", cg:"bitcoin",        onTon:false, dec:8},
-  ETH :{name:"Ethereum", sym:"ETH", color:"var(--eth)", cg:"ethereum",       onTon:false, dec:18},
   USDT:{name:"Tether",   sym:"USDT",color:"var(--usdt)",cg:"tether",         onTon:true,  dec:6, kind:"jetton"},
   GRAM:{name:"Gram",     sym:"GRAM",color:"var(--ton)", cg:"the-open-network",onTon:true, dec:9, kind:"native"},
 };
 const ASSET_ICONS={GRAM:"data:image/png;base64,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",BTC:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAAApCAYAAACWRW+4AAAKsklEQVRo3t2afWyd1X3HP9/z3Gtf27FjO35JAlkIAZpACCp05aUQEGtVpeqGqrXThDq0TmzrCiVAtwhNYl3HpiZI61YSpdo0MbqiVnSrVqG20G5d17UraUe1AoG0UEoCefdL7NiOfX3vc77743mca8eOSXOdADvyta1zz3N+53yec35v54g3oHzm7uXcs2qcspwUaWgX6gI6LUrCjnhUMADqL8c4GsClTf1vxFDRuRJ05NPQtaiXSGwQXIx0g/B1mDXAUqAFVAADTALDRvuNnwW+L/SUKOxHTsOdB///APKOtxPjPqxCs2LlRinchrkJuRekbBDOsDgfkVUbnQ1QBe0BfSMSvjBaKP2kIVarzXe89tYGVH2oh2CFKL+D4D8O5n2glprwnIim0zkF6BO/6DP6IrAtaPHLadpPYdPgWw9Quq0LcAsKtwObgeWaWhkYnQCT19jgNK8PU4trLkzYAnmX0SeJPC5RDR8/8tYAdPTBDhaXChi6JR5AfARoIJtULvAksTax1I6XXY2G96Bje6E6AY5Zy1nATNaTh7G3pA6fBcaLdy08pLCQnQ09cDltpSIR9SAeAv5AVoMsJLLVMdc7cQrd6wnv2QG/8RhefjVg4tKriEvWEgulfIs5f0DIRrAYwp8n4v4kxOa4revNDai1/SAmtgW8VfDbQrOY2Maxmn0cwflq6L0SGlpRKMDooez/d30KPvCv+J1/AkpmClPesWhE/oQJ91adFKvbet6cgKrbeqlSSoLCJsTvcJKOyehE3LaSuP524nnXQ3MPDgGSYgYI8NEX4dge3LoCta9GTV1ICcTKnHLzLdsgs7mg+FvBJt3eu2CACgsCZ8dSglPk8ruBu/HJrxvAmQt4/g2EDZ+GynEYeRX378LDe1H3egTEI88QyiO4cw2UOiFW8KH/QY4Q5h5uBsmthk9aegZ71388dA833/U3bw5AqqbYXqKE+0Cdqo16Op9sgj2XZ0q3YRFaciksuRTlusWAzt9AvP5T0HUZCgkeOYj6nsv78CmsG1m9fbHwJ2LUR2/Uo+WFmFtSbwfVz3UTYkRBHwZ9TCic0jZKMHYIH30JQgKtK5ACkrIPQEsvWn4NWrwqa18ZzdqP90FlLHcDdMruQRdK/EjSy/duXMeWJ/bXNb+6zXx1+3KAzkD1cfC7NF+XdqaHHHH7anTLlzMQU1/nA6q5jLkCT8u4/3l4/p/QS1/NQCmcUgTwWFXxNsmTxTsG6ppfXUraWzZkuidWr8NcpdfjLUFIUEiAOEtVefQg6f7v47FDOKZT7iRKGlHvlejGB4k3/CVu7ADHuUVgEDejwjpTrAtO3YDSRS/wjV85LMkbgZJP8zk7QsdFqLlmkg1475Poax+Gr34Q/9d9+MBOHKv5xEFJA2HtrfiK23Gmc+YiBKY7sd9TTFMG/m7VaY3prACSAxtf7ekEXQM+zf2abSB3XwGFElPhA47o8E/Q5DHC4E/Rcw/DE7+LX3g0AzolUwGt/nVo6q49OxckuHEyFEptk8ffQECKSHEl+ILX3V7T+RQaUc8VM8OO8jD0P48IoIBCgXC8D/53B4zsmym31IEb2uZeQSf8da8tki5NdLrr+iwAsoVjWAUsPn11b9zUhTvfNrN2eA8M761ZKOequjqOT3YSK6OoMnZqk5+VbswK6uNz5n5Q5bNLERHgvCwOmD9dUSMRcfuFqGXZzOrKKGpZip1C9XjWrtiCL/4AofX8aXghHnmWMD4wvzzThFj+hgE6rmZadQwTOvRLjMIA3VegYsuM+rD8WnzLl/HwXjy6D6plaFuBeq9CSWPt2ZH9sOvzEMvM68bJAehE4kd/cSnv/LMXzi0gJVPZURrzmtOgY0im65+pamd6p2UZalk2J27HKnHfd+HH2wgHngLCPCJzQwCNMrQvajrTaZ45oEQRHBCUT3bv5iGESx3QuXZGbex7Bp5/FHWtxT1vRx2XZKHIyY9PHEXDezJZCq8nCklVcBYMn2tAzdVBYkgADQmfJp8Ii1eh1vOmzwMdeCoz66EApXbcdTms+RCsfj8qLsoahgLhkg/iYiv+9ibCxMA8kPIcrj0EcMmmnWcM6IytmO4aJE+h7gfSU8KxM684VjMF3LUOGhbVvo8pHHmGE6mjiSH02n+i79xL/MEDuDJ2YsoCtPJmvPLmGb7RHEIBysChMyaTl7qi+dw1fAU4Bu6YE44Cvuj9WAGOvYoueHfuqeR6YmIQ+nfXglA7S5qlFcLuL+ELN6IVN9X6DEXUdRkQ5onuBTAI1H3sUWe6wwB7gT1Ax1zfu20FXHs/oXUFVEah2DqzyfAeGH3tBJwZk4zVLDd9cq/pZO1EZM5RGeDliA/UC6guRzHK/LxlZAB55yzLY2fWadVG1HYBCgXU2J4HqtQmVx6Cpi5caMIYO9+OGC+/FnqvnGnVYhUGdjOv0rMA/XeiZCSqvoRFXSuokDZx0Zht+QlZH0GUZuJP8NDL8OJXcM961LoCktIJfQOgFRvwLf+StTv6EoweyJR520q06r3QPDPH7GN74fCPT5nuyMGNGH3TNg0f76sLUP35oG3dAJ1BfE3o2pljzdKshCJu7oLONXjZrxIu/z3U1JX7PzVYJ6/CWUlJp8QfbiU8/bf5cdDs4RuD/S0TfhMYTeo8L6s7ae8QSWAQ83nb6cwZCoWAnBLGDhH2/jv62T9nCTAgHn6auOsfiYM/PbFhpn9myEknibu/hJ57JAdxqoNFlSPhESuMpmmdcQYLkJMu3jFAmq2irwjdarNh5outnW5YAXddBk09GYTdj6Fn/4F4zX3o6vtwrOD9O7P2pXYIDVAdh2N74BdPoleeRJWxLOKfpYOcBc/o21UVvy5M4911W/mFSdqXG0qUyhP9FlsF64H2WY1M5tj1vgMlxUw59z8LhRLqWpcZ/rHD8N3NWXqj2AxKUKxAZQzSchYTK+R9nXw6K5APA1sbmDg2XGhnIcqCnIs1/+FrVANMBn8LeZvtOGeuJmmElm5wmqU3hl7BLUthyaVZRnFgNxrZh9IymhhE432oPIxiNbOC0lRKdRZ9QwXrr48XK99LgY6P/nxBAC3ICgJouLOPuK27aviM0GrDrbN8lVhBT/0VfvnrWAmhfBR3XYaasyNjH3oaVcchhHwbzVXmUswy4mFbn2uZLHohLzLUfewzvdz+oR7aKumE0U6J1VhrpKkrLvl5+uQIDL6Ijr4ICFVG8cBuPD4ArzyBRg9k9aflvxhbBr5oebNgaKFveSz47Y7x7Z00ugCwDLEFuFWmULPltQsIUxek7LR2appnEufn4/xHk8DDRvcD/dp/mLBlYedzVu4Hje5YT1M8CKhNcCf2PYiuqXzx3HPOwc1LJo/fsj+HbD1ITP5eMBY21R1VnDtAUyVu78YokbkesRn711CWxGLO8+n5S35APY71TUsPjhbDD4sxxuY/OnzW5nDW7ygObb+IxR4iElrB7xW6DXE90JHtE83DytO960Gs71l+BOvfpMmxibCB5o89flbHf85uuY5sXcOi1iPENGlK1bguceUmFK8Tehu4G9OMSHIiKeI4Vh/yz0A/MP6OHXYlVCaOj7TS8qd7z8m4zxmg6WVg+2I63UQlUWMS0y7wctndSIvyq2SjSH12OGjFvqTcWR5p+wVtv1+pV/QvXf4PHUaR+DDGe50AAAAASUVORK5CYII=",USDT:"data:image/png;base64,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",ETH:"data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2072%2072%27%3E%3Ccircle%20cx=%2736%27%20cy=%2736%27%20r=%2736%27%20fill=%27%23627eea%27/%3E%3Cg%20fill=%27%23ffffff%27%3E%3Cpath%20fill-opacity=%27.6%27%20d=%27M36%2013v17.4l14%206.3z%27/%3E%3Cpath%20d=%27M36%2013%2022%2036.7l14-6.3z%27/%3E%3Cpath%20fill-opacity=%27.6%27%20d=%27M36%2047.6V59l14-19.4z%27/%3E%3Cpath%20d=%27M36%2059V47.6L22%2039.6z%27/%3E%3Cpath%20fill-opacity=%27.2%27%20d=%27M36%2044.9l14-8.2-14-6.3z%27/%3E%3Cpath%20fill-opacity=%27.6%27%20d=%27M22%2036.7l14%208.2V30.4z%27/%3E%3C/g%3E%3C/svg%3E"};
 const FIATS=["RUB(ПМР)","RUB(РФ)","USD","EUR","UAH","KZT"];
-const CRYPTOS=["USDT","GRAM","BTC","ETH"];
+const CRYPTOS=["USDT","GRAM"];
 const METHODS=["АПБ","ЭксимБанк","Сбербанк","Наличные","Банковский перевод","СБП"];
+// card skins: key, russian name, glow colour for the animated halo
+const CARD_SKINS=[
+  {k:"midnight", n:"Тёмно-синий", glow:"#2a46c8"},
+  {k:"blue",     n:"Синий",       glow:"#2f6bff"},
+  {k:"ocean",    n:"Океан",       glow:"#12a9e6"},
+  {k:"aurora",   n:"Аврора",      glow:"#5b7bff"},
+  {k:"sunset",   n:"Закат",       glow:"#f6465d"},
+  {k:"magma",    n:"Магма",       glow:"#ff5a36"},
+  {k:"amethyst", n:"Аметист",     glow:"#7c3aed"},
+  {k:"emerald",  n:"Изумруд",     glow:"#17c08a"},
+  {k:"obsidian", n:"Чёрный",      glow:"#5a6680"},
+  {k:"graphite", n:"Графит",      glow:"#8a93a6"},
+  {k:"gold",     n:"Золото",      glow:"#d9b24e"},
+];
+const skinGlow=(k)=>(CARD_SKINS.find(s=>s.k===k)||CARD_SKINS[0]).glow;
 const PINS=[
   {h:0,  price:0,  label:"Без закрепления"},
   {h:3,  price:1,  label:"3 ч"},
@@ -438,12 +503,14 @@ let refreshTimer=null;
 
 function defaultState(){
   return {
-    hasWallet:false, locked:true, network:"mainnet", cardSkin:"blue",
+    hasWallet:false, locked:true, network:"mainnet", cardSkin:"midnight",
     addressRaw:null, pubkey:null, enc:null, bioCredId:null, bioPw:null,
+    profile:{nick:null, nickChangesLeft:1, registeredAt:null}, // nickname can be changed once
     settings:{currency:"USD", theme:"light", lang:"Русский", notifications:false, biometric:false},
     balances:{GRAM:"0", USDT:"0"},           // raw units (string of bigint) by asset
-    locks:[],                                 // {id, asset, amount(human float), reason, offerId, ts}
+    locks:[],                                 // {id, asset, amount(human float), reason, offerId, tradeId, ts}
     offers:[],                                // user + demo offers
+    trades:[],                                // {id, offerId, ...} orders the user joined
     history:[],                               // {id,type,asset,amount,addr,hash,ts,net,status}
     seedConfirmed:false,
     seeded:false,
@@ -507,7 +574,6 @@ function toUnits(amount,dec){
 function humanBal(asset){
   const m=ASSET_META[asset];
   if(!m) return 0;
-  if(asset==="BTC"||asset==="ETH") return 0;
   return fromUnits(S.balances[asset]||"0", m.dec);
 }
 function lockedFor(asset){
@@ -535,6 +601,61 @@ function friendlyAddr(){
     catch(e){}
   }
   return S.addressRaw;
+}
+
+/* ---------- profile / nickname ---------- */
+function myNick(){ return (S.profile&&S.profile.nick)||null; }
+function displayName(){ return myNick()||"PMR Wallet"; }
+function needsRegistration(){ return S.hasWallet && !S.locked && !myNick(); }
+
+/* Basic profanity filter. Blocklist compiled from public open-source
+   obscenity word lists (RU + EN roots). Input is normalised against common
+   leet-speak and latin/cyrillic homoglyph obfuscation, then checked for any
+   banned root as a substring. Not exhaustive — a pragmatic client-side guard. */
+const BAD_WORD_ROOTS=[
+  // --- cyrillic roots (kept specific to avoid false positives) ---
+  "хуй","хуе","хуя","хуи","хуё","хуям","хуями",
+  "пизд","пизж","пезд",
+  "ебан","ебат","ебах","ебал","ебуч","ёбан","ёбну","заеб","наеб","проеб","выеб","отъеб","долбоеб","долбоёб","далбаёб","долбаеб",
+  "блят","бляд","блядь","блядо","блядок","бляц",
+  "сука","суки","суку","сучар","сучка",
+  "мудак","мудил","мудач",
+  "пидор","пидар","пидр","пидер","педик","педераст","пидрил","пидорас",
+  "гандон","гондон",
+  "залуп","дроч","мразь","говн","гавн","жопа","шлюх","гнида","пидар",
+  // --- latin / translit roots ---
+  "fuck","motherfuck","shit","bullshit","bitch","cunt","asshole","bastard","whore","nigger","nigga","faggot","pizda","pizdec",
+  "pidor","pidar","pidr","pidoras","pedik","pederast",
+  "eblan","ebal","ebat","ebla","yobn","ohuel","ahuel",
+  "xyi","xuy","huy","hui","huj","blyad","blyat","suka","suchka","mudak","mydak","mudila","gandon","gondon","zalupa","drochit","droch","dolboeb","dolbaeb","govno","gavno","zhopa","shluha","mraz",
+];
+const LEET_MAP={"0":"o","1":"i","3":"e","4":"a","5":"s","6":"g","7":"t","8":"b","9":"g","@":"a","$":"s","!":"i","|":"i","€":"e"};
+const CYR2LAT={а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"i",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"c",ч:"ch",ш:"sh",щ:"sch",ъ:"",ы:"y",ь:"",э:"e",ю:"yu",я:"ya"};
+const LAT2CYR={a:"а",b:"б",c:"с",d:"д",e:"е",f:"ф",g:"г",h:"х",i:"и",j:"й",k:"к",l:"л",m:"м",n:"н",o:"о",p:"п",q:"к",r:"р",s:"с",t:"т",u:"у",v:"в",w:"в",x:"х",y:"у",z:"з"};
+function normBase(s){
+  let t=String(s||"").toLowerCase();
+  t=t.replace(/[0-9@$!|€]/g,c=>LEET_MAP[c]||"");
+  return t.replace(/[^a-zа-яё]/g,""); // strip spaces/underscores/punctuation
+}
+function translitCyr(s){ return s.replace(/[а-яё]/g,c=>CYR2LAT[c]!=null?CYR2LAT[c]:c); }
+function translitLat(s){ return s.replace(/[a-z]/g,c=>LAT2CYR[c]||c); }
+function isProfane(nick){
+  const base=normBase(nick);
+  if(!base) return false;
+  const variants=[base, translitCyr(base), translitLat(base)];
+  return BAD_WORD_ROOTS.some(root=>variants.some(v=>v.includes(root)));
+}
+// -> {ok:true} or {ok:false, reason:"..."}
+function validateNick(raw){
+  const nick=String(raw||"").trim();
+  if(nick.length<3) return {ok:false,reason:"Ник слишком короткий (минимум 3 символа)"};
+  if(nick.length>16) return {ok:false,reason:"Ник слишком длинный (максимум 16 символов)"};
+  if(!/^[A-Za-zА-Яа-яЁё0-9_.\-]+$/.test(nick)) return {ok:false,reason:"Разрешены буквы, цифры, _ . -"};
+  if(!/[A-Za-zА-Яа-яЁё]/.test(nick)) return {ok:false,reason:"Ник должен содержать хотя бы одну букву"};
+  if(isProfane(nick)) return {ok:false,reason:"Недопустимый ник. Нецензурные слова запрещены."};
+  const taken=(S.offers||[]).some(o=>!o.mine&&(o.name||"").toLowerCase()===nick.toLowerCase());
+  if(taken) return {ok:false,reason:"Такой ник уже занят"};
+  return {ok:true};
 }
 
 /* ---------- WebCrypto seed encryption ---------- */
@@ -739,6 +860,8 @@ function render(){
   el("tabbar").style.display= (view==="home"||view==="p2p"||view==="profile") ? "block":"none";
   renderCurrent();
   renderTabbar();
+  // one-time registration prompt (nickname) once the wallet is unlocked
+  if(needsRegistration() && !el("modal").classList.contains("open")) modalRegister();
 }
 let lastView=null;
 function viewAnim(){ if(lastView!==view){ lastView=view; const r=el("app").firstElementChild; if(r) r.classList.add("view-anim"); } }
@@ -842,9 +965,9 @@ function renderHome(){
       <button class="iconbtn" data-act="go-settings" title="Настройки">${I.gear}</button>
       <button class="iconbtn" data-act="go-history" title="История">${I.clock}</button>
     </div>
-    <div class="card3d ${introCls}" data-act="flip-card">
+    <div class="card3d ${introCls}" data-act="flip-card" style="--card-glow:${skinGlow(S.cardSkin||'midnight')}">
       <div class="card-inner ${cardFlipped?'flipped':''}">
-          <div class="balance card-face front skin-${esc(S.cardSkin||'blue')}">
+          <div class="balance card-face front skin-${esc(S.cardSkin||'midnight')}">
             <div class="card-chip" aria-hidden="true"></div>
             <div class="row1">
               <span class="lbl">Общий баланс${S.network==="testnet"?" · TESTNET":""}</span>
@@ -853,10 +976,10 @@ function renderHome(){
             <div class="big">${hideBalance?"••••••":("$"+ (Math.floor(total)).toLocaleString("en-US") + "<small>."+ (total.toFixed(2).split(".")[1]) +"</small>")}</div>
             <div class="foot">
               <span class="chg">${chgTxt}</span>
-              <span class="cur">crypto assets</span>
+              <span class="cur">${esc(S.profile&&S.profile.nick?("@"+S.profile.nick):"crypto assets")}</span>
             </div>
           </div>
-          <div class="balance card-face back skin-${esc(S.cardSkin||'blue')}">
+          <div class="balance card-face back skin-${esc(S.cardSkin||'midnight')}">
             <div class="card-sphere" aria-hidden="true"></div>
             <div class="magstripe"><div class="bars"></div></div>
             <div class="back-sign"><span class="cvv">7997</span></div>
@@ -906,6 +1029,11 @@ function renderP2P(){
       <span class="pill ${S.network==="testnet"?"test":"net"}">${networkLabel()}</span>
     </div>
     <button class="bigcta" data-act="create-offer"><span class="pl">${I.plus}</span>Создать оффер</button>
+    <button class="myorders-btn" data-act="my-orders">
+      <span class="ic">${I.clock}</span>
+      <span class="tx"><b>Мои ордеры</b><span>Сделки и офферы, в которых вы участвуете</span></span>
+      ${activeTrades().length?`<span class="cnt">${activeTrades().length}</span>`:`<span class="ch" style="color:var(--ink-4)">${I.chev}</span>`}
+    </button>
     <div class="twocard">
       <div class="flatcard" data-act="scroll-offers"><span class="ic">${I.grid}</span><b>Офферы</b></div>
       <div class="flatcard" data-act="filters"><span class="ic">${I.filter}</span><b>Фильтры</b></div>
@@ -916,7 +1044,7 @@ function renderP2P(){
     </div>
     <div class="sec-head" id="offersAnchor"><h2>${p2pSide==='buy'?'Покупка':'Продажа'} USDT</h2><span class="count">${list.length}</span></div>
     ${list.length?list.map(offerCard).join(""):`<div class="empty">Нет офферов по выбранным фильтрам.</div>`}
-    <p class="pagenote">P2P-ордера на продажу блокируют ваши средства локально (эскроу без бэкенда недоступен). Отпуск по сделке — реальный перевод в сети TON на адрес контрагента.</p>
+    <p class="pagenote">Вступление в сделку блокирует средства на вашем кошельке до её завершения или отмены — вывести их на другой адрес нельзя. Автосведение сделок и чат работают локально (без бэкенда). Отпуск средств по офферу — реальный перевод в сети TON.</p>
   </div>`;
 }
 function filteredOffers(){
@@ -950,6 +1078,9 @@ function renderProfile(){
   const addr=friendlyAddr();
   const myOffers=S.offers.filter(o=>o.mine).length;
   const totalLocked=CRYPTOS.reduce((a,c)=>a+usdOf(c,lockedFor(c)),0);
+  const nick=myNick();
+  const canChange=((S.profile&&S.profile.nickChangesLeft)||0)>0;
+  const openTrades=activeTrades().length;
   app.innerHTML=`
   <div class="screen">
     <div class="topbar"><h1>Профиль</h1>
@@ -958,7 +1089,7 @@ function renderProfile(){
     <div class="flatcard" style="flex-direction:row;align-items:center;gap:14px">
       <div class="coin" style="width:52px;height:52px;background:linear-gradient(140deg,#5b8bff,#2457e0)">${I.user}</div>
       <div style="min-width:0">
-        <b style="font-size:16px">PMR Wallet</b>
+        <b style="font-size:16px">${esc(nick||"Без ника")}</b>
         <div class="muted" style="font-size:12.5px;font-family:var(--mono);word-break:break-all">${esc(shortAddr(addr))}</div>
       </div>
       <button class="iconbtn" style="margin-left:auto" data-act="copy-addr">${I.copy}</button>
@@ -966,6 +1097,11 @@ function renderProfile(){
     <div class="twocard" style="margin-top:12px">
       <div class="flatcard"><span class="muted" style="font-size:12px">Активных офферов</span><b style="font-size:22px">${myOffers}</b></div>
       <div class="flatcard"><span class="muted" style="font-size:12px">Заблокировано</span><b style="font-size:22px">${fmtUsd(totalLocked)}</b></div>
+    </div>
+    <div class="sec-head"><h2>P2P</h2></div>
+    <div class="setcard">
+      <div class="setrow" data-act="my-orders"><span class="si">${I.clock}</span><div class="st"><b>Мои ордеры</b><span>${openTrades?openTrades+" активн.":"нет активных сделок"}</span></div><span class="ch">${I.chev}</span></div>
+      <div class="setrow" data-act="${nick?(canChange?"change-nick":"nick-locked"):"register"}"><span class="si">${I.user}</span><div class="st"><b>${nick?"Сменить ник":"Задать ник"}</b><span>${nick?(canChange?"Доступна 1 смена":"Смена недоступна"):"Регистрация в P2P"}</span></div><span class="ch">${I.chev}</span></div>
     </div>
     <div class="sec-head"><h2>Кошелёк</h2></div>
     <div class="setcard">
@@ -1110,12 +1246,11 @@ async function modalDeposit(){
 
 /* card skin picker */
 function modalCardSkin(){
-  const skins=[{k:"blue",n:"Синяя"},{k:"obsidian",n:"Чёрная"},{k:"graphite",n:"Графит"},{k:"emerald",n:"Изумруд"}];
   openModal(`${sheetHead("Фон карты")}
-    <p class="dim" style="margin-bottom:14px">Выберите оформление карты баланса.</p>
+    <p class="dim" style="margin-bottom:14px">Выберите оформление карты баланса — однотонные цвета и градиентные комбинации.</p>
     <div class="skin-grid">
-      ${skins.map(s=>`<button class="skin-opt ${S.cardSkin===s.k?"on":""}" data-act="pick-skin" data-v="${s.k}">
-        <div class="skin-sw skin-${s.k}"></div>
+      ${CARD_SKINS.map(s=>`<button class="skin-opt ${S.cardSkin===s.k?"on":""}" data-act="pick-skin" data-v="${s.k}">
+        <div class="skin-sw skin-${s.k}" style="box-shadow:0 8px 20px -10px ${s.glow}${S.cardSkin===s.k?",0 0 0 2px var(--primary)":""}"></div>
         <div class="skin-nm">${s.n}${S.cardSkin===s.k?` ${I.check}`:""}</div>
       </button>`).join("")}
     </div>`);
@@ -1300,6 +1435,183 @@ function modalSetPassword(onDone,{title="Задайте пароль",sub="Па�
   }; },30);
 }
 
+/* ===================== REGISTRATION / NICKNAME ===================== */
+function modalRegister(){
+  openModal(`${sheetHead("Регистрация")}
+    <div style="text-align:center;margin-bottom:12px">
+      <div class="hero-badge" style="margin:4px auto 14px;width:72px;height:72px;border-radius:22px">${I.user}</div>
+      <p class="dim">Придумайте ник — его увидят другие участники P2P. Указать можно только сейчас, позже доступна лишь одна смена.</p>
+    </div>
+    <div class="field"><label>Ваш ник</label>
+      <input class="input" id="regNick" maxlength="16" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Например, tiraspol_trader">
+      <p class="hint" id="regHint" style="margin-top:8px">3–16 символов: буквы, цифры, _ . -</p>
+    </div>
+    <button class="btn btn-primary btn-lg btn-block" id="regGo">Зарегистрироваться ${I.chev}</button>`,true);
+  setTimeout(()=>{
+    const inp=el("regNick"); if(inp) inp.focus();
+    if(inp) inp.addEventListener("keydown",e=>{ if(e.key==="Enter") el("regGo").click(); });
+    el("regGo").onclick=()=>saveNick(el("regNick").value,false);
+  },30);
+}
+function modalChangeNick(){
+  const left=(S.profile&&S.profile.nickChangesLeft)||0;
+  if(left<=0){ return toast("Ник можно изменить только один раз — лимит исчерпан","err"); }
+  openModal(`${sheetHead("Сменить ник")}
+    <div class="warnbox">${I.warn}<div>Сменить ник можно только <b>один раз</b>. После сохранения изменить его больше нельзя.</div></div>
+    <div class="field"><label>Текущий ник</label><div class="addrbox"><div class="a" style="font-family:var(--font)">@${esc(myNick()||"—")}</div></div></div>
+    <div class="field"><label>Новый ник</label>
+      <input class="input" id="chNick" maxlength="16" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Новый ник">
+      <p class="hint" style="margin-top:8px">3–16 символов: буквы, цифры, _ . -</p>
+    </div>
+    <button class="btn btn-primary btn-lg btn-block" id="chGo">Сохранить (останется смен: 0)</button>`,true);
+  setTimeout(()=>{ const inp=el("chNick"); if(inp) inp.focus(); el("chGo").onclick=()=>saveNick(el("chNick").value,true); },30);
+}
+function saveNick(raw,isChange){
+  const nick=String(raw||"").trim();
+  const v=validateNick(nick);
+  if(!v.ok) return toast(v.reason,"err");
+  if(isChange){
+    if(((S.profile&&S.profile.nickChangesLeft)||0)<=0) return toast("Лимит смены ника исчерпан","err");
+    if(nick.toLowerCase()===(myNick()||"").toLowerCase()) return toast("Это ваш текущий ник","err");
+  }
+  S.profile=S.profile||{nick:null,nickChangesLeft:1,registeredAt:null};
+  const prev=S.profile.nick;
+  S.profile.nick=nick;
+  if(isChange){ S.profile.nickChangesLeft=Math.max(0,(S.profile.nickChangesLeft||0)-1); }
+  else { S.profile.registeredAt=Date.now(); }
+  // keep user's own offers showing the new nick
+  (S.offers||[]).forEach(o=>{ if(o.mine) o.name=nick; });
+  save(); closeModal();
+  if(isChange){ toast("Ник изменён","ok"); if(view==="profile"||view.startsWith("settings")) render(); }
+  else { toast("Регистрация завершена","ok"); view="home"; render(); }
+}
+
+/* ===================== P2P: trades + chat ===================== */
+function activeTrades(){ return (S.trades||[]).filter(t=>t.status==="active"); }
+function tradeById(id){ return (S.trades||[]).find(t=>t.id===id); }
+
+function modalMyOrders(){
+  const trades=(S.trades||[]).slice().sort((a,b)=>(a.status==="active"?0:1)-(b.status==="active"?0:1)||b.ts-a.ts);
+  const myOffers=(S.offers||[]).filter(o=>o.mine);
+  const tradeRow=(t)=>`<div class="offer" data-act="trade" data-id="${t.id}">
+      <div class="top">
+        <div class="mk">${esc(t.name)}<div class="maker">${t.side==="sell"?"Покупка":"Продажа"} ${esc(t.crypto)} · ${esc(t.method)}</div></div>
+        <span class="statetag ${t.status}">${t.status==="active"?"Активна":t.status==="completed"?"Завершена":"Отменена"}</span>
+      </div>
+      <div class="price"><b>${fmtCrypto(t.amount)}</b><span>${esc(t.crypto)}${t.status==="active"?" · 🔒 заблокировано":""}</span></div>
+      <div class="meta"><div><span class="mm">Сумма:</span> ${fmtNum(t.fiatAmount,2)} ${esc(t.fiat)} · по ${fmtNum(t.price,2)}</div></div>
+      <div class="tagline">${I.clock}${nowShort(t.ts)}</div>
+    </div>`;
+  const offerRow=(o)=>`<div class="offer mine" data-act="offer" data-id="${o.id}">
+      <div class="top"><div class="mk">${esc(o.name)}<div class="maker">Мой оффер · ${o.side==="sell"?"Продажа":"Покупка"} ${esc(o.crypto)}</div></div><span class="badge ${o.side}">${o.side==="sell"?"Продажа":"Покупка"}</span></div>
+      <div class="price"><b>${fmtNum(o.price,2)}</b><span>${esc(o.fiat)} / ${esc(o.crypto)}</span></div>
+      <div class="tagline">${o.pin?`${I.clock}закреплён · `:""}Нажмите для управления</div>
+    </div>`;
+  openModal(`${sheetHead("Мои ордеры")}
+    <div class="sec-head" style="margin:4px 2px 10px"><h2 style="font-size:15px">Сделки</h2><span class="count">${trades.length}</span></div>
+    ${trades.length?trades.map(tradeRow).join(""):`<div class="empty">Вы ещё не вступали в сделки. Откройте оффер и нажмите «Начать сделку».</div>`}
+    <div class="sec-head" style="margin:14px 2px 10px"><h2 style="font-size:15px">Мои офферы</h2><span class="count">${myOffers.length}</span></div>
+    ${myOffers.length?myOffers.map(offerRow).join(""):`<div class="empty">У вас нет опубликованных офферов.</div>`}`);
+}
+
+/* join an offer -> lock funds + create trade */
+function modalJoinTrade(id){
+  const o=S.offers.find(x=>x.id===id); if(!o) return;
+  const avail=availableFor(o.crypto);
+  openModal(`${sheetHead("Вступить в сделку")}
+    <div style="display:flex;gap:8px;margin-bottom:12px"><span class="badge ${o.side}">${o.side==="sell"?"Продажа":"Покупка"}</span>${o.demo?`<span class="pill">Демо</span>`:""}</div>
+    <div class="kv"><span class="k">Контрагент</span><span class="v" style="font-family:var(--font)">${esc(o.name)}</span></div>
+    <div class="kv"><span class="k">Цена</span><span class="v">${fmtNum(o.price,2)} ${esc(o.fiat)} / ${esc(o.crypto)}</span></div>
+    <div class="kv"><span class="k">Лимиты</span><span class="v">${fmtNum(o.min,0)}–${fmtNum(o.max,0)} ${esc(o.fiat)}</span></div>
+    <div style="height:12px"></div>
+    <div class="field"><label>Сумма сделки, ${esc(o.crypto)}</label>
+      <input class="input" id="jtAmt" inputmode="decimal" placeholder="0.00">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <span class="hint" id="jtFiat" style="margin:0">≈ 0 ${esc(o.fiat)}</span>
+        <span class="hint" style="margin:0">Доступно: ${fmtCrypto(avail)} ${esc(o.crypto)}</span>
+      </div>
+    </div>
+    <div class="lockchip" style="margin-bottom:14px">${I.lock}<div>На время сделки <b>${esc(o.crypto)}</b> будет заблокирован на вашем кошельке — вывести на другой адрес его нельзя до завершения или отмены сделки.</div></div>
+    <button class="btn btn-primary btn-lg btn-block" data-act="join-go" data-id="${o.id}">Вступить и заблокировать средства</button>`);
+  setTimeout(()=>{ const a=el("jtAmt"); if(a){ a.focus(); a.addEventListener("input",()=>{ const v=Number(String(a.value).replace(",",".")) ||0; const f=el("jtFiat"); if(f) f.textContent="≈ "+fmtNum(v*o.price,2)+" "+o.fiat; }); } },30);
+}
+function joinTradeGo(id){
+  const o=S.offers.find(x=>x.id===id); if(!o) return;
+  const amt=Number(String((el("jtAmt")||{}).value||"").replace(",","."));
+  if(!amt||amt<=0) return toast("Введите сумму сделки","err");
+  const fiatAmount=amt*o.price;
+  if(fiatAmount<o.min-1e-9||fiatAmount>o.max+1e-9) return toast(`Сумма вне лимитов: ${fmtNum(o.min,0)}–${fmtNum(o.max,0)} ${o.fiat}`,"err");
+  if(!ASSET_META[o.crypto]||!ASSET_META[o.crypto].onTon) return toast(`${o.crypto} вне сети TON — сделка недоступна`,"err");
+  const avail=availableFor(o.crypto);
+  if(amt>avail) return toast(`Недостаточно средств для блокировки. Нужно ${fmtCrypto(amt)} ${o.crypto}, доступно ${fmtCrypto(avail)}`,"err");
+  const now=Date.now();
+  const trade={ id:"tr"+now, offerId:o.id, name:o.name, side:o.side, crypto:o.crypto, fiat:o.fiat,
+    price:o.price, method:o.method, amount:amt, fiatAmount, status:"active", lockId:"lk"+now, role:"taker",
+    chat:[{who:"sys",text:"Сделка создана. Средства заблокированы до завершения.",ts:now},
+          {who:"peer",text:`Здравствуйте! Готов провести сделку на ${fmtNum(fiatAmount,2)} ${o.fiat}. Оплата способом «${o.method}».`,ts:now+1}],
+    ts:now };
+  S.trades.unshift(trade);
+  S.locks.push({id:trade.lockId,asset:o.crypto,amount:amt,reason:"trade",tradeId:trade.id,ts:now});
+  save(); closeModal();
+  notify("Вы вступили в сделку",`${fmtCrypto(amt)} ${o.crypto} заблокировано`);
+  modalTrade(trade.id);
+  renderCurrent();
+}
+
+/* trade detail + chat */
+function modalTrade(id){
+  const t=tradeById(id); if(!t) return;
+  const bubbles=(t.chat||[]).map(m=>{
+    if(m.who==="sys") return `<div class="msg sys">${esc(m.text)}</div>`;
+    const who=m.who==="me"?"me":"peer";
+    const label=m.who==="me"?"Вы":esc(t.name);
+    return `<div class="msg ${who}">${esc(m.text)}<span class="mt">${label} · ${nowShort(m.ts)}</span></div>`;
+  }).join("");
+  const active=t.status==="active";
+  openModal(`${sheetHead("Сделка")}
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span class="statetag ${t.status}">${active?"Активна":t.status==="completed"?"Завершена":"Отменена"}</span>
+      <b style="font-size:15px">${esc(t.name)}</b>
+    </div>
+    <div class="kv"><span class="k">Направление</span><span class="v" style="font-family:var(--font)">${t.side==="sell"?"Вы покупаете":"Вы продаёте"} ${esc(t.crypto)}</span></div>
+    <div class="kv"><span class="k">Сумма</span><span class="v">${fmtCrypto(t.amount)} ${esc(t.crypto)} · ${fmtNum(t.fiatAmount,2)} ${esc(t.fiat)}</span></div>
+    <div class="kv"><span class="k">Способ оплаты</span><span class="v" style="font-family:var(--font)">${esc(t.method)}</span></div>
+    <div style="height:10px"></div>
+    ${active?`<div class="lockchip" style="margin-bottom:12px">${I.lock}<div>Заблокировано <b>${fmtCrypto(t.amount)} ${esc(t.crypto)}</b> — вывод недоступен до завершения или отмены.</div></div>`:""}
+    <div class="eyebrow" style="margin:6px 2px 8px">Чат сделки</div>
+    <div class="chat" id="tradeChat">${bubbles||`<div class="empty">Сообщений пока нет.</div>`}</div>
+    ${active?`<div class="chat-input"><input id="tradeMsg" placeholder="Сообщение контрагенту…" autocomplete="off"><button class="snd" data-act="trade-send" data-id="${t.id}">${I.chev}</button></div>
+      <div style="height:12px"></div>
+      <button class="btn btn-primary btn-lg btn-block" data-act="trade-complete" data-id="${t.id}">Завершить сделку · разблокировать</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" data-act="trade-cancel" data-id="${t.id}">Отменить и выйти</button>`
+    :`<div class="infobox" style="margin-top:4px">${I.info}<div>Сделка ${t.status==="completed"?"завершена":"отменена"}. Средства разблокированы.</div></div>`}`);
+  setTimeout(()=>{ const c=el("tradeChat"); if(c) c.scrollTop=c.scrollHeight; const m=el("tradeMsg"); if(m){ m.addEventListener("keydown",e=>{ if(e.key==="Enter") act("trade-send",{id:t.id}); }); } },30);
+}
+function tradeSend(id){
+  const t=tradeById(id); if(!t||t.status!=="active") return;
+  const inp=el("tradeMsg"); const text=(inp&&inp.value||"").trim();
+  if(!text) return;
+  t.chat.push({who:"me",text,ts:Date.now()});
+  // lightweight local counterparty auto-reply (no backend)
+  const replies=["Принято.","Хорошо, подтверждаю.","Отправляю оплату, ожидайте.","Оплатил, проверьте поступление.","Спасибо за сделку!"];
+  t.chat.push({who:"peer",text:replies[Math.floor(Math.random()*replies.length)],ts:Date.now()+1});
+  save(); modalTrade(id);
+}
+function tradeComplete(id){
+  const t=tradeById(id); if(!t||t.status!=="active") return;
+  S.locks=S.locks.filter(l=>l.tradeId!==id);
+  t.status="completed"; t.chat.push({who:"sys",text:"Сделка завершена. Средства разблокированы.",ts:Date.now()});
+  save(); notify("Сделка завершена",`${fmtCrypto(t.amount)} ${t.crypto} разблокировано`);
+  modalTrade(id); renderCurrent();
+}
+function tradeCancel(id){
+  const t=tradeById(id); if(!t||t.status!=="active") return;
+  S.locks=S.locks.filter(l=>l.tradeId!==id);
+  t.status="canceled"; t.chat.push({who:"sys",text:"Сделка отменена. Средства разблокированы.",ts:Date.now()});
+  save(); toast("Сделка отменена · средства разблокированы","");
+  modalTrade(id); renderCurrent();
+}
+
 /* ===================== ACTIONS ===================== */
 async function act(name,ds={}){
   switch(name){
@@ -1345,7 +1657,7 @@ async function act(name,ds={}){
     case "send-go": await sendGo(); break;
 
     /* p2p */
-    case "create-offer": modalCreateOffer(); break;
+    case "create-offer": if(!myNick()){ toast("Сначала задайте ник","err"); modalRegister(); } else modalCreateOffer(); break;
     case "filters": modalFilters(); break;
     case "book": p2pSide=ds.v; lastView=null; renderCurrent(); break;
     case "pick-pin": offerDraft.pin=Number(ds.h); document.querySelectorAll("#pinGrid .pin-opt").forEach(n=>n.classList.toggle("on",Number(n.dataset.h)===offerDraft.pin)); break;
@@ -1358,6 +1670,19 @@ async function act(name,ds={}){
     case "offer-start": startTrade(ds.id); break;
     case "release-go": await releaseGo(ds.id); break;
     case "scroll-offers": { const a=el("offersAnchor"); if(a)a.scrollIntoView({behavior:"smooth"}); } break;
+
+    /* my orders / trades / chat */
+    case "my-orders": modalMyOrders(); break;
+    case "trade": modalTrade(ds.id); break;
+    case "join-go": joinTradeGo(ds.id); break;
+    case "trade-send": tradeSend(ds.id); break;
+    case "trade-complete": tradeComplete(ds.id); break;
+    case "trade-cancel": tradeCancel(ds.id); break;
+
+    /* registration / nickname */
+    case "register": modalRegister(); break;
+    case "change-nick": modalChangeNick(); break;
+    case "nick-locked": toast("Ник уже менялся — повторная смена недоступна","err"); break;
 
     /* settings */
     case "set": {
@@ -1592,7 +1917,7 @@ async function submitOffer(){
     lock={amount:amt,asset:d.crypto};
   }
   const id="of"+Date.now();
-  const offer={id,side:d.side,crypto:d.crypto,fiat:d.fiat,price,min,max,method:d.method,pin:d.pin,mine:true,name:"Мой оффер",demo:false,ts:Date.now()};
+  const offer={id,side:d.side,crypto:d.crypto,fiat:d.fiat,price,min,max,method:d.method,pin:d.pin,mine:true,name:myNick()||"Мой оффер",demo:false,ts:Date.now()};
   S.offers.unshift(offer);
   if(lock){ S.locks.push({id:"lk"+Date.now(),asset:lock.asset,amount:lock.amount,reason:"offer",offerId:id,ts:Date.now()}); }
   save(); closeModal(); renderP2P();
@@ -1606,13 +1931,8 @@ function cancelOffer(id){
   toast(had?"Оффер снят · средства разблокированы":"Оффер снят","ok");
 }
 function startTrade(id){
-  const o=S.offers.find(x=>x.id===id); if(!o) return;
-  closeModal();
-  if(o.side==="sell"){
-    modalResult(true,"Сделка начата",`Свяжитесь с «${esc(o.name)}», оплатите ${esc(o.fiat)} способом «${esc(o.method)}» и получите ${esc(o.crypto)} на свой адрес. Без бэкенда автосведение сделок недоступно — это демонстрация потока.`);
-  } else {
-    modalResult(true,"Сделка начата",`«${esc(o.name)}» покупает ${esc(o.crypto)}. Договоритесь об оплате и отправьте ${esc(o.crypto)} на адрес покупателя через «Отправить».`);
-  }
+  if(!myNick()){ closeModal(); toast("Сначала завершите регистрацию","err"); modalRegister(); return; }
+  modalJoinTrade(id);
 }
 async function releaseGo(id){
   const o=S.offers.find(x=>x.id===id); const lk=S.locks.find(l=>l.offerId===id);
