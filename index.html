@@ -276,6 +276,15 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .addrbox .cp:active{transform:scale(.9);}
 .qrwrap{display:flex;justify-content:center;padding:14px;background:#fff;border-radius:16px;margin:14px auto;width:fit-content;}
 .qrwrap canvas,.qrwrap img{width:188px;height:188px;display:block;}
+/* camera QR scanner (browser fallback) */
+.qr-scan{position:relative;width:100%;max-width:300px;aspect-ratio:1;margin:4px auto 14px;border-radius:18px;overflow:hidden;background:#000;}
+.qr-scan video{width:100%;height:100%;object-fit:cover;display:block;}
+.qr-frame{position:absolute;inset:16%;border:2px solid rgba(255,255,255,.92);border-radius:16px;box-shadow:0 0 0 100vmax rgba(0,0,0,.4);}
+.qr-frame::before,.qr-frame::after{content:"";position:absolute;left:-2px;right:-2px;height:2px;background:var(--primary);}
+.qr-frame::before{top:50%;box-shadow:0 0 10px 2px var(--primary);animation:qrScanLine 2.2s ease-in-out infinite;}
+.qr-frame::after{display:none;}
+@keyframes qrScanLine{0%,100%{top:8%;}50%{top:92%;}}
+@media (prefers-reduced-motion:reduce){.qr-frame::before{animation:none;top:50%;}}
 
 /* ===================== P2P ===================== */
 .pill{font-size:11px;font-weight:700;padding:5px 11px;border-radius:9px;background:var(--primary-ghost);color:var(--primary-2);letter-spacing:.02em;}
@@ -1051,7 +1060,7 @@ function renderHome(){
   <div class="screen">
     <div class="topbar">
       <h1>Мой кошелёк</h1>
-      <button class="iconbtn" data-act="deposit" title="Приём">${I.qr}</button>
+      <button class="iconbtn" data-act="qr-menu" title="QR-код">${I.qr}</button>
       <button class="iconbtn" data-act="go-settings" title="Настройки">${I.gear}</button>
       <button class="iconbtn" data-act="go-history" title="История">${I.clock}</button>
     </div>
@@ -1314,8 +1323,88 @@ function openModal(html,center=false){
   m.innerHTML=`<div class="modal-bg" data-act="close-modal"></div><div class="sheet ${center?"center":""}">${html}</div>`;
   m.classList.add("open");
 }
-function closeModal(){ el("modal").classList.remove("open"); el("modal").innerHTML=""; }
+let _qrStop=null; // camera-scanner cleanup, invoked when a modal closes
+function closeModal(){ if(_qrStop){ try{_qrStop();}catch(e){} _qrStop=null; } el("modal").classList.remove("open"); el("modal").innerHTML=""; }
 function sheetHead(title){ return `<div class="sheet-head"><h3>${title}</h3><button class="x" data-act="close-modal">${I.x}</button></div>`; }
+
+/* ---------- QR: choose scan or show ---------- */
+function modalQr(){
+  openModal(`${sheetHead("QR-код")}
+    <p class="dim" style="margin-bottom:16px">Отсканируйте QR-код адреса для отправки — или покажите свой для приёма средств.</p>
+    <button class="btn btn-primary btn-lg btn-block" data-act="scan-qr">${I.qr} Сканировать QR-код</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px" data-act="deposit">${I.down} Показать мой QR-код</button>`);
+}
+// extract a TON address (+ optional amount/comment) from scanned text or a ton:// / https link
+function parseTonQr(text){
+  text=String(text||"").trim();
+  let addr="", amount="", comment="", isTon=false;
+  const am=text.match(/([EU]Q[A-Za-z0-9_\-]{46})/);
+  if(/^ton:\/\//i.test(text)||/\/transfer\//i.test(text)){
+    isTon=true;
+    const t=text.match(/transfer\/([A-Za-z0-9_\-:]+)/); if(t) addr=t[1]; else if(am) addr=am[1];
+    try{ const u=new URL(text.replace(/^ton:\/\//i,"https://x/"));
+      const a=u.searchParams.get("amount"); if(a&&isFinite(Number(a))) amount=String(Number(a)/1e9);
+      const c=u.searchParams.get("text")||u.searchParams.get("comment"); if(c) comment=c;
+    }catch(e){}
+  } else if(am){ addr=am[1]; }
+  else { addr=text; }
+  return {addr, amount, comment, isTon};
+}
+async function handleScanned(text){
+  closeModal();
+  const {addr,amount,isTon}=parseTonQr(text);
+  if(!addr){ return toast("QR-код не распознан","err"); }
+  if(!await loadLibs()){ return toast("Нет связи с крипто-библиотекой","err"); }
+  try{ TON.Address.parse(addr); }catch(e){ return toast("В QR-коде нет корректного TON-адреса","err"); }
+  sendState={asset:(isTon&&amount)?"GRAM":"USDT", to:addr, amount:amount||""};
+  renderSendForm();
+  notify("QR отсканирован", shortAddr(addr));
+}
+async function startQrScan(){
+  const tg=window.Telegram&&window.Telegram.WebApp;
+  if(tg && typeof tg.showScanQrPopup==="function"){
+    try{
+      tg.showScanQrPopup({text:"Наведите камеру на QR-код адреса"}, (text)=>{ handleScanned(text); return true; });
+      return;
+    }catch(e){ /* fall back to browser camera */ }
+  }
+  await openCameraScanner();
+}
+async function openCameraScanner(){
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){
+    closeModal(); return toast("Камера недоступна на этом устройстве","err");
+  }
+  openModal(`${sheetHead("Сканировать QR")}
+    <div class="qr-scan"><video id="qrVideo" playsinline muted autoplay></video><div class="qr-frame"></div></div>
+    <p class="hint" style="text-align:center;margin:0 0 12px">Наведите камеру на QR-код TON-адреса</p>
+    <button class="btn btn-ghost btn-block" data-act="close-modal">Отмена</button>`);
+  let jsQR=null;
+  try{ const mod=await importPkg("jsqr@1.4.0"); jsQR=mod.default||mod; }catch(e){}
+  const video=el("qrVideo"); if(!video) return;
+  let stream=null, raf=0, stopped=false;
+  const stop=()=>{ stopped=true; if(raf) cancelAnimationFrame(raf); if(stream){ try{ stream.getTracks().forEach(t=>t.stop()); }catch(e){} } };
+  _qrStop=stop;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
+    video.srcObject=stream; await video.play().catch(()=>{});
+  }catch(e){ stop(); closeModal(); return toast("Нет доступа к камере","err"); }
+  if(!jsQR){ /* camera shows, but no decoder — let user cancel */ return; }
+  const canvas=document.createElement("canvas"), ctx=canvas.getContext("2d",{willReadFrequently:true});
+  const tick=()=>{
+    if(stopped) return;
+    if(video.readyState>=2 && video.videoWidth){
+      canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+      ctx.drawImage(video,0,0,canvas.width,canvas.height);
+      try{
+        const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+        const code=jsQR(img.data,img.width,img.height,{inversionAttempts:"dontInvert"});
+        if(code&&code.data){ stop(); handleScanned(code.data); return; }
+      }catch(e){}
+    }
+    raf=requestAnimationFrame(tick);
+  };
+  raf=requestAnimationFrame(tick);
+}
 
 /* deposit */
 async function modalDeposit(){
@@ -1770,6 +1859,8 @@ async function act(name,ds={}){
     case "pick-skin": S.cardSkin=ds.v; save(); closeModal(); renderHome(); toast("Фон карты обновлён","ok"); break;
 
     /* wallet */
+    case "qr-menu": modalQr(); break;
+    case "scan-qr": await startQrScan(); break;
     case "deposit": await modalDeposit(); break;
     case "send": modalSend(ds.asset); break;
     case "asset": { const a=ds.asset; if(ASSET_META[a]&&ASSET_META[a].onTon) modalSend(a); else toast(`${a}: приём/отправка доступны для активов сети TON`,""); } break;
