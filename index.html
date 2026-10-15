@@ -9,7 +9,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f6bff'/%3E%3Cpath d='M9 12h11a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H9z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='19' cy='17' r='1.6' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 /* ===================== design tokens ===================== */
@@ -24,8 +24,9 @@
   --sell:#f6465d; --sell-ghost:rgba(246,70,93,.14);
   --warn:#f0b90b; --warn-ghost:rgba(240,185,11,.14);
   --btc:#f7931a; --eth:#627eea; --usdt:#26a17b; --ton:#0098ea;
-  --font:"Manrope","Helvetica Neue",Arial,sans-serif;
+  --font:"Plus Jakarta Sans","Segoe UI","Helvetica Neue",Arial,sans-serif;
   --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --display:"Space Grotesk","Plus Jakarta Sans",sans-serif;
   --r-sm:9px; --r-md:14px; --r-lg:20px; --r-xl:26px;
   --gut:16px; --tabbar-h:72px;
   --sh-1:0 1px 0 rgba(255,255,255,.03) inset,0 10px 30px -18px rgba(0,0,0,.8);
@@ -70,11 +71,17 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 /* balance card */
 .balance{position:relative;border-radius:var(--r-xl);padding:20px 20px 18px;color:#fff;overflow:hidden;
   background:linear-gradient(140deg,#6a97ff 0%,#2f6bff 46%,#1f4fd6 100%);box-shadow:var(--sh-card);}
-.balance::after{content:"";position:absolute;inset:0;background:
-  radial-gradient(120% 90% at 85% -10%,rgba(255,255,255,.36),transparent 55%);pointer-events:none;}
+.balance::after{content:"";position:absolute;inset:0;z-index:0;background:
+  radial-gradient(120% 90% at 85% -10%,rgba(255,255,255,.26),transparent 55%);pointer-events:none;}
+/* background figure: topographic contours (D) + soft aurora depth (C) */
+.card-fig{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;border-radius:inherit;}
+.card-fig::before{content:"";position:absolute;inset:0;background:
+  radial-gradient(56% 76% at 80% 94%,rgba(255,255,255,.16),transparent 60%),
+  radial-gradient(44% 58% at 99% 28%,rgba(255,255,255,.1),transparent 62%);}
+.card-fig .fig-topo{position:absolute;inset:0;width:100%;height:100%;opacity:.17;}
 .balance .row1{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}
 .balance .lbl{font-size:12.5px;font-weight:600;opacity:.9;}
-.balance .big{font-family:var(--mono);font-weight:700;font-size:40px;letter-spacing:-.03em;margin:8px 0 6px;position:relative;z-index:1;}
+.balance .big{font-family:var(--display);font-weight:700;font-size:42px;letter-spacing:-.02em;margin:10px 0 6px;position:relative;z-index:1;font-variant-numeric:tabular-nums;}
 .balance .big small{font-size:24px;opacity:.78;}
 .balance .foot{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}
 .balance .chg{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:5px;}
@@ -92,30 +99,30 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 /* premium gloss highlight (top-left) on top of the top-right radial */
 .balance::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;
   background:radial-gradient(135% 120% at 12% -8%,rgba(255,255,255,.26),transparent 44%);}
-/* card skins (собственные градиенты, без внешних картинок) */
-.skin-midnight{background:radial-gradient(130% 100% at 82% -16%,rgba(93,128,255,.55) 0%,transparent 52%),linear-gradient(150deg,#1b2a6b 0%,#122056 44%,#060b2a 100%);}
-.skin-blue{background:linear-gradient(140deg,#7ba3ff 0%,#2f6bff 42%,#0f3399 100%);}
-.skin-ocean{background:radial-gradient(120% 100% at 85% -12%,rgba(0,220,255,.45),transparent 55%),linear-gradient(140deg,#11b3f0 0%,#2f6bff 52%,#0b2a7a 100%);}
-.skin-aurora{background:linear-gradient(135deg,#17c0a6 0%,#2f6bff 48%,#8b5cf6 100%);}
-.skin-sunset{background:linear-gradient(135deg,#ff9150 0%,#f6465d 46%,#8b3bd6 100%);}
-.skin-magma{background:radial-gradient(120% 100% at 80% -14%,rgba(255,170,90,.5),transparent 54%),linear-gradient(140deg,#ff6a3d 0%,#e11d48 52%,#4a0b2e 100%);}
-.skin-amethyst{background:linear-gradient(140deg,#c4b5fd 0%,#7c3aed 48%,#3b1580 100%);}
-.skin-emerald{background:repeating-linear-gradient(135deg,rgba(255,255,255,.045) 0 2px,transparent 2px 8px),radial-gradient(130% 100% at 80% -15%,#26a673 0%,transparent 56%),linear-gradient(150deg,#0b462f 0%,#010c07 82%);}
-.skin-obsidian{background:repeating-linear-gradient(135deg,rgba(255,255,255,.045) 0 2px,transparent 2px 7px),radial-gradient(130% 100% at 80% -15%,#434a5a 0%,transparent 52%),linear-gradient(145deg,#232732 0%,#030406 80%);}
-.skin-graphite{background:repeating-linear-gradient(115deg,rgba(255,255,255,.07) 0 1px,transparent 1px 4px),linear-gradient(145deg,#646b78 0%,#2b2f38 50%,#090a0d 100%);}
-.skin-gold{background:repeating-linear-gradient(115deg,rgba(255,255,255,.08) 0 1px,transparent 1px 5px),linear-gradient(140deg,#f7e39b 0%,#d9b24e 42%,#8a6a1f 100%);}
-/* glowing cards */
-.balance.skin-midnight{box-shadow:0 6px 28px -6px rgba(47,107,255,.5),0 28px 70px -26px rgba(37,74,200,.72);}
-.balance.skin-blue{box-shadow:0 6px 26px -4px rgba(47,107,255,.55),0 26px 66px -24px rgba(47,107,255,.6);}
-.balance.skin-ocean{box-shadow:0 6px 28px -4px rgba(0,180,235,.55),0 26px 66px -24px rgba(11,42,122,.7);}
-.balance.skin-aurora{box-shadow:0 6px 28px -4px rgba(47,160,230,.55),0 26px 66px -24px rgba(124,58,237,.6);}
-.balance.skin-sunset{box-shadow:0 6px 28px -4px rgba(246,70,93,.55),0 26px 66px -24px rgba(139,59,214,.55);}
-.balance.skin-magma{box-shadow:0 6px 28px -4px rgba(255,106,61,.6),0 26px 66px -24px rgba(225,29,72,.6);}
-.balance.skin-amethyst{box-shadow:0 6px 28px -4px rgba(124,58,237,.6),0 26px 66px -24px rgba(59,21,128,.65);}
-.balance.skin-emerald{box-shadow:0 6px 26px -4px rgba(38,180,120,.55),0 24px 60px -24px rgba(5,45,28,.6);}
-.balance.skin-obsidian{box-shadow:0 6px 26px -6px rgba(110,130,180,.4),0 24px 60px -24px rgba(0,0,0,.65);}
-.balance.skin-graphite{box-shadow:0 6px 26px -6px rgba(150,160,180,.45),0 24px 60px -24px rgba(0,0,0,.6);}
-.balance.skin-gold{box-shadow:0 6px 26px -4px rgba(217,178,78,.55),0 24px 60px -24px rgba(90,70,20,.6);}
+/* card skins (насыщенные градиенты) */
+.skin-midnight{background:radial-gradient(120% 95% at 80% -10%,rgba(95,135,255,.55),transparent 55%),linear-gradient(150deg,#1e3fc4 0%,#13268f 45%,#060a2e 100%);}
+.skin-blue{background:linear-gradient(140deg,#5b86ff 0%,#2f6bff 45%,#0d2fb0 100%);}
+.skin-ocean{background:radial-gradient(120% 100% at 85% -12%,rgba(0,224,255,.5),transparent 55%),linear-gradient(140deg,#0bb7f0 0%,#1f6dff 52%,#07237a 100%);}
+.skin-aurora{background:linear-gradient(135deg,#10c9a3 0%,#2f6bff 50%,#8b45ff 100%);}
+.skin-sunset{background:linear-gradient(135deg,#ff8a3c 0%,#f5375d 46%,#9b2ad6 100%);}
+.skin-magma{background:radial-gradient(120% 100% at 80% -14%,rgba(255,170,90,.55),transparent 54%),linear-gradient(140deg,#ff5e2e 0%,#e01045 52%,#3e0824 100%);}
+.skin-amethyst{background:linear-gradient(140deg,#b79bff 0%,#7c2fff 48%,#330f88 100%);}
+.skin-emerald{background:radial-gradient(120% 100% at 80% -12%,rgba(42,224,150,.5),transparent 55%),linear-gradient(150deg,#0e8f5e 0%,#064a31 55%,#021309 100%);}
+.skin-obsidian{background:radial-gradient(120% 100% at 80% -14%,rgba(120,140,200,.3),transparent 50%),linear-gradient(145deg,#2a2f3c 0%,#0a0c12 82%);}
+.skin-graphite{background:linear-gradient(145deg,#6b7280 0%,#2e333d 50%,#0b0d12 100%);}
+.skin-gold{background:linear-gradient(140deg,#ffe9a6 0%,#e0b64f 42%,#8a6a1f 100%);}
+/* glowing cards — soft, subtle */
+.balance.skin-midnight{box-shadow:0 8px 26px -14px rgba(37,74,220,.5),0 22px 54px -30px rgba(20,32,120,.55);}
+.balance.skin-blue{box-shadow:0 8px 26px -14px rgba(47,107,255,.5),0 22px 54px -30px rgba(13,47,176,.55);}
+.balance.skin-ocean{box-shadow:0 8px 26px -14px rgba(0,180,235,.5),0 22px 54px -30px rgba(7,35,122,.55);}
+.balance.skin-aurora{box-shadow:0 8px 26px -14px rgba(47,160,230,.5),0 22px 54px -30px rgba(124,58,237,.5);}
+.balance.skin-sunset{box-shadow:0 8px 26px -14px rgba(245,55,93,.5),0 22px 54px -30px rgba(139,42,214,.5);}
+.balance.skin-magma{box-shadow:0 8px 26px -14px rgba(255,94,46,.5),0 22px 54px -30px rgba(224,16,69,.5);}
+.balance.skin-amethyst{box-shadow:0 8px 26px -14px rgba(124,47,255,.5),0 22px 54px -30px rgba(51,15,136,.55);}
+.balance.skin-emerald{box-shadow:0 8px 26px -14px rgba(23,192,138,.5),0 22px 54px -30px rgba(5,45,28,.55);}
+.balance.skin-obsidian{box-shadow:0 8px 26px -16px rgba(110,130,180,.35),0 22px 54px -30px rgba(0,0,0,.6);}
+.balance.skin-graphite{box-shadow:0 8px 26px -16px rgba(150,160,180,.4),0 22px 54px -30px rgba(0,0,0,.55);}
+.balance.skin-gold{box-shadow:0 8px 26px -14px rgba(217,178,78,.5),0 22px 54px -30px rgba(90,70,20,.55);}
 /* card skin picker */
 .skin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .skin-opt{text-align:left;padding:0;background:none;border:none;}
@@ -126,15 +133,18 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .skin-opt.on .skin-sw{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary);}
 .skin-opt .skin-nm svg{width:15px;height:15px;color:var(--primary);}
 /* 3D flip card + entry (mobile-safe: single preserve-3d + opacity face-swap) */
-.card3d{perspective:1200px;position:relative;z-index:0;}
-/* animated glowing halo behind the card (colour comes from --card-glow) */
-.card3d::before{content:"";position:absolute;left:8px;right:8px;top:14px;bottom:-6px;z-index:-1;border-radius:var(--r-xl);
-  pointer-events:none;background:var(--card-glow,#2457e0);filter:blur(30px);opacity:.42;transform:scale(.96);
-  animation:cardPulse 4.6s var(--ease) infinite;}
-@keyframes cardPulse{0%,100%{opacity:.34;transform:scale(.94);}50%{opacity:.6;transform:scale(1.01);}}
-@media (prefers-reduced-motion:reduce){.card3d::before{animation:none;}}
+.card3d{perspective:780px;position:relative;z-index:0;}
+/* animated glowing halo behind the card (colour comes from --card-glow) — soft */
+.card3d::before{content:"";position:absolute;left:10px;right:10px;top:16px;bottom:-4px;z-index:-1;border-radius:var(--r-xl);
+  pointer-events:none;background:var(--card-glow,#2457e0);filter:blur(26px);opacity:.26;transform:scale(.95);
+  animation:cardPulse 5.5s var(--ease) infinite;}
+@keyframes cardPulse{0%,100%{opacity:.2;}50%{opacity:.34;}}
 .card3d.intro{animation:cardIn .85s var(--ease) both;}
-.card-inner{position:relative;transform-style:preserve-3d;transition:transform .7s var(--ease);cursor:pointer;}
+/* idle 3D float so the card reads as a physical object, not a flat rectangle */
+.card-float{transform-style:preserve-3d;animation:cardFloat 9s ease-in-out infinite;}
+@keyframes cardFloat{0%,100%{transform:rotateY(0) rotateX(0);}30%{transform:rotateY(-5deg) rotateX(3deg);}62%{transform:rotateY(5deg) rotateX(-2.4deg);}}
+@media (prefers-reduced-motion:reduce){.card3d::before,.card-float{animation:none;}}
+.card-inner{position:relative;transform-style:preserve-3d;transition:transform .85s cubic-bezier(.2,.75,.2,1);cursor:pointer;}
 .card-inner.flipped{transform:rotateY(180deg);}
 .card-face{backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:opacity 0s linear .34s;}
 .card-face.front{opacity:1;}
@@ -1013,9 +1023,10 @@ function renderHome(){
       <button class="iconbtn" data-act="go-history" title="История">${I.clock}</button>
     </div>
     <div class="card3d ${introCls}" data-act="flip-card" style="--card-glow:${skinGlow(S.cardSkin||'midnight')}">
+      <div class="card-float">
       <div class="card-inner ${cardFlipped?'flipped':''}">
           <div class="balance card-face front skin-${esc(S.cardSkin||'midnight')}">
-            <div class="card-chip" aria-hidden="true"></div>
+            <div class="card-fig" aria-hidden="true"><svg class="fig-topo" viewBox="0 0 340 150" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#fff" stroke-width="0.9"><ellipse cx="268" cy="120" rx="34" ry="22"/><ellipse cx="268" cy="120" rx="62" ry="40"/><ellipse cx="268" cy="120" rx="92" ry="60"/><ellipse cx="268" cy="120" rx="126" ry="82"/><ellipse cx="268" cy="120" rx="164" ry="106"/><ellipse cx="268" cy="120" rx="206" ry="132"/></g></svg></div>
             <div class="row1">
               <span class="lbl">Общий баланс${S.network==="testnet"?" · TESTNET":""}</span>
               <button class="mini" data-act="card-skin" title="Фон карты">${I.palette}</button>
@@ -1034,6 +1045,7 @@ function renderHome(){
             <div class="back-logo">PMR</div>
           </div>
         </div>
+      </div>
     </div>
     <div class="actions">
       <button class="btn btn-primary" data-act="deposit">${I.down} Пополнить</button>
