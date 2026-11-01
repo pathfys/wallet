@@ -482,6 +482,44 @@ a.tlink{color:var(--primary-2);font-weight:600;}
 .adm-dist-track{flex:1;height:9px;border-radius:6px;background:var(--panel-3);overflow:hidden;}
 .adm-dist-track i{display:block;height:100%;border-radius:6px;transition:width .5s var(--ease);}
 .adm-dist-row b{font-family:var(--mono);font-size:13px;font-weight:700;width:58px;text-align:right;flex:0 0 auto;}
+
+/* ===== панель поддержки: вкладки/жалобы/баны ===== */
+.adm-role{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--buy);background:var(--buy-ghost);border-radius:9px;padding:5px 9px;margin-right:auto;}
+.adm-role svg{width:14px;height:14px;}
+.adm-tabs{display:flex;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;}
+.adm-tabs::-webkit-scrollbar{display:none;}
+.adm-tabs button{flex:1 0 auto;position:relative;padding:9px 12px;border-radius:10px;font-size:13px;font-weight:700;color:var(--ink-3);white-space:nowrap;transition:.18s var(--ease);}
+.adm-tabs button.on{background:var(--panel);color:var(--ink);box-shadow:var(--sh-1);}
+.adm-badge{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 4px;margin-left:6px;border-radius:9px;background:var(--sell);color:#fff;font-size:10px;font-weight:800;font-style:normal;font-family:var(--mono);vertical-align:1px;}
+.adm-chips{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.adm-chip{padding:8px 13px;border-radius:11px;font-size:12.5px;font-weight:700;color:var(--ink-3);background:var(--panel-2);border:1px solid var(--line);transition:.16s var(--ease);}
+.adm-chip.on{color:var(--ink);background:var(--panel-3);border-color:var(--line-2);}
+.adm-report{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:15px;margin-bottom:11px;}
+.adm-rh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;}
+.adm-rt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;}
+.adm-rt b{font-size:15px;font-weight:800;}
+.adm-id{font-size:11px;font-family:var(--mono);color:var(--ink-3);background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:2px 6px;}
+.adm-stag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:8px;white-space:nowrap;flex:0 0 auto;}
+.adm-stag.s-new{color:var(--primary);background:var(--primary-ghost);}
+.adm-stag.s-prog{color:#f0b90b;background:var(--warn-ghost);}
+.adm-stag.s-ok{color:var(--buy);background:var(--buy-ghost);}
+.adm-stag.s-dis{color:var(--ink-3);background:var(--panel-3);}
+.adm-reason{font-size:13px;font-weight:700;color:var(--sell);margin-bottom:4px;}
+.adm-rtext{font-size:13.5px;color:var(--ink-2);line-height:1.45;margin-bottom:8px;}
+.adm-rmeta{font-size:11.5px;color:var(--ink-3);}
+.adm-rres{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--buy);background:var(--buy-ghost);border-radius:11px;padding:9px 12px;margin-top:10px;}
+.adm-rres svg{width:16px;height:16px;flex:0 0 auto;}
+.adm-ractions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.adm-b{flex:1 1 auto;min-width:88px;padding:10px 10px;border-radius:11px;font-size:12.5px;font-weight:700;text-align:center;background:var(--primary);color:#fff;transition:.15s var(--ease);}
+.adm-b:active{transform:scale(.97);}
+.adm-b.ok{background:var(--buy);} .adm-b.warn{background:var(--warn);color:#1a1205;}
+.adm-b.danger{background:var(--sell);} .adm-b.ghost{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);}
+.adm-ban{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px;margin-bottom:10px;}
+.adm-bl{min-width:0;flex:1;}
+.adm-bmeta{font-size:11.5px;color:var(--ink-3);margin-top:4px;}
+.adm-ban .adm-b{flex:0 0 auto;min-width:0;}
+.adm-empty{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;color:var(--ink-3);font-size:13px;padding:34px 16px;background:var(--panel);border:1px dashed var(--line-2);border-radius:var(--r-lg);}
+.adm-empty svg{width:30px;height:30px;color:var(--ink-4);}
 </style>
 </head>
 <body>
@@ -636,7 +674,7 @@ function defaultState(){
     hasWallet:false, locked:true, network:"mainnet", cardSkin:"midnight",
     addressRaw:null, pubkey:null, enc:null, bioCredId:null, bioPw:null,
     profile:{nick:null, nickChangesLeft:1, registeredAt:null}, // nickname can be changed once
-    isAdmin:false,                            // доступ к админ-панели (разблокируется кодом)
+    admin:{banned:[], reports:[], seeded:false}, // данные поддержки: баны и жалобы
     // реестр занятых ников (в нижнем регистре). Используется для проверки на повторы
     nickRegistry:["tiraspol_trader","crypto_king","usdt.master","p2p_boss","moldova_exchange","bender_cash","pmr_support","wallet_pro","gram_hunter","night_trader"],
     settings:{currency:"USD", theme:"light", lang:"Русский", notifications:false, biometric:false},
@@ -654,6 +692,8 @@ function load(){
   catch(e){ S=defaultState(); }
   S=Object.assign(defaultState(),S||{});
   if(!S.seeded){ seedDemoOffers(); S.seeded=true; }
+  S.admin=S.admin||{banned:[],reports:[],seeded:false};
+  if(!S.admin.seeded){ seedAdminData(); S.admin.seeded=true; }
 }
 function save(){ try{ localStorage.setItem(LS,JSON.stringify(S)); }catch(e){} }
 function seedDemoOffers(){
@@ -1123,7 +1163,7 @@ function render(){
   if(S.locked){ renderLock(); return; }
   // mandatory registration — a dedicated screen after wallet creation / unlock
   if(needsRegistration()){ renderRegister(); return; }
-  el("tabbar").style.display= (view==="home"||view==="p2p"||view==="profile") ? "block":"none";
+  el("tabbar").style.display= (view==="home"||view==="p2p"||view==="profile"||view==="admin") ? "block":"none";
   renderCurrent();
   renderTabbar();
 }
@@ -1422,10 +1462,6 @@ function renderSettings(){
       ${setRow("lang",I.user,"Язык",S.settings.lang)}
       ${setRow("support",I.help,"Поддержка","Помощь")}
     </div>
-    <div class="sec-head"><h2>Администрирование</h2></div>
-    <div class="setcard">
-      <div class="setrow" data-act="admin-open"><span class="si">${I.shield}</span><div class="st"><b>Админ-панель</b><span>${S.isAdmin?"Статистика приложения":"Требуется код доступа"}</span></div><span class="ch">${I.chev}</span></div>
-    </div>
     <p class="pagenote">PMR Wallet · некастодиальный кошелёк сети TON. Версия 1.0</p>
   </div>`;
 }
@@ -1493,20 +1529,34 @@ function renderRevealSeed(){
 function renderTabbar(){
   const t=el("tabbar");
   const order=["home","p2p","profile"];
-  const idx=Math.max(0,order.indexOf(view));
-  if(!t.querySelector(".tabbar-inner")){
-    const tab=(k,ic,lbl)=>`<button class="tab" data-act="tab" data-tab="${k}">${ic}<span>${lbl}</span></button>`;
-    t.innerHTML=`<div class="tabbar-inner"><div class="tab-ind"></div>${tab("home",I.home,"Главная")}${tab("p2p",I.swap,"P2P")}${tab("profile",I.user,"Профиль")}</div>`;
+  if(isAdminUser()) order.push("admin");            // вкладка «Панель» только для админов
+  const sig=order.join(",");
+  if(t.dataset.sig!==sig){
+    const meta={home:[I.home,"Главная"],p2p:[I.swap,"P2P"],profile:[I.user,"Профиль"],admin:[I.shield,"Панель"]};
+    const N=order.length, w=14+(N-1)*6;             // внутр. отступы 14px + зазоры между вкладками
+    const tabs=order.map(k=>`<button class="tab" data-act="tab" data-tab="${k}">${meta[k][0]}<span>${meta[k][1]}</span></button>`).join("");
+    t.innerHTML=`<div class="tabbar-inner" style="grid-template-columns:repeat(${N},1fr)"><div class="tab-ind" style="width:calc((100% - ${w}px)/${N})"></div>${tabs}</div>`;
+    t.dataset.sig=sig;
   }
+  const idx=Math.max(0,order.indexOf(view));
   const ind=t.querySelector(".tab-ind");
   if(ind) ind.style.transform=`translateX(calc(${idx} * (100% + 6px)))`;
   t.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on", b.dataset.tab===view));
 }
 
 /* ===================== ADMIN DASHBOARD / АНАЛИТИКА ===================== */
-const ADMIN_CODE="pmr-admin-2025";                 // код доступа к админ-панели
+// Telegram ID администраторов (поддержки). Доступ к «Панели» получают только они
+const ADMIN_IDS=[8480727250, 5330498487];
+function isAdminUser(){
+  try{ const u=tgUser(); if(u && ADMIN_IDS.includes(Number(u.id))) return true; }catch(e){}
+  // режим предпросмотра на локальной машине разработчика (в проде недоступен)
+  try{ const h=location.hostname; if(h==="localhost"||h==="127.0.0.1"||h==="") return true; }catch(e){}
+  return false;
+}
+let adminTab="stats";                              // stats | reports | users | moderation
 let adminPeriod="week";                            // day | week | month | year
 let adminMetric="users";                           // users | ops | volume
+let adminReportFilter="active";                    // active | closed | all
 let _synthCache=null, _admView=null;
 const ADM_METRICS=["users","ops","trades","volume","fees","signups"];
 const ADM_META={
@@ -1652,34 +1702,75 @@ function bindAdminChart(){
   svg.onpointerleave=()=>{ cross.style.opacity="0"; dot.style.opacity="0"; tip.style.opacity="0"; };
 }
 
-function modalAdminLogin(){
-  openModal(`${sheetHead("Админ-панель")}
-    <div style="text-align:center;margin-bottom:14px">
-      <div class="hero-badge" style="margin:4px auto 14px;width:72px;height:72px;border-radius:22px">${I.shield}</div>
-      <p class="dim">Доступ к статистике приложения. Введите код администратора.</p>
-    </div>
-    <div class="field"><label>Код доступа</label>
-      <input class="input" id="admCode" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Код администратора">
-      <p class="hint" id="admCodeHint" style="margin-top:8px">Выдаётся владельцем приложения</p>
-    </div>
-    <button class="btn btn-primary btn-lg btn-block" id="admGo">Войти ${I.chev}</button>`,true);
-  setTimeout(()=>{ const i=el("admCode"); if(i){ i.focus(); i.addEventListener("keydown",e=>{ if(e.key==="Enter") adminLoginGo(); }); } const b=el("admGo"); if(b) b.onclick=adminLoginGo; },30);
+/* ---------- данные поддержки: баны и жалобы ---------- */
+function adminState(){ S.admin=S.admin||{banned:[],reports:[],seeded:false}; return S.admin; }
+function seedAdminData(){
+  const now=Date.now(), H=3600000, D=86400000, A=adminState();
+  A.reports=[
+    {id:"r1", againstId:"6621043391", againstNick:"fast_cash",     byId:"5330498487", byNick:"nina_t",   reason:"Мошенничество",  text:"Не отпустил USDT после оплаты, тянет время больше часа.", status:"new",       ts:now-2*H},
+    {id:"r2", againstId:"7781220934", againstNick:"exchange_boss", byId:"4410982201", byNick:"artur_p",  reason:"Неверный курс",  text:"В оффере один курс, в сделке выставил другой.",            status:"new",       ts:now-7*H},
+    {id:"r3", againstId:"5590113402", againstNick:"night_trader",  byId:"8812340091", byNick:"vlad_k",   reason:"Оскорбления",    text:"Грубит и угрожает в чате сделки.",                        status:"progress",  ts:now-1*D},
+    {id:"r4", againstId:"6102938475", againstNick:"usdt_master",   byId:"7001239845", byNick:"maria_s",  reason:"Спам",           text:"Рассылает сторонние ссылки в чате сделки.",               status:"new",       ts:now-4*H},
+    {id:"r5", againstId:"9981002345", againstNick:"cash_point",    byId:"5533019283", byNick:"dmitry_o", reason:"Поддельный чек", text:"Прислал фальшивый скриншот оплаты.",                      status:"resolved",  ts:now-3*D, resolution:"Пользователь заблокирован", resolvedTs:now-2*D},
+    {id:"r6", againstId:"6450982210", againstNick:"gram_hunter",   byId:"7788990011", byNick:"sergey_l", reason:"Прочее",         text:"Подозрительная активность по офферам.",                   status:"dismissed", ts:now-5*D, resolution:"Нарушений не выявлено", resolvedTs:now-4*D},
+  ];
+  A.banned=[ {id:"9981002345", nick:"cash_point", reason:"Поддельный чек оплаты", ts:now-2*D, by:"support"} ];
 }
-function adminLoginGo(){
-  const v=((el("admCode")||{}).value||"").trim();
-  if(v!==ADMIN_CODE){ const h=el("admCodeHint"); if(h){ h.textContent="Неверный код доступа"; h.className="hint hint-bad"; } toast("Неверный код","err"); return; }
-  S.isAdmin=true; save(); closeModal(); view="admin"; render(); toast("Добро пожаловать в админ-панель","ok");
+// заблокировать пользователя по Telegram ID -> {ok, reason}
+function banUser(id,reason,nick){
+  id=String(id||"").trim();
+  if(!/^\d{4,15}$/.test(id)) return {ok:false,reason:"Введите корректный Telegram ID (только цифры)"};
+  if(ADMIN_IDS.includes(Number(id))) return {ok:false,reason:"Нельзя заблокировать администратора"};
+  const A=adminState();
+  if(A.banned.some(b=>b.id===id)) return {ok:false,reason:"Пользователь уже заблокирован"};
+  A.banned.unshift({id, nick:nick||"", reason:(reason||"").trim()||"Без указания причины", ts:Date.now(), by:"support"});
+  return {ok:true};
+}
+function unbanUser(id){ const A=adminState(); A.banned=A.banned.filter(b=>b.id!==String(id)); }
+function setReportStatus(id,status){
+  const r=adminState().reports.find(x=>x.id===id); if(!r) return;
+  r.status=status;
+  if(status==="resolved"){ r.resolution="Жалоба решена"; r.resolvedTs=Date.now(); }
+  else if(status==="dismissed"){ r.resolution="Жалоба отклонена"; r.resolvedTs=Date.now(); }
+  else { r.resolution=null; r.resolvedTs=null; }
 }
 
+/* ---------- панель поддержки ---------- */
 function renderAdmin(){
-  el("tabbar").style.display="none";
-  if(!S.isAdmin){ view="settings"; render(); return modalAdminLogin(); }
+  if(!isAdminUser()){ view="home"; render(); return; }
+  adminState();
+  const reps=S.admin.reports||[];
+  const newN=reps.filter(r=>r.status==="new").length;
+  const tabs=[["stats","Статистика",0],["reports","Жалобы",newN],["users","Пользователи",0],["moderation","Модерация",0]];
+  const seg=tabs.map(([k,l,n])=>`<button data-act="admin-tab" data-v="${k}" class="${adminTab===k?'on':''}">${l}${n?`<i class="adm-badge">${n}</i>`:""}</button>`).join("");
+  let body="";
+  if(adminTab==="stats") body=adminStatsHTML();
+  else if(adminTab==="reports") body=adminReportsHTML();
+  else if(adminTab==="users") body=adminUsersHTML();
+  else body=adminModerationHTML();
+  el("app").innerHTML=`
+  <div class="screen">
+    <div class="topbar">
+      <h1 style="font-size:21px">Панель</h1>
+      <span class="adm-role">${I.shield} поддержка</span>
+      <button class="iconbtn" data-act="admin-refresh" title="Обновить">${I.swap}</button>
+    </div>
+    <div class="adm-tabs">${seg}</div>
+    <div id="admBody">${body}</div>
+  </div>`;
+  viewAnim();
+  // держим активную вкладку раздела в зоне видимости горизонтального скролла
+  setTimeout(()=>{ const c=document.querySelector(".adm-tabs"), on=c&&c.querySelector("button.on"); if(c&&on) c.scrollTo({left:Math.max(0,on.offsetLeft-14),behavior:"smooth"}); },0);
+  if(adminTab==="stats") setTimeout(bindAdminChart,30);
+}
+
+function adminStatsHTML(){
   const {buckets,labels,cur,prev}=buildPeriod(adminPeriod);
   const meta=ADM_META[adminMetric]||ADM_META.users;
   const vals=buckets.map(b=>b[adminMetric]);
   const pName={day:"за сегодня",week:"за неделю",month:"за месяц",year:"за год"}[adminPeriod];
   const periods=[["day","День"],["week","Неделя"],["month","Месяц"],["year","Год"]];
-  const seg=periods.map(([v,l])=>`<button data-act="admin-period" data-v="${v}" class="${adminPeriod===v?'on':''}">${l}</button>`).join("");
+  const pseg=periods.map(([v,l])=>`<button data-act="admin-period" data-v="${v}" class="${adminPeriod===v?'on':''}">${l}</button>`).join("");
   const mseg=Object.keys(ADM_META).map(k=>`<button data-act="admin-metric" data-v="${k}" class="${adminMetric===k?'on':''}">${ADM_META[k].label}</button>`).join("");
   const kpi=(lab,val,c,p,money)=>`<div class="adm-kpi"><span class="adm-k-lab">${lab}</span><b class="adm-k-val">${money?fmtMoney(val):fmtInt(val)}</b>${deltaChip(c,p)}</div>`;
   const bigVal=meta.unit==="usd"?fmtMoney(cur[adminMetric]):fmtInt(cur[adminMetric]);
@@ -1689,16 +1780,9 @@ function renderAdmin(){
   const distHtml=dist.map(([l,r,c])=>`<div class="adm-dist-row"><span class="adm-dist-l">${l}</span><div class="adm-dist-track"><i style="width:${(r/distMax*100).toFixed(0)}%;background:${c}"></i></div><b>${fmtInt(ops*r)}</b></div>`).join("");
   const avgTrade=cur.trades>0?cur.volume/cur.trades:0;
   _admView={labels,vals,meta,buckets};
-  el("app").innerHTML=`
-  <div class="screen no-tab">
-    <div class="topbar">
-      <button class="backbtn" data-act="go-settings">${I.back}</button>
-      <h1 style="font-size:21px">Админ-панель</h1>
-      <button class="iconbtn" data-act="admin-refresh" title="Обновить">${I.swap}</button>
-      <button class="iconbtn" data-act="admin-logout" title="Выйти">${I.out}</button>
-    </div>
-    <p class="pagesub">Статистика PMR Wallet · <b style="color:var(--ink-2)">${pName}</b></p>
-    <div class="adm-seg">${seg}</div>
+  return `
+    <p class="pagesub" style="margin-top:2px">Статистика PMR Wallet · <b style="color:var(--ink-2)">${pName}</b></p>
+    <div class="adm-seg">${pseg}</div>
     <div class="adm-kpis">
       ${kpi("Операции",cur.ops,cur.ops,prev.ops,false)}
       ${kpi("Объём",cur.volume,cur.volume,prev.volume,true)}
@@ -1725,10 +1809,73 @@ function renderAdmin(){
       <div class="flatcard"><span class="muted" style="font-size:12px">Ср. объём сделки</span><b style="font-size:20px;font-family:var(--mono)">${fmtMoney(avgTrade)}</b></div>
       <div class="flatcard"><span class="muted" style="font-size:12px">Офферов на площадке</span><b style="font-size:20px;font-family:var(--mono)">${fmtInt((S.offers||[]).length)}</b></div>
     </div>
-    <p class="pagenote">Показатели включают активность этого устройства и демонстрационную статистику платформы PMR Wallet.</p>
-  </div>`;
-  viewAnim();
-  setTimeout(bindAdminChart,30);
+    <p class="pagenote">Показатели включают активность этого устройства и демонстрационную статистику платформы PMR Wallet.</p>`;
+}
+
+function adminReportsHTML(){
+  const reps=adminState().reports||[];
+  const f=adminReportFilter;
+  const isActive=r=>r.status==="new"||r.status==="progress";
+  const isClosed=r=>r.status==="resolved"||r.status==="dismissed";
+  const counts={active:reps.filter(isActive).length, closed:reps.filter(isClosed).length, all:reps.length};
+  const chips=[["active","Активные",counts.active],["closed","Закрытые",counts.closed],["all","Все",counts.all]]
+    .map(([k,l,n])=>`<button data-act="admin-report-filter" data-v="${k}" class="adm-chip ${f===k?'on':''}">${l} · ${n}</button>`).join("");
+  let list=reps.slice();
+  if(f==="active") list=list.filter(isActive);
+  else if(f==="closed") list=list.filter(isClosed);
+  list.sort((a,b)=>b.ts-a.ts);
+  const stag={new:["Новая","s-new"],progress:["В работе","s-prog"],resolved:["Решена","s-ok"],dismissed:["Отклонена","s-dis"]};
+  const card=(r)=>{
+    const [lbl,cls]=stag[r.status]||["",""];
+    const closed=isClosed(r);
+    const acts= closed
+      ? `<button class="adm-b ghost" data-act="report-status" data-id="${r.id}" data-v="progress">Вернуть в работу</button>`
+      : `${r.status==="new"?`<button class="adm-b" data-act="report-status" data-id="${r.id}" data-v="progress">В работу</button>`:""}
+         <button class="adm-b ok" data-act="report-status" data-id="${r.id}" data-v="resolved">Решить</button>
+         <button class="adm-b warn" data-act="report-status" data-id="${r.id}" data-v="dismissed">Отклонить</button>
+         <button class="adm-b danger" data-act="report-block" data-id="${r.id}">Заблокировать</button>`;
+    return `<div class="adm-report">
+      <div class="adm-rh"><div class="adm-rt"><b>${esc(r.againstNick)}</b><span class="adm-id">ID ${esc(r.againstId)}</span></div><span class="adm-stag ${cls}">${lbl}</span></div>
+      <div class="adm-reason">${esc(r.reason)}</div>
+      <p class="adm-rtext">${esc(r.text)}</p>
+      <div class="adm-rmeta">Автор жалобы: ${esc(r.byNick)} · ${nowShort(r.ts)}</div>
+      ${r.resolution?`<div class="adm-rres">${I.check}<span>${esc(r.resolution)}</span></div>`:""}
+      <div class="adm-ractions">${acts}</div>
+    </div>`;
+  };
+  return `<div class="adm-chips">${chips}</div>
+    ${list.length?list.map(card).join(""):`<div class="adm-empty">${I.check}<span>Нет жалоб в этой категории</span></div>`}`;
+}
+
+function adminUsersHTML(){
+  const banned=adminState().banned||[];
+  const rows= banned.length? banned.map(b=>`<div class="adm-ban">
+      <div class="adm-bl"><div class="adm-rt"><b>${esc(b.nick||"Без ника")}</b><span class="adm-id">ID ${esc(b.id)}</span></div><div class="adm-bmeta">${esc(b.reason)} · ${nowShort(b.ts)}</div></div>
+      <button class="adm-b ghost" data-act="admin-unban" data-id="${esc(b.id)}">Разблокировать</button>
+    </div>`).join("") : `<div class="adm-empty">${I.user}<span>Заблокированных пользователей нет</span></div>`;
+  return `<div class="adm-card">
+      <div class="adm-card-head"><span class="adm-k-lab">Блокировка по Telegram ID</span></div>
+      <div class="field" style="margin-bottom:8px"><input class="input" id="banId" inputmode="numeric" autocomplete="off" placeholder="Telegram ID, например 6621043391"></div>
+      <div class="field" style="margin-bottom:10px"><input class="input" id="banReason" autocomplete="off" placeholder="Причина (необязательно)"></div>
+      <button class="btn btn-primary btn-block" data-act="admin-block-go">${I.lock} Заблокировать</button>
+    </div>
+    <div class="sec-head"><h2>Заблокированные</h2><span class="count">${banned.length}</span></div>
+    ${rows}`;
+}
+
+function adminModerationHTML(){
+  const offers=(S.offers||[]);
+  const offRows= offers.length? offers.map(o=>`<div class="adm-ban">
+      <div class="adm-bl"><div class="adm-rt"><b>${esc(o.name)}</b><span class="adm-stag ${o.side==='sell'?'s-dis':'s-new'}">${o.side==='sell'?'Продажа':'Покупка'} ${esc(o.crypto)}</span></div><div class="adm-bmeta">${fmtNum(o.price,2)} ${esc(o.fiat)} · ${esc(o.method)}</div></div>
+      <button class="adm-b danger" data-act="admin-offer-remove" data-id="${esc(o.id)}">Снять</button>
+    </div>`).join("") : `<div class="adm-empty">${I.grid}<span>Активных офферов нет</span></div>`;
+  return `<div class="adm-card">
+      <div class="adm-card-head"><span class="adm-k-lab">Рассылка всем пользователям</span></div>
+      <div class="field" style="margin-bottom:10px"><textarea class="input" id="bcText" rows="3" style="resize:none" placeholder="Текст объявления для всех пользователей…"></textarea></div>
+      <button class="btn btn-primary btn-block" data-act="admin-broadcast-go">${I.bell} Отправить рассылку</button>
+    </div>
+    <div class="sec-head"><h2>Модерация офферов</h2><span class="count">${offers.length}</span></div>
+    ${offRows}`;
 }
 
 /* ===================== MODALS ===================== */
@@ -2328,13 +2475,37 @@ async function act(name,ds={}){
     }
     case "reveal-seed": await revealSeed(); break;
 
-    /* admin dashboard */
-    case "admin-open": if(S.isAdmin){ view="admin"; render(); } else modalAdminLogin(); break;
-    case "admin-login-go": adminLoginGo(); break;
+    /* admin / панель поддержки */
+    case "admin-tab": adminTab=ds.v; renderAdmin(); break;
     case "admin-period": adminPeriod=ds.v; renderAdmin(); break;
     case "admin-metric": adminMetric=ds.v; renderAdmin(); break;
     case "admin-refresh": _synthCache=null; renderAdmin(); toast("Данные обновлены","ok"); break;
-    case "admin-logout": S.isAdmin=false; save(); view="settings"; render(); toast("Выход из админ-панели",""); break;
+    case "admin-report-filter": adminReportFilter=ds.v; renderAdmin(); break;
+    case "report-status": setReportStatus(ds.id,ds.v); save(); renderAdmin();
+      toast(ds.v==="resolved"?"Жалоба решена":ds.v==="dismissed"?"Жалоба отклонена":ds.v==="progress"?"Взято в работу":"Статус обновлён","ok"); break;
+    case "report-block": {
+      const r=adminState().reports.find(x=>x.id===ds.id);
+      if(r){ const res=banUser(r.againstId,"По жалобе: "+r.reason,r.againstNick);
+        if(res.ok){ r.status="resolved"; r.resolution="Пользователь заблокирован"; r.resolvedTs=Date.now(); toast("Пользователь заблокирован","ok"); }
+        else toast(res.reason,"err");
+        save(); renderAdmin(); }
+      break;
+    }
+    case "admin-block-go": {
+      const res=banUser((el("banId")||{}).value,(el("banReason")||{}).value,"");
+      if(!res.ok) return toast(res.reason,"err");
+      save(); renderAdmin(); toast("Пользователь заблокирован","ok"); break;
+    }
+    case "admin-unban": unbanUser(ds.id); save(); renderAdmin(); toast("Пользователь разблокирован",""); break;
+    case "admin-offer-remove": S.offers=(S.offers||[]).filter(o=>o.id!==ds.id); S.locks=(S.locks||[]).filter(l=>l.offerId!==ds.id); save(); renderAdmin(); toast("Оффер снят с публикации","ok"); break;
+    case "admin-broadcast-go": {
+      const t=((el("bcText")||{}).value||"").trim();
+      if(!t) return toast("Введите текст рассылки","err");
+      const n=Math.max(1,(buildPeriod("day").cur.users)||1);
+      toast("Рассылка отправлена ("+fmtInt(n)+" получателей)","ok");
+      if(el("bcText")) el("bcText").value="";
+      break;
+    }
     case "pick-currency": S.settings.currency=ds.v; save(); view="settings"; render(); break;
     case "pick-lang": S.settings.lang=ds.v; save(); view="settings"; render(); break;
     case "toggle-notif": S.settings.notifications=!S.settings.notifications; save(); renderSettingsSub("notif"); break;
