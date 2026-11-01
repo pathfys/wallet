@@ -281,8 +281,21 @@ svg{width:20px;height:20px;flex:0 0 auto;stroke-width:1.9;}
 .addrbox .a{font-family:var(--mono);font-size:13px;word-break:break-all;line-height:1.4;min-width:0;color:var(--ink);}
 .addrbox .cp{width:36px;height:36px;border-radius:10px;background:var(--panel-3);display:grid;place-items:center;flex:0 0 auto;color:var(--primary-2);}
 .addrbox .cp:active{transform:scale(.9);}
-.qrwrap{display:flex;justify-content:center;padding:14px;background:#fff;border-radius:16px;margin:14px auto;width:fit-content;}
-.qrwrap canvas,.qrwrap img{width:188px;height:188px;display:block;}
+.qrwrap{position:relative;display:flex;justify-content:center;align-items:center;padding:18px;background:#fff;border-radius:24px;margin:16px auto;width:fit-content;
+  box-shadow:0 20px 44px -24px rgba(0,152,234,.6),0 0 0 1px rgba(0,152,234,.1);}
+.qrwrap::before{content:"";position:absolute;inset:-1.5px;border-radius:25px;padding:1.5px;
+  background:linear-gradient(140deg,#5cc8ff,#0098ea 48%,#7ad4ff);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;opacity:.55;pointer-events:none;}
+.qr-svg{width:216px;height:216px;display:block;}
+.qrwrap canvas,.qrwrap img{width:216px;height:216px;display:block;border-radius:10px;}
+.qr-plate{position:relative;display:flex;line-height:0;}
+.qr-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:15px;background:#fff;display:grid;place-items:center;
+  box-shadow:0 5px 16px -5px rgba(0,0,0,.35);}
+.qr-badge svg{width:34px;height:34px;display:block;}
+.qr-net{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--ton);margin:-2px auto 14px;
+  background:color-mix(in srgb,var(--ton) 12%,transparent);border:1px solid color-mix(in srgb,var(--ton) 26%,transparent);border-radius:999px;padding:6px 14px;width:fit-content;}
+.qr-net-dot{width:8px;height:8px;border-radius:50%;background:var(--ton);box-shadow:0 0 0 4px color-mix(in srgb,var(--ton) 22%,transparent);}
 /* camera QR scanner (browser fallback) */
 .qr-scan{position:relative;width:100%;max-width:300px;aspect-ratio:1;margin:4px auto 14px;border-radius:18px;overflow:hidden;background:#000;}
 .qr-scan video{width:100%;height:100%;object-fit:cover;display:block;}
@@ -1968,21 +1981,82 @@ async function openCameraScanner(){
 }
 
 /* deposit */
+/* ---------- красивый QR с логотипом TON в центре ---------- */
+function tonGradDef(gid){
+  return `<linearGradient id="${gid}" x1="0" y1="0" x2="0.2" y2="1">
+    <stop offset="0" stop-color="#5cc8ff"/><stop offset=".55" stop-color="#0098ea"/><stop offset="1" stop-color="#0067b0"/></linearGradient>`;
+}
+// грань/тело «алмаза» TON, вписанное в квадрат ~1.7R вокруг (cx,cy)
+function tonGemInner(cx,cy,R,gid){
+  const s=R*1.7, x0=cx-s/2, y0=cy-s/2;
+  const P=(fx,fy)=>(x0+fx/56*s).toFixed(2)+","+(y0+fy/56*s).toFixed(2);
+  return `<path d="M${P(28,9)} L${P(47,20)} L${P(28,47)} L${P(9,20)} Z" fill="url(#${gid})"/>`
+       + `<path d="M${P(9,20)} L${P(28,9)} L${P(47,20)} L${P(28,31)} Z" fill="#ffffff" fill-opacity="0.22"/>`
+       + `<path d="M${P(28,9)} L${P(28,47)}" stroke="#ffffff" stroke-opacity="0.38" stroke-width="${(s*0.016).toFixed(2)}" stroke-linecap="round"/>`;
+}
+// автономный SVG-значок TON (для наложения поверх canvas/img)
+function tonGemSVG(px){
+  const g="tg"+px;
+  return `<svg viewBox="0 0 ${px} ${px}" width="${px}" height="${px}"><defs>${tonGradDef(g)}</defs>${tonGemInner(px/2,px/2,px*0.5,g)}</svg>`;
+}
+// QR как SVG: скруглённые точки, фирменные «глаза», плашка с гербом TON по центру
+function qrSVG(data,size){
+  const quiet=4, unit=10, dim=size+quiet*2, W=dim*unit;
+  const DOT="#141a24", EYE="#0a6aa8";
+  const inBox=(r,c,r0,c0)=> r>=r0&&r<r0+7&&c>=c0&&c<c0+7;
+  const isFinder=(r,c)=> inBox(r,c,0,0)||inBox(r,c,0,size-7)||inBox(r,c,size-7,0);
+  let dots="";
+  for(let r=0;r<size;r++)for(let c=0;c<size;c++){
+    if(!data[r*size+c]||isFinder(r,c)) continue;
+    const x=(c+quiet)*unit, y=(r+quiet)*unit;
+    dots+=`<rect x="${(x+1.1).toFixed(1)}" y="${(y+1.1).toFixed(1)}" width="${unit-2.2}" height="${unit-2.2}" rx="${(unit-2.2)/2}"/>`;
+  }
+  // «глаз»-видоискатель с пропорцией 1:1:3 (рамка 1 модуль, зазор 1, центр 3×3) — надёжно сканируется
+  const eye=(r0,c0)=>{
+    const x=(c0+quiet)*unit, y=(r0+quiet)*unit, u=unit;
+    return `<rect x="${x+u*0.5}" y="${y+u*0.5}" width="${u*6}" height="${u*6}" rx="${u*2}" fill="none" stroke="${EYE}" stroke-width="${u}"/>`
+         + `<rect x="${x+u*2}" y="${y+u*2}" width="${u*3}" height="${u*3}" rx="${u}" fill="${EYE}"/>`;
+  };
+  const eyes=eye(0,0)+eye(0,size-7)+eye(size-7,0);
+  const cx=W/2, cy=W/2, R=W*0.105, plate=R*1.3;
+  const logo=`<rect x="${(cx-plate).toFixed(1)}" y="${(cy-plate).toFixed(1)}" width="${(plate*2).toFixed(1)}" height="${(plate*2).toFixed(1)}" rx="${(plate*0.5).toFixed(1)}" fill="#ffffff"/>`
+           + tonGemInner(cx,cy,R,"qrTon");
+  return `<svg viewBox="0 0 ${W} ${W}" class="qr-svg"><defs>${tonGradDef("qrTon")}</defs><g fill="${DOT}">${dots}</g>${eyes}${logo}</svg>`;
+}
+async function renderDepositQR(box, addr){
+  await loadLibs();
+  // 1) векторный QR с высоким уровнем коррекции (чтобы логотип не мешал сканированию)
+  if(QR && QR.create){
+    try{ const qr=QR.create(addr,{errorCorrectionLevel:"H"}); box.innerHTML=qrSVG(qr.modules.data, qr.modules.size); return; }catch(e){}
+  }
+  // 2) canvas библиотеки + наложенный значок TON
+  if(QR && QR.toCanvas){
+    try{
+      const c=document.createElement("canvas");
+      await QR.toCanvas(c,addr,{width:224,margin:3,errorCorrectionLevel:"H",color:{dark:"#141a24",light:"#ffffff"}});
+      box.innerHTML=`<div class="qr-plate"></div>`;
+      const plate=box.querySelector(".qr-plate");
+      plate.appendChild(c);
+      plate.insertAdjacentHTML("beforeend",`<div class="qr-badge">${tonGemSVG(44)}</div>`);
+      return;
+    }catch(e){}
+  }
+  // 3) запасной рендер через внешний сервис + значок TON
+  box.innerHTML=`<div class="qr-plate"><img alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&ecc=H&margin=2&data=${encodeURIComponent(addr)}"><div class="qr-badge">${tonGemSVG(44)}</div></div>`;
+}
+
 async function modalDeposit(){
   const addr=friendlyAddr();
   openModal(`${sheetHead("Пополнить")}
-    <p class="dim" style="margin-bottom:14px">Переведите TON или USDT на адрес кошелька в сети TON.</p>
-    <div class="qrwrap" id="qrbox"><div class="center-load" style="min-height:188px;width:188px">QR…</div></div>
-    <div class="field"><label>Адрес кошелька${S.network==="testnet"?" (Testnet)":""}</label>
+    <p class="dim" style="margin-bottom:6px;text-align:center">Отсканируйте код или скопируйте адрес, чтобы получить TON или USDT в сети TON.</p>
+    <div class="qrwrap" id="qrbox"><div class="center-load" style="min-height:216px;width:216px">QR…</div></div>
+    <div class="qr-net"><span class="qr-net-dot"></span>Сеть TON${S.network==="testnet"?" · Testnet":""}</div>
+    <div class="field"><label>Адрес кошелька</label>
       <div class="addrbox"><div class="a">${esc(addr||"—")}</div><button class="cp" data-act="copy-addr">${I.copy}</button></div>
     </div>
+    <button class="btn btn-primary btn-block" data-act="copy-addr" style="margin-bottom:12px">${I.copy} Скопировать адрес</button>
     <div class="infobox">${I.info}<div>Отправляйте на этот адрес только активы сети TON (TON, USDT-TON). Монеты других сетей будут потеряны.</div></div>`);
-  if(addr){
-    await loadLibs();
-    const box=el("qrbox");
-    if(QR){ try{ const c=document.createElement("canvas"); await QR.toCanvas(c,addr,{width:188,margin:1,color:{dark:"#0f1319",light:"#ffffff"}}); box.innerHTML=""; box.appendChild(c); return; }catch(e){} }
-    box.innerHTML=`<img alt="QR" src="https://api.qrserver.com/v1/create-qr-code/?size=188x188&data=${encodeURIComponent(addr)}">`;
-  }
+  if(addr){ await renderDepositQR(el("qrbox"), addr); }
 }
 
 /* card skin picker */
