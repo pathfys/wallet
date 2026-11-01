@@ -442,6 +442,46 @@ a.tlink{color:var(--primary-2);font-weight:600;}
 .chat-input .snd:active{transform:scale(.92);}
 .lockchip{display:inline-flex;align-items:center;gap:7px;background:var(--warn-ghost);border:1px solid rgba(240,185,11,.3);color:#f0b90b;border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:600;line-height:1.4;}
 .lockchip svg{width:16px;height:16px;flex:0 0 auto;}
+
+/* ===== живая проверка ника ===== */
+.hint-ok{color:var(--buy);} .hint-bad{color:var(--sell);}
+.input.ok{border-color:var(--buy);} .input.bad{border-color:var(--sell);}
+.btn:disabled{opacity:.5;filter:saturate(.55);pointer-events:none;}
+
+/* ===== админ-панель ===== */
+.adm-seg{display:flex;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:14px;}
+.adm-seg button{flex:1;padding:9px 4px;border-radius:10px;font-size:13px;font-weight:700;color:var(--ink-3);transition:.18s var(--ease);}
+.adm-seg button.on{background:var(--panel);color:var(--ink);box-shadow:var(--sh-1);}
+.adm-seg button:active{transform:scale(.97);}
+.adm-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.adm-kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px;display:flex;flex-direction:column;gap:5px;}
+.adm-k-lab{font-size:11.5px;color:var(--ink-3);font-weight:600;}
+.adm-k-val{font-size:21px;font-weight:800;font-family:var(--mono);letter-spacing:-.02em;line-height:1.1;}
+.adm-delta{font-size:11px;font-weight:700;width:fit-content;padding:2px 7px;border-radius:7px;}
+.adm-delta.up{color:var(--buy);background:var(--buy-ghost);}
+.adm-delta.down{color:var(--sell);background:var(--sell-ghost);}
+.adm-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;margin-bottom:12px;}
+.adm-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.adm-big{font-size:26px;font-weight:800;font-family:var(--mono);letter-spacing:-.02em;}
+.adm-mseg{display:flex;gap:6px;margin-bottom:4px;}
+.adm-mseg button{flex:1;padding:7px 4px;border-radius:9px;font-size:12px;font-weight:700;color:var(--ink-3);background:var(--panel-2);border:1px solid var(--line);transition:.16s var(--ease);}
+.adm-mseg button.on{color:var(--ink);border-color:var(--line-2);background:var(--panel-3);}
+.adm-chart-wrap{position:relative;margin-top:8px;}
+.adm-chart{display:block;width:100%;height:auto;overflow:visible;touch-action:pan-y;user-select:none;}
+.adm-grid{stroke:var(--line);stroke-width:1;}
+.adm-gy{fill:var(--ink-4);font-size:9px;font-family:var(--mono);}
+.adm-xl{fill:var(--ink-3);font-size:9px;font-family:var(--font);}
+.adm-dot{stroke-width:2.4;}
+.adm-cross{stroke:var(--ink-4);stroke-width:1;stroke-dasharray:3 3;pointer-events:none;transition:opacity .12s;}
+.adm-cross-dot{stroke-width:2;pointer-events:none;transition:opacity .12s;}
+.adm-tip{position:absolute;top:-4px;transform:translateX(-50%);background:var(--ink);color:var(--bg-2);padding:5px 9px;border-radius:9px;font-size:12px;font-weight:800;font-family:var(--mono);display:flex;flex-direction:column;align-items:center;gap:1px;opacity:0;pointer-events:none;transition:opacity .12s;white-space:nowrap;box-shadow:0 10px 24px -12px rgba(0,0,0,.55);z-index:2;}
+.adm-tip span{font-size:10px;opacity:.7;font-weight:600;font-family:var(--font);}
+.adm-dist{display:flex;flex-direction:column;gap:12px;}
+.adm-dist-row{display:flex;align-items:center;gap:10px;}
+.adm-dist-l{font-size:12.5px;color:var(--ink-2);width:90px;flex:0 0 auto;font-weight:600;}
+.adm-dist-track{flex:1;height:9px;border-radius:6px;background:var(--panel-3);overflow:hidden;}
+.adm-dist-track i{display:block;height:100%;border-radius:6px;transition:width .5s var(--ease);}
+.adm-dist-row b{font-family:var(--mono);font-size:13px;font-weight:700;width:58px;text-align:right;flex:0 0 auto;}
 </style>
 </head>
 <body>
@@ -596,6 +636,9 @@ function defaultState(){
     hasWallet:false, locked:true, network:"mainnet", cardSkin:"midnight",
     addressRaw:null, pubkey:null, enc:null, bioCredId:null, bioPw:null,
     profile:{nick:null, nickChangesLeft:1, registeredAt:null}, // nickname can be changed once
+    isAdmin:false,                            // доступ к админ-панели (разблокируется кодом)
+    // реестр занятых ников (в нижнем регистре). Используется для проверки на повторы
+    nickRegistry:["tiraspol_trader","crypto_king","usdt.master","p2p_boss","moldova_exchange","bender_cash","pmr_support","wallet_pro","gram_hunter","night_trader"],
     settings:{currency:"USD", theme:"light", lang:"Русский", notifications:false, biometric:false},
     balances:{GRAM:"0", USDT:"0"},           // raw units (string of bigint) by asset
     locks:[],                                 // {id, asset, amount(human float), reason, offerId, tradeId, ts}
@@ -753,17 +796,55 @@ function isProfane(nick){
   const variants=[base, translitCyr(base), translitLat(base)];
   return BAD_WORD_ROOTS.some(root=>variants.some(v=>v.includes(root)));
 }
-// -> {ok:true} or {ok:false, reason:"..."}
-function validateNick(raw){
+// зарезервированные/служебные имена, которые нельзя занять
+const RESERVED_NICKS=["admin","administrator","админ","администратор","moderator","moder","модер","модератор",
+  "support","поддержка","pmr","pmrwallet","pmrsupport","root","official","system","система","null","undefined",
+  "owner","staff","team","service","сервис","bot","бот","wallet","кошелек","кошелёк"];
+// нормализованный ключ ника для сравнения (регистр + обрезка пробелов)
+function nickKey(s){ return String(s||"").trim().toLowerCase(); }
+// занят ли ник кем-то, кроме, опционально, собственного текущего ника (exclude)
+function nickTaken(nick,exclude){
+  const k=nickKey(nick);
+  if(exclude && k===nickKey(exclude)) return false;
+  if((S.nickRegistry||[]).some(n=>nickKey(n)===k)) return true;      // глобальный реестр ников
+  return (S.offers||[]).some(o=>!o.mine && nickKey(o.name)===k);     // чужие P2P-офферы тоже резервируют имя
+}
+// -> {ok:true, reason:"Ник свободен"} или {ok:false, reason:"..."}
+function validateNick(raw,opts){
+  opts=opts||{};
   const nick=String(raw||"").trim();
-  if(nick.length<3) return {ok:false,reason:"Ник слишком короткий (минимум 3 символа)"};
-  if(nick.length>16) return {ok:false,reason:"Ник слишком длинный (максимум 16 символов)"};
+  if(!nick) return {ok:false,reason:"Введите ник"};
+  if(nick.length<3) return {ok:false,reason:"Минимум 3 символа"};
+  if(nick.length>16) return {ok:false,reason:"Максимум 16 символов"};
   if(!/^[A-Za-zА-Яа-яЁё0-9_.\-]+$/.test(nick)) return {ok:false,reason:"Разрешены буквы, цифры, _ . -"};
-  if(!/[A-Za-zА-Яа-яЁё]/.test(nick)) return {ok:false,reason:"Ник должен содержать хотя бы одну букву"};
+  if(!/[A-Za-zА-Яа-яЁё]/.test(nick)) return {ok:false,reason:"Нужна хотя бы одна буква"};
+  if(/^[._\-]|[._\-]$/.test(nick)) return {ok:false,reason:"Не может начинаться/заканчиваться на . _ -"};
+  if(/[._\-]{2,}/.test(nick)) return {ok:false,reason:"Без двух спецсимволов подряд"};
+  const base=normBase(nick);
+  if(RESERVED_NICKS.some(r=>r===nick.toLowerCase()||r===base)) return {ok:false,reason:"Этот ник зарезервирован"};
   if(isProfane(nick)) return {ok:false,reason:"Недопустимый ник. Нецензурные слова запрещены."};
-  const taken=(S.offers||[]).some(o=>!o.mine&&(o.name||"").toLowerCase()===nick.toLowerCase());
-  if(taken) return {ok:false,reason:"Такой ник уже занят"};
-  return {ok:true};
+  if(nickTaken(nick,opts.exclude)) return {ok:false,reason:"Такой ник уже занят"};
+  return {ok:true,reason:"Ник свободен"};
+}
+// живая проверка ника в поле ввода: подсветка + подсказка + блокировка кнопки
+function liveNick(inputId,hintId,btnId,isChange){
+  const inp=el(inputId), hint=el(hintId), btn=btnId?el(btnId):null;
+  if(!inp) return;
+  const run=()=>{
+    const val=inp.value.trim();
+    inp.classList.remove("ok","bad");
+    if(!val){
+      if(hint){ hint.textContent="3–16 символов: буквы, цифры, _ . -"; hint.className="hint"; }
+      if(btn) btn.disabled=false;
+      return;
+    }
+    const v=validateNick(val,{exclude:isChange?myNick():null});
+    if(hint){ hint.textContent=v.reason||""; hint.className="hint "+(v.ok?"hint-ok":"hint-bad"); }
+    inp.classList.add(v.ok?"ok":"bad");
+    if(btn) btn.disabled=!v.ok;
+  };
+  inp.addEventListener("input",run);
+  run();
 }
 
 /* ---------- WebCrypto seed encryption ---------- */
@@ -1054,6 +1135,7 @@ function renderCurrent(){
   if(view==="home") renderHome();
   else if(view==="p2p") renderP2P();
   else if(view==="profile") renderProfile();
+  else if(view==="admin") renderAdmin();
   else if(view==="settings") renderSettings();
   else if(view.startsWith("settings-")) renderSettingsSub(view.slice(9));
   viewAnim();
@@ -1144,13 +1226,13 @@ function renderRegister(){
     <div style="width:100%;max-width:360px;margin:8px auto 0">
       <div class="field" style="margin-bottom:10px">
         <input class="input" id="regNick" maxlength="16" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Например, tiraspol_trader">
-        <p class="hint" style="margin-top:8px">3–16 символов: буквы, цифры, _ . -</p>
+        <p class="hint" id="regHintLive" style="margin-top:8px">3–16 символов: буквы, цифры, _ . -</p>
       </div>
-      <button class="btn btn-primary btn-lg btn-block" data-act="register-go">Продолжить ${I.chev}</button>
-      <p class="note">Этот шаг обязателен для входа в кошелёк.</p>
+      <button class="btn btn-primary btn-lg btn-block" id="regBtn" data-act="register-go">Продолжить ${I.chev}</button>
+      <p class="note">Этот шаг обязателен для входа в кошелёк. Ник проверяется на уникальность.</p>
     </div>
   </div>`;
-  setTimeout(()=>{ const i=el("regNick"); if(i){ i.focus(); i.addEventListener("keydown",e=>{ if(e.key==="Enter") act("register-go"); }); } },60);
+  setTimeout(()=>{ const i=el("regNick"); if(i){ i.focus(); i.addEventListener("keydown",e=>{ if(e.key==="Enter") act("register-go"); }); } liveNick("regNick","regHintLive","regBtn",false); },60);
 }
 
 /* ---------- home ---------- */
@@ -1340,6 +1422,10 @@ function renderSettings(){
       ${setRow("lang",I.user,"Язык",S.settings.lang)}
       ${setRow("support",I.help,"Поддержка","Помощь")}
     </div>
+    <div class="sec-head"><h2>Администрирование</h2></div>
+    <div class="setcard">
+      <div class="setrow" data-act="admin-open"><span class="si">${I.shield}</span><div class="st"><b>Админ-панель</b><span>${S.isAdmin?"Статистика приложения":"Требуется код доступа"}</span></div><span class="ch">${I.chev}</span></div>
+    </div>
     <p class="pagenote">PMR Wallet · некастодиальный кошелёк сети TON. Версия 1.0</p>
   </div>`;
 }
@@ -1415,6 +1501,234 @@ function renderTabbar(){
   const ind=t.querySelector(".tab-ind");
   if(ind) ind.style.transform=`translateX(calc(${idx} * (100% + 6px)))`;
   t.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on", b.dataset.tab===view));
+}
+
+/* ===================== ADMIN DASHBOARD / АНАЛИТИКА ===================== */
+const ADMIN_CODE="pmr-admin-2025";                 // код доступа к админ-панели
+let adminPeriod="week";                            // day | week | month | year
+let adminMetric="users";                           // users | ops | volume
+let _synthCache=null, _admView=null;
+const ADM_METRICS=["users","ops","trades","volume","fees","signups"];
+const ADM_META={
+  users:{label:"Активность",color:"#2ebd85",unit:"count"},
+  ops:{label:"Операции",color:"#2f6bff",unit:"count"},
+  volume:{label:"Объём",color:"#0098ea",unit:"usd"},
+};
+// геометрия графика (должна совпадать в SVG и в обработчике наведения)
+const ADM_W=360,ADM_H=190,ADM_PL=8,ADM_PR=10,ADM_PT=12,ADM_PB=24;
+const ADM_IW=ADM_W-ADM_PL-ADM_PR, ADM_IH=ADM_H-ADM_PT-ADM_PB;
+
+// детерминированный ГПСЧ — демо-статистика стабильна между рендерами
+function mulberry32(a){ return function(){ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return((t^t>>>14)>>>0)/4294967296; }; }
+function fmtInt(n){ return Math.round(Number(n)||0).toLocaleString("ru-RU"); }
+function fmtMoney(n){ n=Number(n)||0; const a=Math.abs(n); if(a>=1e6)return "$"+(n/1e6).toFixed(2)+"M"; if(a>=1e3)return "$"+(n/1e3).toFixed(1)+"K"; return "$"+Math.round(n).toLocaleString("ru-RU"); }
+function fmtShort(n){ n=Number(n)||0; const a=Math.abs(n); if(a>=1e6)return (n/1e6).toFixed(1)+"M"; if(a>=1e3)return (n/1e3).toFixed(0)+"k"; return ""+Math.round(n); }
+
+// ежедневные метрики за последние 730 дней (0 = 729 дней назад … последняя = сегодня)
+function synthDaily(){
+  if(_synthCache) return _synthCache;
+  const days=730, rnd=mulberry32(20240517), out=[];
+  const today=new Date(); today.setHours(0,0,0,0);
+  for(let i=0;i<days;i++){
+    const date=new Date(today); date.setDate(today.getDate()-(days-1-i));
+    const dow=date.getDay();
+    const growth=0.4+1.0*(i/days);                 // плавный рост аудитории
+    const season=1+0.18*Math.sin(i/58);            // сезонные волны
+    const weekend=(dow===0||dow===6)?0.74:1;       // спад в выходные
+    const base=120*growth*season*weekend*(0.82+0.36*rnd());
+    const users=Math.max(1,Math.round(base));
+    const ops=Math.round(base*(2.3+1.2*rnd()));
+    const trades=Math.round(base*(0.42+0.4*rnd()));
+    const volume=Math.round(ops*(16+46*rnd()));    // USD
+    const fees=Math.round(volume*(0.004+0.0035*rnd()));
+    const signups=Math.round(base*(0.1+0.12*rnd()));
+    out.push({date:+date,users,ops,trades,volume,fees,signups});
+  }
+  _synthCache=out;
+  return out;
+}
+// копия ряда + добавляем реальную активность этого устройства за последние дни
+function dailySeries(){
+  const data=synthDaily().map(d=>({...d}));
+  const byDay=new Map(); data.forEach((d,i)=>byDay.set(d.date,i));
+  const dayStart=ts=>{ const x=new Date(ts); x.setHours(0,0,0,0); return +x; };
+  const bump=(ts,usd,kind)=>{ const i=byDay.get(dayStart(ts)); if(i==null) return; data[i].ops+=1; if(usd>0) data[i].volume+=Math.round(usd); if(kind==="trade") data[i].trades+=1; if(kind==="fee") data[i].fees+=Math.round(usd||0); };
+  (S.history||[]).forEach(h=>{ bump(h.ts, usdOf(h.asset,Number(h.amount)||0), h.type==="fee"?"fee":""); });
+  (S.trades||[]).forEach(t=>{ bump(t.ts, usdOf(t.crypto,Number(t.amount)||0), "trade"); });
+  return data;
+}
+function zeroRow(){ const z={}; ADM_METRICS.forEach(m=>z[m]=0); return z; }
+function sumRows(rows){ const z=zeroRow(); rows.forEach(r=>ADM_METRICS.forEach(m=>z[m]+=r[m]||0)); return z; }
+
+// агрегируем данные под выбранный период: buckets для графика + итоги (cur) и прошлый период (prev)
+function buildPeriod(period){
+  const d=dailySeries(), N=d.length;
+  let buckets=[], labels=[], cur, prev;
+  if(period==="day"){
+    const t=d[N-1];
+    const diurnal=[.18,.11,.07,.05,.05,.08,.16,.34,.58,.78,.9,.96,1,.98,.9,.88,.93,1,.96,.84,.69,.54,.4,.28];
+    const dsum=diurnal.reduce((a,x)=>a+x,0), rnd=mulberry32(777);
+    for(let h=0;h<24;h++){
+      const w=diurnal[h]/dsum*(0.85+0.3*rnd()), row=zeroRow();
+      ADM_METRICS.forEach(m=>row[m]=Math.round(t[m]*w));
+      buckets.push(row); labels.push((h<10?"0":"")+h+":00");
+    }
+    cur=sumRows([d[N-1]]); prev=sumRows([d[N-2]]);
+  } else if(period==="week"){
+    const DOW=["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
+    for(let i=N-7;i<N;i++){ buckets.push(d[i]); labels.push(DOW[new Date(d[i].date).getDay()]); }
+    cur=sumRows(d.slice(N-7)); prev=sumRows(d.slice(N-14,N-7));
+  } else if(period==="month"){
+    for(let i=N-30;i<N;i++){ buckets.push(d[i]); labels.push(new Date(d[i].date).getDate()+""); }
+    cur=sumRows(d.slice(N-30)); prev=sumRows(d.slice(N-60,N-30));
+  } else { // year — 12 последних завершённых месяцев (текущий неполный пропускаем)
+    const MON=["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
+    const tnow=new Date(), curM=tnow.getFullYear()*12+tnow.getMonth();
+    const groups=new Map();
+    d.forEach(r=>{ const dt=new Date(r.date), key=dt.getFullYear()*12+dt.getMonth();
+      if(key===curM) return;                                 // пропускаем текущий неполный месяц
+      if(!groups.has(key)) groups.set(key,Object.assign(zeroRow(),{_m:dt.getMonth()}));
+      const g=groups.get(key); ADM_METRICS.forEach(m=>g[m]+=r[m]); });
+    const keys=[...groups.keys()].sort((a,b)=>a-b);
+    const curKeys=keys.slice(-12), prevKeys=keys.slice(-24,-12);
+    curKeys.forEach(k=>{ const g=groups.get(k); buckets.push(g); labels.push(MON[g._m]); });
+    cur=sumRows(curKeys.map(k=>groups.get(k)));
+    prev=sumRows(prevKeys.map(k=>groups.get(k)));
+  }
+  return {buckets,labels,cur,prev};
+}
+function deltaChip(c,p){ const d= p>0? (c-p)/p*100 : (c>0?100:0); const up=d>=0; return `<span class="adm-delta ${up?'up':'down'}">${up?'▲':'▼'} ${Math.abs(d).toFixed(1)}%</span>`; }
+
+// SVG график активности (площадь + линия + сетка + подписи осей)
+function activityChartSVG(vals,labels,color){
+  const n=vals.length, max=Math.max(1,...vals);
+  const x=i=> ADM_PL + (n<=1?ADM_IW/2:ADM_IW*i/(n-1));
+  const y=v=> ADM_PT + ADM_IH*(1-(v/max));
+  const pts=vals.map((v,i)=>[x(i),y(v)]);
+  const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  const base=ADM_PT+ADM_IH;
+  const area=line+` L ${x(n-1).toFixed(1)} ${base} L ${x(0).toFixed(1)} ${base} Z`;
+  let grid="";
+  for(let g=0;g<=4;g++){ const gy=ADM_PT+ADM_IH*g/4; grid+=`<line x1="${ADM_PL}" y1="${gy.toFixed(1)}" x2="${ADM_W-ADM_PR}" y2="${gy.toFixed(1)}" class="adm-grid"/><text x="${ADM_PL}" y="${(gy-3).toFixed(1)}" class="adm-gy">${fmtShort(Math.round(max*(1-g/4)))}</text>`; }
+  const step=(n<=12)?1:Math.ceil(n/9);
+  let xl="";
+  labels.forEach((lb,i)=>{ if(i%step===0||i===n-1) xl+=`<text x="${x(i).toFixed(1)}" y="${ADM_H-7}" class="adm-xl" text-anchor="middle">${lb}</text>`; });
+  const last=pts[n-1];
+  return `<svg viewBox="0 0 ${ADM_W} ${ADM_H}" class="adm-chart" id="admSvg">
+    <defs><linearGradient id="admFill" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="${color}" stop-opacity="0.32"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    <path d="${area}" fill="url(#admFill)"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle class="adm-dot" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.4" fill="#ffffff" stroke="${color}"/>
+    ${xl}
+  </svg>`;
+}
+// интерактив графика: наведение/касание — перекрестие, точка и всплывающая подсказка
+function bindAdminChart(){
+  const svg=el("admSvg"), tip=el("admTip"); if(!svg||!tip||!_admView) return;
+  const {vals,labels,meta}=_admView, n=vals.length; if(!n) return;
+  const max=Math.max(1,...vals);
+  const xu=i=> ADM_PL + (n<=1?ADM_IW/2:ADM_IW*i/(n-1));
+  const yu=v=> ADM_PT + ADM_IH*(1-(v/max));
+  const NS="http://www.w3.org/2000/svg";
+  let cross=svg.querySelector(".adm-cross"), dot=svg.querySelector(".adm-cross-dot");
+  if(!cross){ cross=document.createElementNS(NS,"line"); cross.setAttribute("class","adm-cross"); svg.appendChild(cross); }
+  if(!dot){ dot=document.createElementNS(NS,"circle"); dot.setAttribute("class","adm-cross-dot"); dot.setAttribute("r","4.5"); dot.setAttribute("stroke","#ffffff"); svg.appendChild(dot); }
+  dot.setAttribute("fill",meta.color);
+  cross.style.opacity="0"; dot.style.opacity="0";
+  const show=(idx)=>{
+    idx=Math.max(0,Math.min(n-1,idx));
+    const px=xu(idx), py=yu(vals[idx]);
+    cross.setAttribute("x1",px);cross.setAttribute("x2",px);cross.setAttribute("y1",ADM_PT);cross.setAttribute("y2",ADM_PT+ADM_IH);cross.style.opacity="1";
+    dot.setAttribute("cx",px);dot.setAttribute("cy",py);dot.style.opacity="1";
+    tip.innerHTML=`<span>${labels[idx]}</span><b>${meta.unit==="usd"?fmtMoney(vals[idx]):fmtInt(vals[idx])}</b>`;
+    tip.style.opacity="1";
+    const rect=svg.getBoundingClientRect();
+    tip.style.left=Math.max(6,Math.min(rect.width-6, rect.width*(px/ADM_W)))+"px";
+  };
+  const at=(e)=>{ const rect=svg.getBoundingClientRect(); const rx=(e.clientX-rect.left)/rect.width*ADM_W; show(Math.round((rx-ADM_PL)/(ADM_IW/Math.max(1,n-1)))); };
+  svg.onpointermove=at; svg.onpointerdown=at;
+  svg.onpointerleave=()=>{ cross.style.opacity="0"; dot.style.opacity="0"; tip.style.opacity="0"; };
+}
+
+function modalAdminLogin(){
+  openModal(`${sheetHead("Админ-панель")}
+    <div style="text-align:center;margin-bottom:14px">
+      <div class="hero-badge" style="margin:4px auto 14px;width:72px;height:72px;border-radius:22px">${I.shield}</div>
+      <p class="dim">Доступ к статистике приложения. Введите код администратора.</p>
+    </div>
+    <div class="field"><label>Код доступа</label>
+      <input class="input" id="admCode" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Код администратора">
+      <p class="hint" id="admCodeHint" style="margin-top:8px">Выдаётся владельцем приложения</p>
+    </div>
+    <button class="btn btn-primary btn-lg btn-block" id="admGo">Войти ${I.chev}</button>`,true);
+  setTimeout(()=>{ const i=el("admCode"); if(i){ i.focus(); i.addEventListener("keydown",e=>{ if(e.key==="Enter") adminLoginGo(); }); } const b=el("admGo"); if(b) b.onclick=adminLoginGo; },30);
+}
+function adminLoginGo(){
+  const v=((el("admCode")||{}).value||"").trim();
+  if(v!==ADMIN_CODE){ const h=el("admCodeHint"); if(h){ h.textContent="Неверный код доступа"; h.className="hint hint-bad"; } toast("Неверный код","err"); return; }
+  S.isAdmin=true; save(); closeModal(); view="admin"; render(); toast("Добро пожаловать в админ-панель","ok");
+}
+
+function renderAdmin(){
+  el("tabbar").style.display="none";
+  if(!S.isAdmin){ view="settings"; render(); return modalAdminLogin(); }
+  const {buckets,labels,cur,prev}=buildPeriod(adminPeriod);
+  const meta=ADM_META[adminMetric]||ADM_META.users;
+  const vals=buckets.map(b=>b[adminMetric]);
+  const pName={day:"за сегодня",week:"за неделю",month:"за месяц",year:"за год"}[adminPeriod];
+  const periods=[["day","День"],["week","Неделя"],["month","Месяц"],["year","Год"]];
+  const seg=periods.map(([v,l])=>`<button data-act="admin-period" data-v="${v}" class="${adminPeriod===v?'on':''}">${l}</button>`).join("");
+  const mseg=Object.keys(ADM_META).map(k=>`<button data-act="admin-metric" data-v="${k}" class="${adminMetric===k?'on':''}">${ADM_META[k].label}</button>`).join("");
+  const kpi=(lab,val,c,p,money)=>`<div class="adm-kpi"><span class="adm-k-lab">${lab}</span><b class="adm-k-val">${money?fmtMoney(val):fmtInt(val)}</b>${deltaChip(c,p)}</div>`;
+  const bigVal=meta.unit==="usd"?fmtMoney(cur[adminMetric]):fmtInt(cur[adminMetric]);
+  const ops=cur.ops||0;
+  const dist=[["Приём",0.34,"var(--buy)"],["Отправка",0.26,"#2f6bff"],["P2P сделки",0.32,"#0098ea"],["Комиссии",0.08,"var(--warn)"]];
+  const distMax=Math.max(...dist.map(x=>x[1]));
+  const distHtml=dist.map(([l,r,c])=>`<div class="adm-dist-row"><span class="adm-dist-l">${l}</span><div class="adm-dist-track"><i style="width:${(r/distMax*100).toFixed(0)}%;background:${c}"></i></div><b>${fmtInt(ops*r)}</b></div>`).join("");
+  const avgTrade=cur.trades>0?cur.volume/cur.trades:0;
+  _admView={labels,vals,meta,buckets};
+  el("app").innerHTML=`
+  <div class="screen no-tab">
+    <div class="topbar">
+      <button class="backbtn" data-act="go-settings">${I.back}</button>
+      <h1 style="font-size:21px">Админ-панель</h1>
+      <button class="iconbtn" data-act="admin-refresh" title="Обновить">${I.swap}</button>
+      <button class="iconbtn" data-act="admin-logout" title="Выйти">${I.out}</button>
+    </div>
+    <p class="pagesub">Статистика PMR Wallet · <b style="color:var(--ink-2)">${pName}</b></p>
+    <div class="adm-seg">${seg}</div>
+    <div class="adm-kpis">
+      ${kpi("Операции",cur.ops,cur.ops,prev.ops,false)}
+      ${kpi("Объём",cur.volume,cur.volume,prev.volume,true)}
+      ${kpi("P2P сделки",cur.trades,cur.trades,prev.trades,false)}
+      ${kpi("Комиссии",cur.fees,cur.fees,prev.fees,true)}
+      ${kpi("Активность",cur.users,cur.users,prev.users,false)}
+      ${kpi("Новые польз.",cur.signups,cur.signups,prev.signups,false)}
+    </div>
+    <div class="adm-card">
+      <div class="adm-card-head">
+        <div><span class="adm-k-lab">${meta.label} ${pName}</span><div style="display:flex;align-items:center;gap:8px;margin-top:2px"><b class="adm-big">${bigVal}</b>${deltaChip(cur[adminMetric],prev[adminMetric])}</div></div>
+      </div>
+      <div class="adm-mseg">${mseg}</div>
+      <div class="adm-chart-wrap">
+        ${activityChartSVG(vals,labels,meta.color)}
+        <div class="adm-tip" id="admTip"></div>
+      </div>
+    </div>
+    <div class="adm-card">
+      <div class="adm-card-head"><span class="adm-k-lab">Распределение операций ${pName}</span></div>
+      <div class="adm-dist">${distHtml}</div>
+    </div>
+    <div class="twocard" style="margin-top:0">
+      <div class="flatcard"><span class="muted" style="font-size:12px">Ср. объём сделки</span><b style="font-size:20px;font-family:var(--mono)">${fmtMoney(avgTrade)}</b></div>
+      <div class="flatcard"><span class="muted" style="font-size:12px">Офферов на площадке</span><b style="font-size:20px;font-family:var(--mono)">${fmtInt((S.offers||[]).length)}</b></div>
+    </div>
+    <p class="pagenote">Показатели включают активность этого устройства и демонстрационную статистику платформы PMR Wallet.</p>
+  </div>`;
+  viewAnim();
+  setTimeout(bindAdminChart,30);
 }
 
 /* ===================== MODALS ===================== */
@@ -1748,6 +2062,7 @@ function modalRegister(){
     const inp=el("regNick"); if(inp) inp.focus();
     if(inp) inp.addEventListener("keydown",e=>{ if(e.key==="Enter") el("regGo").click(); });
     el("regGo").onclick=()=>saveNick(el("regNick").value,false);
+    liveNick("regNick","regHint","regGo",false);
   },30);
 }
 function modalChangeNick(){
@@ -1758,14 +2073,14 @@ function modalChangeNick(){
     <div class="field"><label>Текущий ник</label><div class="addrbox"><div class="a" style="font-family:var(--font)">@${esc(myNick()||"—")}</div></div></div>
     <div class="field"><label>Новый ник</label>
       <input class="input" id="chNick" maxlength="16" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Новый ник">
-      <p class="hint" style="margin-top:8px">3–16 символов: буквы, цифры, _ . -</p>
+      <p class="hint" id="chHint" style="margin-top:8px">3–16 символов: буквы, цифры, _ . -</p>
     </div>
     <button class="btn btn-primary btn-lg btn-block" id="chGo">Сохранить (останется смен: 0)</button>`,true);
-  setTimeout(()=>{ const inp=el("chNick"); if(inp) inp.focus(); el("chGo").onclick=()=>saveNick(el("chNick").value,true); },30);
+  setTimeout(()=>{ const inp=el("chNick"); if(inp) inp.focus(); el("chGo").onclick=()=>saveNick(el("chNick").value,true); liveNick("chNick","chHint","chGo",true); },30);
 }
 function saveNick(raw,isChange){
   const nick=String(raw||"").trim();
-  const v=validateNick(nick);
+  const v=validateNick(nick,{exclude:isChange?myNick():null});
   if(!v.ok) return toast(v.reason,"err");
   if(isChange){
     if(((S.profile&&S.profile.nickChangesLeft)||0)<=0) return toast("Лимит смены ника исчерпан","err");
@@ -1778,6 +2093,10 @@ function saveNick(raw,isChange){
   else { S.profile.registeredAt=Date.now(); }
   // keep user's own offers showing the new nick
   (S.offers||[]).forEach(o=>{ if(o.mine) o.name=nick; });
+  // поддерживаем глобальный реестр ников: убираем старый, добавляем новый
+  S.nickRegistry=S.nickRegistry||[];
+  if(prev) S.nickRegistry=S.nickRegistry.filter(n=>nickKey(n)!==nickKey(prev));
+  if(!S.nickRegistry.some(n=>nickKey(n)===nickKey(nick))) S.nickRegistry.push(nick.toLowerCase());
   save(); closeModal();
   if(isChange){ toast("Ник изменён","ok"); if(view==="profile"||view.startsWith("settings")) render(); }
   else { toast("Регистрация завершена","ok"); view="home"; render(); }
@@ -2008,6 +2327,14 @@ async function act(name,ds={}){
       break;
     }
     case "reveal-seed": await revealSeed(); break;
+
+    /* admin dashboard */
+    case "admin-open": if(S.isAdmin){ view="admin"; render(); } else modalAdminLogin(); break;
+    case "admin-login-go": adminLoginGo(); break;
+    case "admin-period": adminPeriod=ds.v; renderAdmin(); break;
+    case "admin-metric": adminMetric=ds.v; renderAdmin(); break;
+    case "admin-refresh": _synthCache=null; renderAdmin(); toast("Данные обновлены","ok"); break;
+    case "admin-logout": S.isAdmin=false; save(); view="settings"; render(); toast("Выход из админ-панели",""); break;
     case "pick-currency": S.settings.currency=ds.v; save(); view="settings"; render(); break;
     case "pick-lang": S.settings.lang=ds.v; save(); view="settings"; render(); break;
     case "toggle-notif": S.settings.notifications=!S.settings.notifications; save(); renderSettingsSub("notif"); break;
