@@ -3,3 +3,6 @@ __pycache__/
 .env
 .venv/
 venv/
+# Runtime data — must never be committed
+blocklist.json
+blocklist.tmp
