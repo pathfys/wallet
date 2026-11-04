@@ -1210,14 +1210,12 @@ button:active{transform:scale(0.96)}
 .qr-canvas-wrap canvas{width:100%;height:100%;display:block;image-rendering:pixelated;
   image-rendering:crisp-edges;-ms-interpolation-mode:nearest-neighbor}
 .qr-logo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:62px;height:62px;border-radius:14px;background:#fff;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 14px rgba(37,99,235,.25),0 0 0 4px #fff,0 0 0 5px rgba(37,99,235,.15)}
-.qr-logo-text{font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:28px;
+  display:flex;align-items:center;justify-content:center;pointer-events:none;
+  background:transparent;border:none;box-shadow:none}
+.qr-logo-text{font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:34px;
   color:#2563EB;letter-spacing:-2px;line-height:1;
   background:linear-gradient(135deg,#60A5FA 0%,#2563EB 50%,#1D4ED8 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  text-shadow:0 2px 8px rgba(37,99,235,.15)}
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .qr-uid-card{background:var(--card);border:1px solid var(--border);border-radius:14px;
   padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:12px;cursor:pointer;
   transition:transform .12s,border-color .2s}
@@ -4193,6 +4191,16 @@ var qrRender = function(canvas, text) {
   for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
     if (q.isDark(r, c)) ctx.fillRect(offX + (pad + c) * cell, offY + (pad + r) * cell, cell, cell);
   }
+  // Punch out a tight center hole for the PL letters. We paint it the SAME
+  // white as the surrounding modules so there's no visible edge between the
+  // cleared area and the normal "light" modules — it just looks like empty
+  // space where the "PL" sits. ECC H tolerates ~30% loss; 7 modules square
+  // in the exact center stays well inside that budget on every version.
+  ctx.fillStyle = "#ffffff";
+  var hole = 7 * cell;
+  var hx = offX + total / 2 - hole / 2;
+  var hy = offY + total / 2 - hole / 2;
+  ctx.fillRect(hx, hy, hole, hole);
 };
 
 // ════════════════════════════════════════════════════════════════════════════
