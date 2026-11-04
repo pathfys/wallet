@@ -1393,6 +1393,117 @@ button:active{transform:scale(0.96)}
 .wd-bind-notice .text b{display:block;color:var(--red);font-weight:700;margin-bottom:2px}
 .wd-bind-notice button{margin-left:auto;padding:7px 12px;border-radius:9px;background:var(--red);
   color:#fff;font-size:12px;font-weight:700;border:none}
+
+/* ═════ COIN PREVIEW SHEET ═════ slide-in preview per currency when
+   tapping the chevron on the wallet list. Replaces the inline expand. */
+.coin-prev-overlay{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.55);
+  display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;
+  transition:opacity .28s ease;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.coin-prev-overlay.visible{opacity:1;pointer-events:auto}
+.coin-prev{width:100%;max-width:480px;background:var(--bg);border-radius:24px 24px 0 0;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  transform:translateY(100%) scale(.96);opacity:0;
+  transition:transform .42s cubic-bezier(.2,.9,.25,1), opacity .25s ease;
+  will-change:transform,opacity;overflow:hidden;
+  --cc:#2563EB;--ct:rgba(37,99,235,.14);--cs:rgba(37,99,235,.35)}
+.coin-prev-overlay.visible .coin-prev{transform:translateY(0) scale(1);opacity:1}
+/* Brand accent per coin / fiat */
+.coin-prev[data-sym="BTC"]{--cc:#F7931A;--ct:rgba(247,147,26,.14);--cs:rgba(247,147,26,.42)}
+.coin-prev[data-sym="ETH"]{--cc:#627EEA;--ct:rgba(98,126,234,.16);--cs:rgba(98,126,234,.42)}
+.coin-prev[data-sym="USDT"]{--cc:#26A17B;--ct:rgba(38,161,123,.14);--cs:rgba(38,161,123,.42)}
+.coin-prev[data-sym="TON"],.coin-prev[data-sym="GRAM"]{--cc:#0098EA;--ct:rgba(0,152,234,.14);--cs:rgba(0,152,234,.42)}
+.coin-prev[data-sym="BNB"]{--cc:#F3BA2F;--ct:rgba(243,186,47,.14);--cs:rgba(243,186,47,.42)}
+.coin-prev[data-sym="SOL"]{--cc:#9945FF;--ct:rgba(153,69,255,.14);--cs:rgba(153,69,255,.42)}
+.coin-prev[data-sym="STARS"]{--cc:#FFCC00;--ct:rgba(255,204,0,.14);--cs:rgba(255,204,0,.42)}
+.coin-prev[data-sym="USD"]{--cc:#2E7D32;--ct:rgba(46,125,50,.14);--cs:rgba(46,125,50,.42)}
+.coin-prev[data-sym="EUR"]{--cc:#003399;--ct:rgba(0,51,153,.14);--cs:rgba(0,51,153,.42)}
+.coin-prev[data-sym="RUB"]{--cc:#D52B1E;--ct:rgba(213,43,30,.14);--cs:rgba(213,43,30,.42)}
+.coin-prev[data-sym="UAH"]{--cc:#005BBB;--ct:rgba(0,91,187,.14);--cs:rgba(0,91,187,.42)}
+.coin-prev[data-sym="TRY"]{--cc:#E30A17;--ct:rgba(227,10,23,.14);--cs:rgba(227,10,23,.42)}
+.coin-prev[data-sym="CNY"]{--cc:#DE2910;--ct:rgba(222,41,16,.14);--cs:rgba(222,41,16,.42)}
+.coin-prev[data-sym="GBP"]{--cc:#012169;--ct:rgba(1,33,105,.14);--cs:rgba(1,33,105,.42)}
+.coin-prev[data-sym="MDL"]{--cc:#0066CC;--ct:rgba(0,102,204,.14);--cs:rgba(0,102,204,.42)}
+
+.coin-prev-handle{width:42px;height:4px;border-radius:2px;background:var(--border);margin:10px auto 6px}
+.coin-prev-hero{position:relative;padding:20px 22px 24px;overflow:hidden;
+  background:radial-gradient(130% 160% at 85% -20%,var(--ct) 0%,transparent 55%),
+             linear-gradient(180deg,var(--bg2) 0%,var(--bg) 100%)}
+.coin-prev-hero::before{content:"";position:absolute;left:22px;right:22px;top:0;height:3px;
+  border-radius:0 0 3px 3px;background:var(--cc);
+  box-shadow:0 2px 14px var(--cs)}
+.coin-prev-top{display:flex;align-items:flex-start;justify-content:space-between}
+.coin-prev-id{display:flex;align-items:center;gap:12px}
+.coin-prev-icon{width:52px;height:52px;border-radius:50%;background:var(--card);
+  display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:var(--cc);
+  overflow:hidden;border:1.5px solid var(--border);
+  box-shadow:0 8px 22px -6px var(--cs)}
+.coin-prev-icon img{width:100%;height:100%;object-fit:cover}
+.coin-prev-id-text .n{font-size:17px;font-weight:700;color:var(--t1);line-height:1.1;letter-spacing:.2px}
+.coin-prev-id-text .s{font-size:12px;color:var(--t2);margin-top:3px;letter-spacing:.8px;font-weight:600}
+.coin-prev-close{width:34px;height:34px;border-radius:50%;background:var(--card);
+  border:1px solid var(--border);color:var(--t2);display:flex;align-items:center;justify-content:center;padding:0}
+.coin-prev-close svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.3}
+
+/* Big balance — same Inter 800 as the home wallet card, scaled up */
+.coin-prev-bal-wrap{margin-top:22px}
+.coin-prev-bal-lbl{font-size:11px;color:var(--t2);font-weight:700;letter-spacing:.8px;
+  text-transform:uppercase;margin-bottom:6px}
+.coin-prev-bal{font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:40px;
+  color:var(--t1);letter-spacing:-1.2px;line-height:1;font-variant-numeric:tabular-nums;
+  display:flex;align-items:baseline;gap:9px}
+.coin-prev-bal .cur{font-size:16px;font-weight:700;color:var(--t2);letter-spacing:0}
+.coin-prev-bal-usd{margin-top:8px;font-size:14px;color:var(--t2);font-weight:600;
+  font-variant-numeric:tabular-nums}
+.coin-prev-bal-usd .pct{margin-left:8px;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700}
+.coin-prev-bal-usd .pct.up{color:var(--green);background:rgba(14,203,129,.12)}
+.coin-prev-bal-usd .pct.down{color:var(--red);background:rgba(246,70,93,.12)}
+
+/* Action row — reuses the same look as wq-btn but scoped */
+.coin-prev-actions{display:flex;gap:10px;padding:18px 18px 10px}
+.coin-prev-btn{flex:1;padding:14px 10px;border-radius:14px;display:flex;flex-direction:column;align-items:center;
+  gap:6px;background:var(--card);border:1px solid var(--border);color:var(--t1);
+  font-size:12px;font-weight:700;transition:transform .08s,border-color .15s}
+.coin-prev-btn:active{transform:scale(.96)}
+.coin-prev-btn .ic{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  background:var(--ct);color:var(--cc)}
+.coin-prev-btn .ic svg{width:18px;height:18px;stroke:currentColor;stroke-width:2.3;fill:none;
+  stroke-linecap:round;stroke-linejoin:round}
+.coin-prev-btn.primary{background:var(--cc);border-color:var(--cc);color:#fff;
+  box-shadow:0 10px 22px -10px var(--cs)}
+.coin-prev-btn.primary .ic{background:rgba(255,255,255,.22);color:#fff}
+
+/* Address / card section */
+.coin-prev-sec{margin:10px 18px 0;background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:14px 16px}
+.coin-prev-sec-title{font-size:11px;color:var(--t2);font-weight:700;letter-spacing:.8px;
+  text-transform:uppercase;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.coin-prev-saved{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bg2);
+  border-radius:11px;border:1px solid var(--border);font-size:13px}
+.coin-prev-saved .addr{flex:1;min-width:0;color:var(--t1);font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Inter',monospace;letter-spacing:.2px}
+.coin-prev-saved button{background:none;border:none;color:var(--cc);font-size:12px;font-weight:700;padding:4px 8px}
+.coin-prev-input-row{display:flex;gap:8px}
+.coin-prev-input-row input{flex:1;background:var(--bg2);color:var(--t1);border:1.5px solid var(--border);
+  border-radius:11px;padding:12px 14px;font-size:13.5px;font-family:'Inter',system-ui,sans-serif;
+  transition:border-color .18s}
+.coin-prev-input-row input:focus{border-color:var(--cc);outline:none}
+.coin-prev-input-row input.valid{border-color:var(--green)}
+.coin-prev-input-row input.invalid{border-color:var(--red)}
+.coin-prev-input-row button{background:var(--cc);color:#fff;border:none;border-radius:11px;
+  padding:0 18px;font-size:13.5px;font-weight:700;box-shadow:0 8px 20px -6px var(--cs)}
+.coin-prev-status{font-size:11.5px;margin-top:6px;min-height:14px}
+.coin-prev-status.ok{color:var(--green)}
+.coin-prev-status.err{color:var(--red)}
+.coin-prev-note{font-size:11.5px;color:var(--t2);margin-bottom:9px}
+
+/* Pulse when the sheet first lands — the hero stripe glows briefly to
+   draw the eye to the balance after the fly-in. */
+@keyframes coinPrevLandPulse{0%{transform:scale(1.05);opacity:1}100%{transform:scale(1);opacity:1}}
+.coin-prev-overlay.visible .coin-prev-bal{animation:coinPrevLandPulse .5s ease-out .18s both}
+@media (prefers-reduced-motion:reduce){
+  .coin-prev{transition:opacity .2s ease}
+  .coin-prev-overlay.visible .coin-prev-bal{animation:none}
+}
 </style>
 </head>
 <body>
@@ -1435,6 +1546,13 @@ button:active{transform:scale(0.96)}
     <button class="bio-btn secondary" id="bio-btn-skip" style="display:none">
       <span id="bio-btn-skip-lbl">Continue without</span>
     </button>
+  </div>
+</div>
+
+<!-- COIN / CURRENCY PREVIEW SHEET -->
+<div class="coin-prev-overlay" id="coin-prev-overlay" onclick="closeCoinPreview()">
+  <div class="coin-prev" id="coin-prev" onclick="event.stopPropagation()">
+    <!-- populated dynamically by openCoinPreview -->
   </div>
 </div>
 
@@ -1909,22 +2027,25 @@ button:active{transform:scale(0.96)}
     <span class="nav-pill" id="nav-pill"></span>
     <button class="nav-btn active" onclick="showPage('home')" id="nav-home">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>
+        <path d="M3.2 11.3 12 4l8.8 7.3V19a2 2 0 0 1-2 2h-3.3a1 1 0 0 1-1-1v-5a1 1 0 0 0-1-1h-3a1 1 0 0 0-1 1v5a1 1 0 0 1-1 1H5.2a2 2 0 0 1-2-2z"/>
+        <path d="M10.5 7h3" opacity=".55"/>
       </svg>
       <span>Home</span>
     </button>
     <button class="nav-btn" onclick="showPage('wallet')" id="nav-wallet">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="2" y="6" width="20" height="14" rx="2"/>
-        <path d="M16 14a1 1 0 100-2 1 1 0 000 2z" fill="currentColor" stroke="none"/>
-        <path d="M2 10h20"/>
-        <path d="M6 6V4a2 2 0 012-2h8a2 2 0 012 2v2"/>
+        <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18a2 2 0 0 1 2 2v1.5"/>
+        <rect x="3" y="7.5" width="18" height="12.5" rx="3"/>
+        <path d="M21 13.5h-3.3a2 2 0 0 0 0 4H21"/>
+        <circle cx="17.8" cy="15.5" r="1.1" fill="currentColor" stroke="none"/>
       </svg>
       <span>Wallet</span>
     </button>
     <button class="nav-btn" onclick="showPage('profile')" id="nav-profile">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/>
+        <circle cx="12" cy="8.2" r="3.8"/>
+        <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>
+        <path d="M4.5 20.5h15" opacity=".4"/>
       </svg>
       <span>Profile</span>
     </button>
@@ -2183,6 +2304,8 @@ var L = {
     'wd_bad_card':'Invalid card number','wd_card_country':'{brand} not supported for {cur}',
     'wd_success':'Withdrawal request sent',
     'wd_success_msg':'{amount} {cur} is being processed. Track it in Transactions.',
+    'cp_balance':'Balance','cp_wallet':'Wallet address','cp_card':'Linked card',
+    'cp_action_deposit':'Deposit','cp_action_withdraw':'Withdraw','cp_action_receive':'Receive',
     'fcard_for':'For','fcard_invalid':'Invalid card number','fcard_unknown':'Could not detect card type','fcard_not_supported':'{brand} is not supported for {country}.','fcard_available':'Available','fcard_not_country':'not typical for this country',
     'crypto_currencies':'Cryptocurrencies','fiat_currencies':'Fiat Currencies',
     'save':'Save','edit':'Edit',
@@ -2312,6 +2435,8 @@ var L = {
     'wd_bad_card':'Неверный номер карты','wd_card_country':'{brand} не поддерживается для {cur}',
     'wd_success':'Заявка на вывод отправлена',
     'wd_success_msg':'{amount} {cur} обрабатывается. Статус — во вкладке «История».',
+    'cp_balance':'Баланс','cp_wallet':'Адрес кошелька','cp_card':'Привязанная карта',
+    'cp_action_deposit':'Пополнить','cp_action_withdraw':'Вывести','cp_action_receive':'Получить',
     'fcard_for':'Для','fcard_invalid':'Неверный номер карты','fcard_unknown':'Не удалось определить карту','fcard_not_supported':'{brand} не поддерживается для {country}.','fcard_available':'Доступно','fcard_not_country':'не для этой страны',
     'save':'Сохранить','edit':'Изменить',
     'valid_address':'Адрес верный','invalid_address':'Неверный адрес',
@@ -2535,11 +2660,10 @@ function refreshFiatCard(sym) {
 }
 
 function toggleFiatExpand(sym) {
-  expandedFiat[sym] = !expandedFiat[sym];
-  var card = document.getElementById('fcard-'+sym);
-  if (!card) return;
-  card.querySelector('.wcrypto-expand').classList.toggle('open', expandedFiat[sym]);
-  card.querySelector('.wcrypto-chevron').classList.toggle('open', expandedFiat[sym]);
+  // Same migration as the crypto chevron — tap opens the dedicated preview
+  // sheet. The inline expand state is kept at false so re-renders stay quiet.
+  expandedFiat[sym] = false;
+  openCoinPreview(sym);
 }
 
 function onFiatCardInput(sym) {
@@ -2989,15 +3113,11 @@ function toggleWalletSections() {
   el.classList.toggle('visible');
 }
 function toggleCryptoExpand(sym) {
-  // Toggle the class only. The previous re-render blew the input away and,
-  // on iOS, killed the paste menu that came up on a long-press.
-  expandedCrypto[sym] = !expandedCrypto[sym];
-  var card = document.getElementById('wcard-'+sym);
-  if (!card) return;
-  var expand = card.querySelector('.wcrypto-expand');
-  var chev = card.querySelector('.wcrypto-chevron');
-  if (expandedCrypto[sym]) { expand.classList.add('open'); chev.classList.add('open'); }
-  else { expand.classList.remove('open'); chev.classList.remove('open'); }
+  // The tap now opens the slide-in preview sheet instead of expanding the
+  // row inline. Keeps the inline-expand class in sync in case any other code
+  // reads it, but the chevron is purely decorative now.
+  expandedCrypto[sym] = false;
+  openCoinPreview(sym);
 }
 function editWallet(sym) {
   delete savedWallets[sym];
@@ -5184,6 +5304,160 @@ function confirmWithdraw() {
 // Keep a small USD-rate map stub so the hero shows a rough USD figure even
 // when the live markets feed hasn't landed yet. populated by fetchMarkets().
 var cryptoUsd = window.cryptoUsd || {};
+
+// ════════════════════════════════════════════════════════════════════════════
+// COIN PREVIEW SHEET — slide-in card for a single currency when tapped from
+// the wallet list. Replaces the inline row expand with a proper focused view.
+// ════════════════════════════════════════════════════════════════════════════
+function openCoinPreview(sym) {
+  var crypto = findCrypto(sym);
+  var fiat = findFiat(sym);
+  if (!crypto && !fiat) return;
+  var sheet = document.getElementById('coin-prev');
+  sheet.setAttribute('data-sym', sym);
+  sheet.innerHTML = crypto ? buildCoinPreviewCrypto(crypto) : buildCoinPreviewFiat(fiat);
+  document.getElementById('coin-prev-overlay').classList.add('visible');
+  // Haptic — the fly-in animation lasts ~420ms; firing the light tap at the
+  // start sells the "card arrived" feel.
+  try {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+  } catch(e){}
+}
+
+function closeCoinPreview() {
+  document.getElementById('coin-prev-overlay').classList.remove('visible');
+}
+
+function buildCoinPreviewCrypto(c) {
+  var bal = balForCurrency(c.sym);
+  var price = cryptoUsdPrice(c.sym);
+  var balUsd = bal * price;
+  var pct = cryptoChange24h(c.sym);
+  var pctCls = pct >= 0 ? 'up' : 'down';
+  var pctTxt = (pct >= 0 ? '+' : '') + (isFinite(pct) ? pct.toFixed(2) : '0.00') + '%';
+  var fb = cryptoFallback[c.sym] || c.sym[0];
+  var iconHtml = c.icon
+    ? '<img src="'+c.icon+'" alt="'+c.sym+'" onerror="this.outerHTML=\'<span>'+fb+'</span>\'">'
+    : '<span>'+fb+'</span>';
+  var saved = savedWallets[c.sym];
+  var addrHtml;
+  if (saved) {
+    addrHtml =
+      '<div class="coin-prev-saved">'+
+        '<span class="addr">'+escapeHtml(saved)+'</span>'+
+        '<button type="button" onclick="editWallet(\''+c.sym+'\')">'+t('edit')+'</button>'+
+      '</div>';
+  } else {
+    addrHtml =
+      '<div class="coin-prev-input-row">'+
+        '<input type="text" id="winp-'+c.sym+'" placeholder="'+t('enter_address')+'" '+
+          'inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" '+
+          'style="touch-action:manipulation">'+
+        '<button type="button" onclick="saveWallet(\''+c.sym+'\')">'+t('save')+'</button>'+
+      '</div>'+
+      '<div class="coin-prev-status" id="wstatus-'+c.sym+'"></div>';
+  }
+  return coinPreviewShell(c.sym, c.name, iconHtml, bal, balUsd, pctTxt, pctCls,
+    t('cp_wallet'), addrHtml, /*type*/ 'crypto');
+}
+
+function buildCoinPreviewFiat(f) {
+  var bal = balForCurrency(f.sym);
+  var balUsd = bal * (FIAT_USD[f.sym] ? 1/FIAT_USD[f.sym] : 0);
+  var saved = fiatCards[f.sym];
+  var iconHtml = '<span>'+f.flag+'</span>';
+  var addrHtml;
+  if (saved) {
+    addrHtml =
+      '<div class="coin-prev-saved">'+
+        '<span class="addr">'+brandBadge(saved.brand)+'&nbsp;&nbsp;'+escapeHtml(saved.mask)+'</span>'+
+        '<button type="button" onclick="editFiatCard(\''+f.sym+'\')">'+t('edit')+'</button>'+
+      '</div>';
+  } else {
+    addrHtml =
+      '<div class="coin-prev-note">'+t('fcard_for')+' '+escapeHtml(fiatCountry(f))+' · '+escapeHtml(acceptedBrandsText(f))+'</div>'+
+      '<div class="coin-prev-input-row">'+
+        '<input type="text" id="fcinp-'+f.sym+'" placeholder="0000 0000 0000 0000" inputmode="numeric" '+
+          'autocomplete="off" autocorrect="off" spellcheck="false" maxlength="23" '+
+          'oninput="onFiatCardInput(\''+f.sym+'\')" style="touch-action:manipulation">'+
+        '<button type="button" onclick="saveFiatCard(\''+f.sym+'\')">'+t('save')+'</button>'+
+      '</div>'+
+      '<div class="coin-prev-status" id="fcdetect-'+f.sym+'" style="color:var(--t2)"></div>'+
+      '<div class="coin-prev-status" id="fcstatus-'+f.sym+'"></div>';
+  }
+  return coinPreviewShell(f.sym, f.name, iconHtml, bal, balUsd, '', '',
+    t('cp_card'), addrHtml, /*type*/ 'fiat');
+}
+
+function coinPreviewShell(sym, name, iconHtml, bal, balUsd, pctTxt, pctCls, sectionTitle, body, type) {
+  var usdFmt = '≈ $'+ (balUsd || 0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  var pctHtml = pctTxt ? ' <span class="pct '+pctCls+'">'+pctTxt+'</span>' : '';
+  // Action row: Receive (QR), Withdraw, Deposit
+  var actionsHtml =
+    '<div class="coin-prev-actions">'+
+      '<button class="coin-prev-btn" type="button" onclick="closeCoinPreview();openReceiveQR()">'+
+        '<span class="ic">'+
+          '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="21"/><line x1="18" y1="14" x2="18" y2="18"/><line x1="21" y1="17" x2="21" y2="21"/></svg>'+
+        '</span>'+t('cp_action_receive')+'</button>'+
+      '<button class="coin-prev-btn" type="button" onclick="closeCoinPreview();openDWModal(\'deposit\')">'+
+        '<span class="ic">'+
+          '<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="6,13 12,19 18,13"/></svg>'+
+        '</span>'+t('cp_action_deposit')+'</button>'+
+      '<button class="coin-prev-btn primary" type="button" onclick="closeCoinPreview();openWithdrawCard(\''+sym+'\')">'+
+        '<span class="ic">'+
+          '<svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="6,11 12,5 18,11"/></svg>'+
+        '</span>'+t('cp_action_withdraw')+'</button>'+
+    '</div>';
+
+  return (
+    '<div class="coin-prev-handle"></div>'+
+    '<div class="coin-prev-hero">'+
+      '<div class="coin-prev-top">'+
+        '<div class="coin-prev-id">'+
+          '<div class="coin-prev-icon">'+iconHtml+'</div>'+
+          '<div class="coin-prev-id-text">'+
+            '<div class="n">'+escapeHtml(name)+'</div>'+
+            '<div class="s">'+sym+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<button class="coin-prev-close" type="button" onclick="closeCoinPreview()">'+
+          '<svg viewBox="0 0 24 24" fill="none"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>'+
+        '</button>'+
+      '</div>'+
+      '<div class="coin-prev-bal-wrap">'+
+        '<div class="coin-prev-bal-lbl">'+t('cp_balance')+'</div>'+
+        '<div class="coin-prev-bal">'+ fmtBalBig(bal) +'<span class="cur">'+sym+'</span></div>'+
+        '<div class="coin-prev-bal-usd">'+usdFmt+pctHtml+'</div>'+
+      '</div>'+
+    '</div>'+
+    actionsHtml+
+    '<div class="coin-prev-sec">'+
+      '<div class="coin-prev-sec-title">'+sectionTitle+'</div>'+
+      body+
+    '</div>'
+  );
+}
+
+// Big balance formatter — strips the trailing currency code (we show it as a
+// smaller chip right after the number) and keeps 8 significant decimals for
+// crypto / 2 for fiat.
+function fmtBalBig(amount) {
+  var n = amount || 0;
+  // Match the home card's locale/precision: up to 6 fractional digits, grouped.
+  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 6 });
+}
+
+// 24h change % — pull from the CoinGecko markets payload if we have it.
+function cryptoChange24h(sym) {
+  if (!marketCache) return 0;
+  var id = cgMap[sym] && cgMap[sym].id;
+  if (!id) return 0;
+  for (var i = 0; i < marketCache.length; i++) {
+    if (marketCache[i].id === id) return marketCache[i].price_change_percentage_24h || 0;
+  }
+  return 0;
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // Boot: run biometric gate before letting the user into the app.
