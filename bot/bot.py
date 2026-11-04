@@ -1,21 +1,19 @@
 """
 PL Wallet Telegram bot — language picker + greeting + WebApp entry.
 
-Button-color note (Telegram Bot API, Nov 2026):
-    Inline button colors are NOT settable per-button by the bot. The
-    Telegram client always paints them with the user's theme accent
-    (blue by default on both light and dark). The three places where
-    the bot CAN influence how a button looks are:
-      1. Text/emoji prefix (we use flag emojis for language picking
-         and a "🔵" square for the PlayerOK entry — the only way to
-         add a visual splash of color).
-      2. Button kind — `web_app` buttons render with a small WebApp
-         indicator next to the accent-colored text, and `pay=True`
-         buttons use Telegram's gold "Pay" styling.
-      3. Inside the opened Mini-App, Telegram.WebApp.MainButton.color
-         IS fully customizable — that's where the "actual blue" on
-         the PlayerOK button inside the app comes from (we set it to
-         the PL-blue `#2563EB` already in pl.html).
+Button-color note (Bot API 9.0+, confirmed Nov 2026):
+    InlineKeyboardButton has an optional `style` field. Accepted values
+    are "primary" (blue), "success" (green) and "danger" (red); omitting
+    it falls back to the client's default accent. The `style` field was
+    added in Bot API 9.0 and renders colored only on Telegram client
+    builds dated 9 Feb 2026 or later — older clients just ignore it and
+    draw the standard accent button, so sending it is backwards-safe.
+
+    Every inline button in this bot therefore ships with style="primary"
+    so they render in the Telegram blue the user asked for. The
+    PlayerOK button inside the opened Mini App is additionally styled
+    from within pl.html via Telegram.WebApp.MainButton.color (set to
+    PL-blue #2563EB).
 
 Run:
     pip install -r requirements.txt
@@ -87,9 +85,9 @@ GREETING = {
 }
 
 OPEN_LABEL = {
-    "ru": "🔵  Открыть PlayerOK",
-    "en": "🔵  Open PlayerOK",
-    "zh": "🔵  打开 PlayerOK",
+    "ru": "Открыть PlayerOK",
+    "en": "Open PlayerOK",
+    "zh": "打开 PlayerOK",
 }
 
 
@@ -99,27 +97,28 @@ OPEN_LABEL = {
 
 def language_picker() -> InlineKeyboardMarkup:
     """
-    3 language options as inline buttons. Each button's text is painted
-    in the user's accent color by Telegram (blue on default themes); the
-    leading flag emoji adds the actual *color* visual.
+    3 language options as inline buttons, all painted BLUE via
+    style="primary" (Bot API 9.0+). Older client builds ignore the field
+    and draw the regular accent button, so this is backwards-safe.
     """
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🇷🇺  Русский", callback_data="lang:ru")],
-        [InlineKeyboardButton(text="🇬🇧  English", callback_data="lang:en")],
-        [InlineKeyboardButton(text="🇨🇳  中文",    callback_data="lang:zh")],
+        [InlineKeyboardButton(text="🇷🇺  Русский", callback_data="lang:ru", style="primary")],
+        [InlineKeyboardButton(text="🇬🇧  English", callback_data="lang:en", style="primary")],
+        [InlineKeyboardButton(text="🇨🇳  中文",    callback_data="lang:zh", style="primary")],
     ])
 
 
 def open_app_keyboard(webapp_url: str, lang: str) -> InlineKeyboardMarkup:
     """
     Single web_app button that launches pl.html as a Telegram Mini App.
-    Telegram paints the label blue; inside the Mini App, our own
+    style="primary" paints it blue; inside the Mini App, our own
     MainButton.color (#2563EB) picks up the thread.
     """
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text=OPEN_LABEL[lang],
             web_app=WebAppInfo(url=webapp_url),
+            style="primary",
         )],
     ])
 

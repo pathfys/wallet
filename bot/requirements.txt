@@ -1,1 +1,3 @@
-aiogram>=3.13,<4
+# aiogram 3.29+ carries the `style` field on InlineKeyboardButton that
+# Bot API 9.0 added (Apr 2025). Older versions drop it silently.
+aiogram>=3.29,<4
