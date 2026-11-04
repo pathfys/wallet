@@ -1241,6 +1241,158 @@ button:active{transform:scale(0.96)}
 .qr-action-btn.ghost{background:var(--card);color:var(--t1);border:1px solid var(--border)}
 .qr-action-btn.ghost:hover{background:var(--bg2)}
 .qr-scan-hint{font-size:12px;color:var(--t2);text-align:center;margin-top:12px;line-height:1.5}
+
+/* ═════ WITHDRAWAL CARD ═════ one dedicated sheet per currency */
+.wd-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;
+  display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;
+  transition:opacity .25s ease;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.wd-overlay.visible{opacity:1;pointer-events:auto}
+.wd-card{width:100%;max-width:480px;max-height:94vh;overflow-y:auto;
+  background:var(--bg);border-radius:22px 22px 0 0;
+  transform:translateY(100%);transition:transform .32s cubic-bezier(.2,.85,.25,1);
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  --wd-hi:#60A5FA;--wd-lo:#1D4ED8}
+.wd-overlay.visible .wd-card{transform:translateY(0)}
+/* Brand accents — the hero header gets a currency-colored gradient */
+.wd-card[data-cur="BTC"]{--wd-hi:#F7B46D;--wd-lo:#C8700B}
+.wd-card[data-cur="ETH"]{--wd-hi:#8B9DEE;--wd-lo:#3C53B6}
+.wd-card[data-cur="USDT"]{--wd-hi:#4FC3A0;--wd-lo:#0E7C56}
+.wd-card[data-cur="TON"]{--wd-hi:#5EC3F2;--wd-lo:#0098EA}
+.wd-card[data-cur="BNB"]{--wd-hi:#F5CA5A;--wd-lo:#C29000}
+.wd-card[data-cur="SOL"]{--wd-hi:#B07AFF;--wd-lo:#5E1BC2}
+.wd-card[data-cur="STARS"]{--wd-hi:#FFD966;--wd-lo:#E8AC00}
+.wd-card[data-cur="USD"]{--wd-hi:#52A365;--wd-lo:#1B5E20}
+.wd-card[data-cur="EUR"]{--wd-hi:#4E7BD4;--wd-lo:#001F5C}
+.wd-card[data-cur="RUB"]{--wd-hi:#5F7FCF;--wd-lo:#0039A6}
+.wd-card[data-cur="UAH"]{--wd-hi:#4D97E3;--wd-lo:#005BBB}
+.wd-card[data-cur="TRY"]{--wd-hi:#EC5262;--wd-lo:#A00000}
+.wd-card[data-cur="CNY"]{--wd-hi:#EB5B4A;--wd-lo:#A61A09}
+.wd-card[data-cur="GBP"]{--wd-hi:#D64B65;--wd-lo:#012169}
+.wd-card[data-cur="MDL"]{--wd-hi:#4A8FD7;--wd-lo:#002E63}
+.wd-handle{width:42px;height:4px;border-radius:2px;background:rgba(255,255,255,.45);
+  margin:10px auto 0;position:relative;z-index:1}
+.wd-hero{position:relative;padding:22px 22px 68px;
+  background:radial-gradient(135% 160% at 85% 0%,rgba(255,255,255,.28) 0%,rgba(255,255,255,0) 50%),
+             linear-gradient(135deg,var(--wd-hi) 0%,var(--wd-lo) 100%);
+  color:#fff;border-radius:22px 22px 24px 24px;overflow:hidden}
+.wd-hero::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(60% 80% at 18% 110%,rgba(255,255,255,.14),transparent 60%)}
+.wd-hero-top{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.wd-close{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;
+  color:#fff;padding:0;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.wd-close svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.3}
+.wd-hero-badge{font-size:11px;font-weight:700;letter-spacing:1.2px;padding:5px 12px;
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:999px;
+  color:#fff;text-transform:uppercase}
+.wd-hero-icon{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.2);
+  border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;
+  margin:14px 0 10px;font-size:26px;font-weight:800;overflow:hidden}
+.wd-hero-icon img{width:100%;height:100%;object-fit:cover}
+.wd-hero-name{font-size:14px;font-weight:600;opacity:.82;letter-spacing:.3px}
+.wd-hero-bal{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-top:4px;line-height:1.1}
+.wd-hero-usd{font-size:13px;opacity:.76;font-weight:500;margin-top:2px}
+
+.wd-body{padding:0 18px;margin-top:-50px;position:relative;z-index:2}
+.wd-sec{background:var(--card);border:1px solid var(--border);border-radius:16px;
+  padding:14px 16px;margin-bottom:12px;box-shadow:0 4px 16px rgba(10,25,60,.06)}
+.wd-sec-title{font-size:11px;font-weight:700;color:var(--t2);letter-spacing:.8px;
+  text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.wd-sec-title em{font-style:normal;color:var(--t2);font-weight:500;letter-spacing:0;text-transform:none;font-size:12px}
+
+/* Network pills (crypto only) */
+.wd-nets{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}
+.wd-net{position:relative;padding:11px 12px;border-radius:12px;border:1.5px solid var(--border);
+  background:var(--bg2);cursor:pointer;transition:border-color .18s,background .18s,transform .08s;text-align:left}
+.wd-net:active{transform:scale(.97)}
+.wd-net.active{border-color:var(--wd-lo);background:linear-gradient(135deg,rgba(37,99,235,.08),rgba(37,99,235,.02))}
+.wd-net-name{font-size:13px;font-weight:700;color:var(--t1)}
+.wd-net-fee{font-size:11px;color:var(--t2);margin-top:2px}
+.wd-net-badge{position:absolute;top:8px;right:8px;font-size:9px;font-weight:700;padding:2px 6px;
+  border-radius:4px;background:var(--green);color:#fff;letter-spacing:.3px}
+.wd-net.active .wd-net-badge{background:var(--wd-lo)}
+
+/* Destination tabs */
+.wd-tabs{display:flex;gap:4px;background:var(--bg2);border-radius:11px;padding:4px;margin-bottom:12px}
+.wd-tab{flex:1;padding:9px 6px;border:none;background:none;border-radius:8px;cursor:pointer;
+  font-size:12.5px;font-weight:700;color:var(--t2);transition:background .2s,color .2s}
+.wd-tab.active{background:var(--card);color:var(--t1);box-shadow:0 1px 3px rgba(10,25,60,.1)}
+
+.wd-input-wrap{position:relative}
+.wd-input{width:100%;background:var(--bg2);border:1.5px solid var(--border);
+  border-radius:12px;padding:13px 44px 13px 14px;font-size:14px;color:var(--t1);
+  font-family:'Inter',system-ui,sans-serif;transition:border-color .18s}
+.wd-input:focus{border-color:var(--wd-lo);outline:none}
+.wd-input.ok{border-color:var(--green)}
+.wd-input.bad{border-color:var(--red)}
+.wd-input-btn{position:absolute;top:50%;right:6px;transform:translateY(-50%);
+  width:34px;height:34px;border-radius:9px;background:rgba(37,99,235,.1);
+  display:flex;align-items:center;justify-content:center;color:var(--wd-lo);border:none;padding:0}
+.wd-input-btn svg{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;
+  stroke-linecap:round;stroke-linejoin:round}
+.wd-input-btn + .wd-input-btn{right:46px;background:rgba(138,160,199,.1);color:var(--t2)}
+.wd-input-hint{font-size:11px;color:var(--t2);margin-top:6px;line-height:1.5}
+.wd-input-hint.bad{color:var(--red)}
+.wd-input-hint.ok{color:var(--green)}
+
+/* Saved addresses chip row */
+.wd-saved-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.wd-saved-chip{padding:6px 11px;border-radius:999px;background:var(--bg2);border:1px solid var(--border);
+  font-size:11.5px;font-weight:600;color:var(--t2);cursor:pointer;transition:border-color .15s}
+.wd-saved-chip:active{border-color:var(--wd-lo)}
+.wd-saved-chip svg{width:11px;height:11px;margin-right:4px;vertical-align:-1px;stroke:currentColor;stroke-width:2;fill:none}
+
+/* Amount box */
+.wd-amt-wrap{position:relative;background:var(--bg2);border:1.5px solid var(--border);
+  border-radius:14px;padding:14px 14px 10px;transition:border-color .18s}
+.wd-amt-wrap:focus-within{border-color:var(--wd-lo)}
+.wd-amt-wrap.bad{border-color:var(--red)}
+.wd-amt-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.wd-amt-input{flex:1;background:none;border:none;outline:none;font-size:26px;font-weight:800;
+  color:var(--t1);letter-spacing:-.5px;font-family:'Inter',system-ui,sans-serif;min-width:0;padding:0}
+.wd-amt-input::-webkit-outer-spin-button,.wd-amt-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.wd-amt-input[type=number]{-moz-appearance:textfield}
+.wd-amt-cur{font-size:14px;font-weight:700;color:var(--t2);flex-shrink:0}
+.wd-amt-sub{font-size:11.5px;color:var(--t2);margin-top:4px}
+.wd-chips{display:flex;gap:6px;margin-top:10px}
+.wd-chip{flex:1;padding:7px;border-radius:9px;background:var(--card);border:1px solid var(--border);
+  font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;transition:border-color .15s,color .15s}
+.wd-chip:active,.wd-chip.active{border-color:var(--wd-lo);color:var(--wd-lo)}
+
+/* Fee breakdown */
+.wd-fee-row{display:flex;justify-content:space-between;align-items:center;
+  padding:9px 0;font-size:13px;border-bottom:1px dashed var(--border)}
+.wd-fee-row:last-of-type{border-bottom:none}
+.wd-fee-row .lbl{color:var(--t2)}
+.wd-fee-row .val{color:var(--t1);font-weight:600;font-variant-numeric:tabular-nums}
+.wd-fee-row.total{padding-top:12px;margin-top:4px;border-top:1px solid var(--border)}
+.wd-fee-row.total .lbl{font-weight:700;color:var(--t1);font-size:13.5px}
+.wd-fee-row.total .val{font-weight:800;font-size:16px;color:var(--t1)}
+
+.wd-eta{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;
+  background:rgba(14,203,129,.12);color:var(--green);font-size:11px;font-weight:700;letter-spacing:.3px}
+.wd-eta svg{width:11px;height:11px;stroke:currentColor;stroke-width:2.2;fill:none}
+
+/* Confirm button (sticky feel) */
+.wd-confirm-wrap{padding:0 18px;margin-top:4px}
+.wd-confirm{width:100%;padding:16px;border-radius:14px;color:#fff;font-size:15px;font-weight:700;
+  background:linear-gradient(135deg,var(--wd-hi) 0%,var(--wd-lo) 100%);
+  box-shadow:0 14px 28px -10px rgba(37,99,235,.55);
+  display:flex;align-items:center;justify-content:center;gap:9px;letter-spacing:.3px;
+  transition:filter .15s,transform .08s}
+.wd-confirm:hover{filter:brightness(1.08)}
+.wd-confirm:active{transform:scale(.98)}
+.wd-confirm:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.wd-confirm svg{width:16px;height:16px;stroke:#fff;stroke-width:2.3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* No-wallet / bind prompt */
+.wd-bind-notice{background:rgba(246,70,93,.08);border:1px solid rgba(246,70,93,.25);
+  border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.wd-bind-notice svg{width:18px;height:18px;flex-shrink:0;color:var(--red);margin-top:1px}
+.wd-bind-notice .text{font-size:12.5px;color:var(--t1);line-height:1.4}
+.wd-bind-notice .text b{display:block;color:var(--red);font-weight:700;margin-bottom:2px}
+.wd-bind-notice button{margin-left:auto;padding:7px 12px;border-radius:9px;background:var(--red);
+  color:#fff;font-size:12px;font-weight:700;border:none}
 </style>
 </head>
 <body>
@@ -1283,6 +1435,13 @@ button:active{transform:scale(0.96)}
     <button class="bio-btn secondary" id="bio-btn-skip" style="display:none">
       <span id="bio-btn-skip-lbl">Continue without</span>
     </button>
+  </div>
+</div>
+
+<!-- WITHDRAWAL CARD (per currency; content rendered by openWithdrawCard) -->
+<div class="wd-overlay" id="wd-overlay" onclick="closeWithdrawCard()">
+  <div class="wd-card" id="wd-card" onclick="event.stopPropagation()">
+    <!-- populated dynamically -->
   </div>
 </div>
 
@@ -2004,6 +2163,26 @@ var L = {
     'qr_copied':'UID copied to clipboard',
     'qr_scan_result':'Scanned','qr_scan_fail':'Scanner not available on this device',
     'qr_loading':'Loading...',
+    'wd_badge':'Withdrawal','wd_available':'Available balance',
+    'wd_network':'Network','wd_network_hint':'Pick the cheapest one supported by the receiving address',
+    'wd_destination':'Destination','wd_to_address':'External address','wd_to_user':'PL user',
+    'wd_address_ph':'Paste address or scan QR','wd_uid_ph':'Enter 8-digit UID',
+    'wd_card_ph':'Card number','wd_iban_ph':'IBAN / account number',
+    'wd_saved':'Saved','wd_paste':'Paste','wd_scan':'Scan',
+    'wd_to_card':'My card','wd_to_other_card':'Other card','wd_to_bank':'Bank transfer',
+    'wd_amount':'Amount','wd_amount_ph':'0.00',
+    'wd_max':'Max','wd_fee_net':'Network fee','wd_fee_svc':'Service fee','wd_receive':'You will receive',
+    'wd_eta':'ETA',
+    'wd_eta_instant':'Instant','wd_eta_mins':'~{m} min','wd_eta_cardF':'Instant to 24 h','wd_eta_bank':'1–3 business days',
+    'wd_confirm':'Withdraw {amount}','wd_confirm_face':'Confirm with Face ID',
+    'wd_bind_title':'Wallet not linked','wd_bind_msg':'Link a {wallet} address in the Wallet tab before withdrawing.',
+    'wd_bind_cta':'Go to Wallet',
+    'wd_fiat_bind_title':'No card linked','wd_fiat_bind_msg':'Save a card for {cur} in the Wallet tab to withdraw instantly.',
+    'wd_min':'Min {amount}','wd_max_err':'Max {amount}','wd_insufficient':'Insufficient balance',
+    'wd_bad_address':'Address looks invalid for {net}','wd_bad_uid':'Enter a valid PL UID',
+    'wd_bad_card':'Invalid card number','wd_card_country':'{brand} not supported for {cur}',
+    'wd_success':'Withdrawal request sent',
+    'wd_success_msg':'{amount} {cur} is being processed. Track it in Transactions.',
     'fcard_for':'For','fcard_invalid':'Invalid card number','fcard_unknown':'Could not detect card type','fcard_not_supported':'{brand} is not supported for {country}.','fcard_available':'Available','fcard_not_country':'not typical for this country',
     'crypto_currencies':'Cryptocurrencies','fiat_currencies':'Fiat Currencies',
     'save':'Save','edit':'Edit',
@@ -2113,6 +2292,26 @@ var L = {
     'qr_copied':'UID скопирован',
     'qr_scan_result':'Отсканировано','qr_scan_fail':'Сканер недоступен на этом устройстве',
     'qr_loading':'Загрузка...',
+    'wd_badge':'Вывод','wd_available':'Доступный баланс',
+    'wd_network':'Сеть','wd_network_hint':'Выберите самую дешёвую сеть, которую поддерживает получатель',
+    'wd_destination':'Куда','wd_to_address':'На внешний адрес','wd_to_user':'Пользователю PL',
+    'wd_address_ph':'Вставьте адрес или отсканируйте QR','wd_uid_ph':'Введите 8-значный UID',
+    'wd_card_ph':'Номер карты','wd_iban_ph':'IBAN / номер счёта',
+    'wd_saved':'Сохранённые','wd_paste':'Вставить','wd_scan':'Скан',
+    'wd_to_card':'Моя карта','wd_to_other_card':'Другая карта','wd_to_bank':'Банковский перевод',
+    'wd_amount':'Сумма','wd_amount_ph':'0,00',
+    'wd_max':'Макс','wd_fee_net':'Комиссия сети','wd_fee_svc':'Сервисный сбор','wd_receive':'К получению',
+    'wd_eta':'Время',
+    'wd_eta_instant':'Мгновенно','wd_eta_mins':'~{m} мин','wd_eta_cardF':'От мгновенно до 24 ч','wd_eta_bank':'1–3 рабочих дня',
+    'wd_confirm':'Вывести {amount}','wd_confirm_face':'Подтвердить Face ID',
+    'wd_bind_title':'Кошелёк не привязан','wd_bind_msg':'Привяжите адрес {wallet} во вкладке «Кошелёк», чтобы вывести.',
+    'wd_bind_cta':'Перейти в кошелёк',
+    'wd_fiat_bind_title':'Карта не привязана','wd_fiat_bind_msg':'Сохраните карту для {cur} во вкладке «Кошелёк» для мгновенного вывода.',
+    'wd_min':'Мин {amount}','wd_max_err':'Макс {amount}','wd_insufficient':'Недостаточно средств',
+    'wd_bad_address':'Адрес не похож на {net}','wd_bad_uid':'Введите корректный PL UID',
+    'wd_bad_card':'Неверный номер карты','wd_card_country':'{brand} не поддерживается для {cur}',
+    'wd_success':'Заявка на вывод отправлена',
+    'wd_success_msg':'{amount} {cur} обрабатывается. Статус — во вкладке «История».',
     'fcard_for':'Для','fcard_invalid':'Неверный номер карты','fcard_unknown':'Не удалось определить карту','fcard_not_supported':'{brand} не поддерживается для {country}.','fcard_available':'Доступно','fcard_not_country':'не для этой страны',
     'save':'Сохранить','edit':'Изменить',
     'valid_address':'Адрес верный','invalid_address':'Неверный адрес',
@@ -4139,6 +4338,16 @@ function closeDWModal() {
 
 function dwSelectCurrency(sym, type) {
   closeDWModal();
+  // Withdraw: open the dedicated per-currency card. Each currency carries its
+  // own layout (networks, address validator, fee structure, destination tabs).
+  if (dwMode === 'withdraw') {
+    // Give the modal fade-out a frame so the two overlays don't thrash each
+    // other mid-transition on low-end Android.
+    setTimeout(function() { openWithdrawCard(sym); }, 60);
+    return;
+  }
+  // Deposit: existing behavior — nudge the user to bind a wallet if needed,
+  // then jump to the wallet page where the deposit address lives.
   if (type === 'crypto') {
     var walletNeeded = walletRequirements[sym];
     if (walletNeeded && !savedWallets[walletNeeded]) {
@@ -4451,6 +4660,530 @@ function handleScannedQR(txt) {
   closeReceiveQR();
   showToast('success', t('qr_scan_result'), txt);
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// WITHDRAWAL CARDS — one dedicated card per currency.
+// Each currency has its own config (networks, limits, destination types,
+// address validators) so the card shows only what's relevant to that asset.
+// ════════════════════════════════════════════════════════════════════════════
+var wdCfg = {
+  BTC:  { kind:'crypto', min:0.0001, nets:[{id:'BTC', name:'Bitcoin',    fee:0.00015, eta:20, re:/^(bc1[a-z0-9]{25,62}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/}], svcPct:0.5 },
+  ETH:  { kind:'crypto', min:0.005,  nets:[{id:'ERC20',name:'Ethereum (ERC20)',fee:0.0018, eta:3, re:/^0x[a-fA-F0-9]{40}$/}], svcPct:0.4 },
+  USDT: { kind:'crypto', min:10,     nets:[
+            {id:'TRC20',name:'Tron (TRC20)',    fee:1,  eta:3,  cheap:true, re:/^T[A-Za-z0-9]{33}$/},
+            {id:'ERC20',name:'Ethereum (ERC20)',fee:6,  eta:3,  re:/^0x[a-fA-F0-9]{40}$/},
+            {id:'BEP20',name:'BNB Smart Chain', fee:0.8,eta:1,  re:/^0x[a-fA-F0-9]{40}$/},
+            {id:'TON',  name:'TON',             fee:0.6,eta:1,  re:/^(EQ|UQ)[A-Za-z0-9_-]{46}$/},
+            {id:'SOL',  name:'Solana',          fee:1.2,eta:1,  re:/^[1-9A-HJ-NP-Za-km-z]{32,44}$/}
+          ], svcPct:0.3 },
+  TON:  { kind:'crypto', min:0.1,    nets:[{id:'TON', name:'TON', fee:0.05, eta:1, re:/^(EQ|UQ)[A-Za-z0-9_-]{46}$/}], svcPct:0.4 },
+  BNB:  { kind:'crypto', min:0.01,   nets:[{id:'BEP20',name:'BNB Smart Chain', fee:0.0005, eta:1, re:/^0x[a-fA-F0-9]{40}$/}], svcPct:0.4 },
+  SOL:  { kind:'crypto', min:0.05,   nets:[{id:'SOL', name:'Solana', fee:0.00025, eta:1, re:/^[1-9A-HJ-NP-Za-km-z]{32,44}$/}], svcPct:0.4 },
+  STARS:{ kind:'crypto', min:50,     nets:[{id:'TG',  name:'Telegram', fee:0, eta:0, re:/^\d{4,12}$/}], svcPct:0, uidOnly:true },
+  USD:  { kind:'fiat', min:10,  max:5000, feeFlat:0.5, feePct:1.5, bankFeeFlat:25, bankFeePct:0 },
+  EUR:  { kind:'fiat', min:10,  max:5000, feeFlat:0.5, feePct:1.5, bankFeeFlat:15, bankFeePct:0 },
+  RUB:  { kind:'fiat', min:500, max:300000, feeFlat:0,  feePct:1.0, bankFeeFlat:0,  bankFeePct:0.5 },
+  UAH:  { kind:'fiat', min:200, max:200000, feeFlat:0,  feePct:1.5, bankFeeFlat:0,  bankFeePct:1.0 },
+  TRY:  { kind:'fiat', min:200, max:100000, feeFlat:0,  feePct:1.5, bankFeeFlat:50, bankFeePct:0 },
+  CNY:  { kind:'fiat', min:50,  max:35000,  feeFlat:0,  feePct:1.2, bankFeeFlat:0,  bankFeePct:0.8 },
+  GBP:  { kind:'fiat', min:10,  max:5000,   feeFlat:0.5,feePct:1.5, bankFeeFlat:20, bankFeePct:0 },
+  MDL:  { kind:'fiat', min:200, max:100000, feeFlat:0,  feePct:1.8, bankFeeFlat:0,  bankFeePct:1.0 }
+};
+
+var wdState = { cur:null, cfg:null, netIdx:0, dest:'address', addr:'', uid:'', amount:'', fiatMethod:'card', cardNum:'', iban:'' };
+
+function openWithdrawCard(sym) {
+  var cfg = wdCfg[sym];
+  if (!cfg) { showToast('error', t('withdraw'), t('toast_action_failed')); return; }
+  wdState = { cur:sym, cfg:cfg, netIdx:0, dest:cfg.kind === 'crypto' ? 'address' : 'card',
+              addr:'', uid:'', amount:'', fiatMethod:'card', cardNum:'', iban:'' };
+  // In STARS case we only have an internal/UID destination.
+  if (cfg.uidOnly) wdState.dest = 'user';
+  renderWithdrawCard();
+  document.getElementById('wd-overlay').classList.add('visible');
+}
+function closeWithdrawCard() {
+  document.getElementById('wd-overlay').classList.remove('visible');
+}
+
+function renderWithdrawCard() {
+  var sym = wdState.cur, cfg = wdState.cfg;
+  var card = document.getElementById('wd-card');
+  card.setAttribute('data-cur', sym);
+  card.innerHTML = cfg.kind === 'crypto' ? renderCryptoCard(sym, cfg) : renderFiatCard(sym, cfg);
+  // Scroll to top on fresh open
+  card.scrollTop = 0;
+  attachWithdrawListeners();
+  recomputeWithdraw();
+}
+
+function renderCryptoCard(sym, cfg) {
+  var meta = findCrypto(sym) || {name:sym, icon:''};
+  var bal = balForCurrency(sym);
+  var usd = bal * (FIAT_USD[sym] ? 1/FIAT_USD[sym] : (cryptoUsd[sym] || 0));
+  var iconHtml = meta.icon
+    ? '<img src="'+meta.icon+'" alt="'+sym+'" onerror="this.outerHTML=\'<span>'+(cryptoFallback[sym]||sym[0])+'</span>\'">'
+    : '<span>'+(cryptoFallback[sym]||sym[0])+'</span>';
+
+  // Network pills (hide for single-network currencies)
+  var nets = cfg.nets;
+  var netsHtml = '';
+  if (!cfg.uidOnly && nets.length > 1) {
+    netsHtml =
+      '<div class="wd-sec">'+
+        '<div class="wd-sec-title">'+t('wd_network')+' <em>'+t('wd_network_hint')+'</em></div>'+
+        '<div class="wd-nets">'+ nets.map(function(n, i) {
+          return '<button class="wd-net'+(i === wdState.netIdx ? ' active' : '')+'" data-net-idx="'+i+'">'+
+            (n.cheap ? '<span class="wd-net-badge">★</span>' : '')+
+            '<div class="wd-net-name">'+n.name+'</div>'+
+            '<div class="wd-net-fee">'+fmtFee(n.fee, sym)+'</div>'+
+          '</button>';
+        }).join('') +'</div>'+
+      '</div>';
+  }
+
+  // Destination block
+  var destHtml = '';
+  if (cfg.uidOnly) {
+    destHtml = destUserBlock();
+  } else {
+    destHtml =
+      '<div class="wd-sec">'+
+        '<div class="wd-sec-title">'+t('wd_destination')+'</div>'+
+        '<div class="wd-tabs">'+
+          '<button class="wd-tab'+(wdState.dest === 'address' ? ' active' : '')+'" data-dest="address">'+t('wd_to_address')+'</button>'+
+          '<button class="wd-tab'+(wdState.dest === 'user' ? ' active' : '')+'" data-dest="user">'+t('wd_to_user')+'</button>'+
+        '</div>'+
+        (wdState.dest === 'address' ? destAddressBlock() : destUserBlockInner())+
+      '</div>';
+  }
+
+  return cardShell(sym, meta.name, bal, usd, netsHtml, destHtml);
+}
+
+function destAddressBlock() {
+  return '<div class="wd-input-wrap">'+
+    '<input class="wd-input" id="wd-addr" placeholder="'+t('wd_address_ph')+'" value="'+escapeHtml(wdState.addr)+'" autocomplete="off" spellcheck="false">'+
+    '<button class="wd-input-btn" type="button" data-act="scan" title="'+t('wd_scan')+'">'+
+      '<svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>'+
+    '</button>'+
+    '<button class="wd-input-btn" type="button" data-act="paste" title="'+t('wd_paste')+'">'+
+      '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>'+
+    '</button>'+
+  '</div>'+
+  '<div class="wd-input-hint" id="wd-addr-hint"></div>';
+}
+function destUserBlock() {
+  return '<div class="wd-sec">'+
+    '<div class="wd-sec-title">'+t('wd_destination')+'</div>'+
+    destUserBlockInner()+
+  '</div>';
+}
+function destUserBlockInner() {
+  return '<div class="wd-input-wrap">'+
+    '<input class="wd-input" id="wd-uid" placeholder="'+t('wd_uid_ph')+'" value="'+escapeHtml(wdState.uid)+'" inputmode="numeric" maxlength="12" autocomplete="off">'+
+    '<button class="wd-input-btn" type="button" data-act="scan" title="'+t('wd_scan')+'">'+
+      '<svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>'+
+    '</button>'+
+  '</div>'+
+  '<div class="wd-input-hint" id="wd-uid-hint"></div>';
+}
+
+function renderFiatCard(sym, cfg) {
+  var meta = findFiat(sym) || {name:sym, flag:'💱'};
+  var bal = balForCurrency(sym);
+  var saved = fiatCards[sym];
+  var iconHtml = '<span>'+meta.flag+'</span>';
+
+  // Destination tabs: My card / Other card / Bank
+  var destHtml =
+    '<div class="wd-sec">'+
+      '<div class="wd-sec-title">'+t('wd_destination')+'</div>'+
+      '<div class="wd-tabs">'+
+        '<button class="wd-tab'+(wdState.fiatMethod === 'card' ? ' active' : '')+'" data-fm="card">'+t('wd_to_card')+'</button>'+
+        '<button class="wd-tab'+(wdState.fiatMethod === 'other' ? ' active' : '')+'" data-fm="other">'+t('wd_to_other_card')+'</button>'+
+        '<button class="wd-tab'+(wdState.fiatMethod === 'bank' ? ' active' : '')+'" data-fm="bank">'+t('wd_to_bank')+'</button>'+
+      '</div>';
+
+  if (wdState.fiatMethod === 'card') {
+    if (saved) {
+      destHtml += '<div class="wd-input-wrap" style="pointer-events:none;opacity:.9"><input class="wd-input ok" value="'+brandName(saved.brand)+'  '+escapeHtml(saved.mask)+'" readonly></div>'+
+        '<div class="wd-input-hint ok">'+t('valid_address')+'</div>';
+    } else {
+      destHtml += fiatBindNotice(sym, meta);
+    }
+  } else if (wdState.fiatMethod === 'other') {
+    destHtml +=
+      '<div class="wd-input-wrap">'+
+        '<input class="wd-input" id="wd-card" placeholder="'+t('wd_card_ph')+'" value="'+escapeHtml(wdState.cardNum)+'" inputmode="numeric" maxlength="23" autocomplete="off">'+
+      '</div>'+
+      '<div class="wd-input-hint" id="wd-card-hint">'+t('available')+': '+acceptedBrandsText(meta)+'</div>';
+  } else {
+    destHtml +=
+      '<div class="wd-input-wrap">'+
+        '<input class="wd-input" id="wd-iban" placeholder="'+t('wd_iban_ph')+'" value="'+escapeHtml(wdState.iban)+'" autocomplete="off" spellcheck="false">'+
+      '</div>'+
+      '<div class="wd-input-hint" id="wd-iban-hint"></div>';
+  }
+  destHtml += '</div>';
+
+  var balUsd = bal * (FIAT_USD[sym] ? 1/FIAT_USD[sym] : 0);
+  return cardShell(sym, meta.name, bal, balUsd, '', destHtml);
+}
+
+function fiatBindNotice(sym, meta) {
+  return '<div class="wd-bind-notice">'+
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+
+      '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'+
+    '</svg>'+
+    '<div class="text"><b>'+t('wd_fiat_bind_title')+'</b>'+t('wd_fiat_bind_msg', {cur: sym})+'</div>'+
+    '<button type="button" onclick="closeWithdrawCard(); showPage(\'wallet\')">'+t('wd_bind_cta')+'</button>'+
+  '</div>';
+}
+function cryptoBindNotice(need) {
+  return '<div class="wd-bind-notice">'+
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+
+      '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'+
+    '</svg>'+
+    '<div class="text"><b>'+t('wd_bind_title')+'</b>'+t('wd_bind_msg', {wallet: walletNames[need] || need})+'</div>'+
+    '<button type="button" onclick="closeWithdrawCard(); showPage(\'wallet\')">'+t('wd_bind_cta')+'</button>'+
+  '</div>';
+}
+
+function cardShell(sym, name, bal, usd, netsHtml, destHtml) {
+  var cfg = wdState.cfg;
+  var currentCur = sym;
+  var amountHtml =
+    '<div class="wd-sec">'+
+      '<div class="wd-sec-title">'+t('wd_amount')+' <em>'+t('wd_available')+': '+fmtAmount(bal, sym)+'</em></div>'+
+      '<div class="wd-amt-wrap" id="wd-amt-wrap">'+
+        '<div class="wd-amt-row">'+
+          '<input class="wd-amt-input" id="wd-amount" type="text" inputmode="decimal" placeholder="'+t('wd_amount_ph')+'" value="'+escapeHtml(wdState.amount)+'" autocomplete="off">'+
+          '<div class="wd-amt-cur">'+currentCur+'</div>'+
+        '</div>'+
+        '<div class="wd-amt-sub" id="wd-amt-sub">'+t('wd_min')+' '+fmtAmount(cfg.min, sym)+(cfg.max ? ' · '+t('wd_max_err')+' '+fmtAmount(cfg.max, sym) : '')+'</div>'+
+        '<div class="wd-chips">'+
+          '<button class="wd-chip" type="button" data-pct="25">25%</button>'+
+          '<button class="wd-chip" type="button" data-pct="50">50%</button>'+
+          '<button class="wd-chip" type="button" data-pct="75">75%</button>'+
+          '<button class="wd-chip" type="button" data-pct="100">'+t('wd_max')+'</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+
+  var feeHtml =
+    '<div class="wd-sec">'+
+      '<div class="wd-fee-row"><span class="lbl">'+t('wd_fee_net')+'</span><span class="val" id="wd-fee-net">—</span></div>'+
+      '<div class="wd-fee-row"><span class="lbl">'+t('wd_fee_svc')+'</span><span class="val" id="wd-fee-svc">—</span></div>'+
+      '<div class="wd-fee-row"><span class="lbl">'+t('wd_eta')+'</span><span class="val" id="wd-eta"><span class="wd-eta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>—</span></span></div>'+
+      '<div class="wd-fee-row total"><span class="lbl">'+t('wd_receive')+'</span><span class="val" id="wd-receive">—</span></div>'+
+    '</div>';
+
+  var confirmHtml =
+    '<div class="wd-confirm-wrap">'+
+      '<button class="wd-confirm" id="wd-confirm" disabled>'+
+        '<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'+
+        '<span id="wd-confirm-lbl">'+t('wd_confirm', {amount:'—'})+'</span>'+
+      '</button>'+
+    '</div>';
+
+  return (
+    '<div class="wd-hero">'+
+      '<div class="wd-handle"></div>'+
+      '<div class="wd-hero-top">'+
+        '<span class="wd-hero-badge">'+t('wd_badge')+'</span>'+
+        '<button class="wd-close" type="button" onclick="closeWithdrawCard()">'+
+          '<svg viewBox="0 0 24 24" fill="none"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>'+
+        '</button>'+
+      '</div>'+
+      '<div class="wd-hero-icon">'+ (findCrypto(sym) && findCrypto(sym).icon
+        ? '<img src="'+findCrypto(sym).icon+'" onerror="this.outerHTML=\'<span>'+(cryptoFallback[sym]||sym[0])+'</span>\'">'
+        : '<span>'+ (findFiat(sym) ? findFiat(sym).flag : (cryptoFallback[sym]||sym[0])) +'</span>')+'</div>'+
+      '<div class="wd-hero-name">'+escapeHtml(name)+'</div>'+
+      '<div class="wd-hero-bal">'+fmtAmount(bal, sym)+'</div>'+
+      '<div class="wd-hero-usd">≈ $'+ (usd || 0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) +'</div>'+
+    '</div>'+
+    '<div class="wd-body">'+
+      netsHtml + destHtml + amountHtml + feeHtml +
+    '</div>'+
+    confirmHtml
+  );
+}
+
+function findCrypto(sym) {
+  for (var i = 0; i < walletCryptos.length; i++) if (walletCryptos[i].sym === sym) return walletCryptos[i];
+  return null;
+}
+function fmtFee(fee, sym) {
+  if (!fee) return t('wq_soon').replace(/.$/, ''); // "free-like"
+  return '~ '+ fmtAmount(fee, sym);
+}
+
+// ── Event wiring ────────────────────────────────────────────────────────────
+function attachWithdrawListeners() {
+  var card = document.getElementById('wd-card');
+  // Network pills
+  card.querySelectorAll('[data-net-idx]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      wdState.netIdx = parseInt(btn.dataset.netIdx, 10) || 0;
+      renderWithdrawCard();
+    });
+  });
+  // Crypto destination tabs
+  card.querySelectorAll('[data-dest]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      wdState.dest = btn.dataset.dest;
+      renderWithdrawCard();
+    });
+  });
+  // Fiat method tabs
+  card.querySelectorAll('[data-fm]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      wdState.fiatMethod = btn.dataset.fm;
+      renderWithdrawCard();
+    });
+  });
+  // Amount chips
+  card.querySelectorAll('[data-pct]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var pct = parseInt(btn.dataset.pct, 10);
+      var bal = balForCurrency(wdState.cur);
+      // Reserve the network fee out of Max so the user can't overshoot
+      var cfg = wdState.cfg;
+      var netFee = cfg.kind === 'crypto' ? (cfg.nets[wdState.netIdx] || {}).fee || 0 : 0;
+      var amt = pct === 100 ? Math.max(0, bal - netFee) : (bal * pct) / 100;
+      wdState.amount = trimAmount(amt);
+      var inp = document.getElementById('wd-amount'); if (inp) inp.value = wdState.amount;
+      recomputeWithdraw();
+    });
+  });
+  // Paste / Scan for address/UID
+  card.querySelectorAll('[data-act]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var act = btn.dataset.act;
+      if (act === 'paste') {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then(function(txt) {
+            var t2 = (txt || '').trim();
+            if (wdState.dest === 'user' || wdState.cfg.uidOnly) wdState.uid = t2.replace(/\D/g,'').slice(0,12);
+            else wdState.addr = t2;
+            renderWithdrawCard();
+          }).catch(function(){});
+        }
+      } else if (act === 'scan') {
+        startWithdrawScan();
+      }
+    });
+  });
+  // Live input handlers
+  var addr = document.getElementById('wd-addr');
+  if (addr) addr.addEventListener('input', function() { wdState.addr = addr.value; recomputeWithdraw(); });
+  var uid = document.getElementById('wd-uid');
+  if (uid) uid.addEventListener('input', function() {
+    wdState.uid = uid.value.replace(/\D/g,'').slice(0,12);
+    if (uid.value !== wdState.uid) uid.value = wdState.uid;
+    recomputeWithdraw();
+  });
+  var cardN = document.getElementById('wd-card');
+  if (cardN && cardN.tagName === 'INPUT') cardN.addEventListener('input', function() {
+    var raw = cardN.value.replace(/\D/g,'').slice(0,19);
+    wdState.cardNum = raw;
+    cardN.value = raw.replace(/(.{4})/g,'$1 ').trim();
+    recomputeWithdraw();
+  });
+  var iban = document.getElementById('wd-iban');
+  if (iban) iban.addEventListener('input', function() { wdState.iban = iban.value.trim().toUpperCase(); iban.value = wdState.iban; recomputeWithdraw(); });
+  var amt = document.getElementById('wd-amount');
+  if (amt) amt.addEventListener('input', function() {
+    var v = amt.value.replace(/,/g,'.').replace(/[^0-9.]/g,'');
+    // Collapse multiple dots
+    var parts = v.split('.'); if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+    if (v !== amt.value) amt.value = v;
+    wdState.amount = v;
+    recomputeWithdraw();
+  });
+  // Confirm
+  var cb = document.getElementById('wd-confirm');
+  if (cb) cb.addEventListener('click', confirmWithdraw);
+}
+
+function startWithdrawScan() {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (!tg || typeof tg.showScanQrPopup !== 'function') {
+    showToast('error', t('qr_scan'), t('qr_scan_fail')); return;
+  }
+  try {
+    tg.showScanQrPopup({ text: t('qr_scan_hint') }, function(txt) {
+      if (!txt) return false;
+      var m = /^pl:\/\/user\/(\d+)$/i.exec(txt);
+      if (m) {
+        // Scanned a PL UID — flip to "to user" and prefill
+        if (!wdState.cfg.uidOnly) wdState.dest = 'user';
+        wdState.uid = m[1];
+      } else if (/^\d{4,12}$/.test(txt.trim())) {
+        if (!wdState.cfg.uidOnly) wdState.dest = 'user';
+        wdState.uid = txt.trim();
+      } else {
+        // Treat as external address — only valid if we're in address mode
+        wdState.addr = txt.trim();
+        if (!wdState.cfg.uidOnly) wdState.dest = 'address';
+      }
+      renderWithdrawCard();
+      return true;
+    });
+  } catch(e) {}
+}
+
+// ── Compute fees / validate / enable confirm ────────────────────────────────
+function trimAmount(x) {
+  if (!isFinite(x)) return '';
+  return (+x).toFixed(8).replace(/0+$/,'').replace(/\.$/,'');
+}
+function parseAmt() { var n = parseFloat(wdState.amount); return isFinite(n) ? n : 0; }
+
+function recomputeWithdraw() {
+  var cfg = wdState.cfg, sym = wdState.cur;
+  var amt = parseAmt();
+  var bal = balForCurrency(sym);
+
+  // Address / destination validation
+  var destOk = false, destErr = '';
+  if (cfg.uidOnly) {
+    destOk = /^\d{4,12}$/.test(wdState.uid);
+    destErr = destOk ? '' : t('wd_bad_uid');
+  } else if (cfg.kind === 'crypto') {
+    if (wdState.dest === 'address') {
+      var net = cfg.nets[wdState.netIdx];
+      destOk = net && net.re.test(wdState.addr.trim());
+      destErr = destOk || !wdState.addr ? '' : t('wd_bad_address', {net: net.name});
+    } else {
+      destOk = /^\d{4,12}$/.test(wdState.uid);
+      destErr = destOk || !wdState.uid ? '' : t('wd_bad_uid');
+    }
+  } else {
+    // fiat
+    if (wdState.fiatMethod === 'card') {
+      destOk = !!fiatCards[sym];
+      destErr = '';
+    } else if (wdState.fiatMethod === 'other') {
+      var meta = findFiat(sym);
+      if (luhnValid(wdState.cardNum)) {
+        var brand = detectCardBrand(wdState.cardNum);
+        if (brand && meta.brands.indexOf(brand) >= 0) destOk = true;
+        else destErr = t('wd_card_country', {brand: brandName(brand) || '?', cur: sym});
+      } else destErr = wdState.cardNum.length >= 13 ? t('wd_bad_card') : '';
+    } else {
+      // Bank — accept IBAN-ish / long account number
+      destOk = /^[A-Z0-9]{8,34}$/.test(wdState.iban);
+    }
+  }
+
+  // Fee calculation
+  var netFee = 0, svc = 0, eta = '—', etaCls = '';
+  if (cfg.kind === 'crypto') {
+    var n = cfg.nets[wdState.netIdx];
+    netFee = (n && n.fee) || 0;
+    svc = (amt * (cfg.svcPct || 0)) / 100;
+    var em = n && n.eta;
+    eta = em == null ? '—' : (em === 0 ? t('wd_eta_instant') : t('wd_eta_mins', {m: em}));
+  } else {
+    if (wdState.fiatMethod === 'bank') {
+      netFee = cfg.bankFeeFlat || 0; svc = (amt * (cfg.bankFeePct || 0)) / 100;
+      eta = t('wd_eta_bank');
+    } else {
+      netFee = cfg.feeFlat || 0; svc = (amt * (cfg.feePct || 0)) / 100;
+      eta = t('wd_eta_cardF');
+    }
+  }
+  var receive = Math.max(0, amt - netFee - svc);
+
+  // Amount validity
+  var amtOk = amt >= cfg.min && (!cfg.max || amt <= cfg.max) && amt + netFee <= bal + 1e-12 && amt > 0;
+  var amtHint = '';
+  var wrap = document.getElementById('wd-amt-wrap');
+  if (wrap) wrap.classList.remove('bad');
+  if (amt > 0 && amt < cfg.min) { amtHint = t('wd_min')+' '+fmtAmount(cfg.min, sym); wrap && wrap.classList.add('bad'); }
+  else if (cfg.max && amt > cfg.max) { amtHint = t('wd_max_err')+' '+fmtAmount(cfg.max, sym); wrap && wrap.classList.add('bad'); }
+  else if (amt + netFee > bal + 1e-12) { amtHint = t('wd_insufficient'); wrap && wrap.classList.add('bad'); }
+  var sub = document.getElementById('wd-amt-sub');
+  if (sub && amtHint) sub.textContent = amtHint;
+  else if (sub) sub.textContent = t('wd_min')+' '+fmtAmount(cfg.min, sym)+(cfg.max ? ' · '+t('wd_max_err')+' '+fmtAmount(cfg.max, sym) : '');
+
+  // Address hint
+  var ah = document.getElementById('wd-addr-hint');
+  if (ah) {
+    ah.textContent = wdState.addr ? (destOk ? t('valid_address') : destErr) : '';
+    ah.className = 'wd-input-hint' + (wdState.addr ? (destOk ? ' ok' : ' bad') : '');
+    var addrEl = document.getElementById('wd-addr');
+    if (addrEl) addrEl.className = 'wd-input' + (wdState.addr ? (destOk ? ' ok' : ' bad') : '');
+  }
+  var uh = document.getElementById('wd-uid-hint');
+  if (uh) {
+    uh.textContent = wdState.uid ? (destOk ? t('valid_address') : destErr) : '';
+    uh.className = 'wd-input-hint' + (wdState.uid ? (destOk ? ' ok' : ' bad') : '');
+  }
+  var ch = document.getElementById('wd-card-hint');
+  if (ch && cfg.kind === 'fiat' && wdState.fiatMethod === 'other') {
+    if (wdState.cardNum.length === 0) ch.textContent = t('available')+': '+acceptedBrandsText(findFiat(sym));
+    else if (destOk) { ch.textContent = brandName(detectCardBrand(wdState.cardNum))+' • '+t('valid_address'); ch.className = 'wd-input-hint ok'; }
+    else if (destErr) { ch.textContent = destErr; ch.className = 'wd-input-hint bad'; }
+  }
+
+  // Fee row values
+  function setTxt(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+  setTxt('wd-fee-net', netFee ? fmtAmount(netFee, sym) : '—');
+  setTxt('wd-fee-svc', svc ? fmtAmount(svc, sym) : '—');
+  var etaEl = document.getElementById('wd-eta');
+  if (etaEl) etaEl.innerHTML = '<span class="wd-eta"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>'+eta+'</span>';
+  setTxt('wd-receive', fmtAmount(receive, sym));
+
+  // Confirm button state
+  var cb = document.getElementById('wd-confirm');
+  var cl = document.getElementById('wd-confirm-lbl');
+  var canGo = destOk && amtOk;
+  if (cb) cb.disabled = !canGo;
+  if (cl) cl.textContent = canGo ? t('wd_confirm', {amount: fmtAmount(amt, sym)}) : t('wd_confirm_face');
+}
+
+function confirmWithdraw() {
+  var cfg = wdState.cfg, sym = wdState.cur, amt = parseAmt();
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var bm = tg && tg.BiometricManager;
+
+  var proceed = function() {
+    // TODO: hit POST /api/withdraw with {cur, amount, dest} — the backend
+    // is the source of truth for balances and final fees. For now, show a
+    // success toast and close.
+    try { if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success'); } catch(e){}
+    closeWithdrawCard();
+    showToast('success', t('wd_success'), t('wd_success_msg', {amount: fmtAmount(amt, sym), cur: sym}));
+  };
+  // Prefer re-auth if biometrics is available
+  if (bm && bm.isInited && bm.isBiometricAvailable) {
+    try {
+      bm.authenticate({ reason: t('wd_confirm', {amount: fmtAmount(amt, sym)}) }, function(ok) {
+        if (ok) proceed();
+        else {
+          try { if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error'); } catch(e){}
+          showToast('error', t('bio_fail'), t('bio_fail_msg'));
+        }
+      });
+      return;
+    } catch(e){}
+  }
+  // No biometrics — Telegram confirm popup, then proceed
+  if (tg && typeof tg.showConfirm === 'function') {
+    tg.showConfirm(t('wd_confirm', {amount: fmtAmount(amt, sym)}) + ' ' + (sym), function(yes) {
+      if (yes) proceed();
+    });
+    return;
+  }
+  proceed();
+}
+
+// Keep a small USD-rate map stub so the hero shows a rough USD figure even
+// when the live markets feed hasn't landed yet. populated by fetchMarkets().
+var cryptoUsd = window.cryptoUsd || {};
 
 // ════════════════════════════════════════════════════════════════════════════
 // Boot: run biometric gate before letting the user into the app.
