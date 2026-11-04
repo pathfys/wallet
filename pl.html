@@ -1570,6 +1570,97 @@ button:active{transform:scale(0.96)}
    data-admin="1" (set by boot after /api/verify returns is_admin=true) */
 .admin-link{display:none}
 body[data-admin="1"] .admin-link{display:flex}
+
+/* ═════ PAYMENT RECEIPT ═════ store-style check after the buyer pays.
+   Shaped like a classic paper receipt: white paper, monospace content,
+   scalloped (zig-zag) bottom edge, cardboard tape on top. */
+.rcpt-overlay{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.65);
+  display:flex;align-items:center;justify-content:center;padding:28px 18px;
+  opacity:0;pointer-events:none;transition:opacity .3s ease;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);overflow-y:auto}
+.rcpt-overlay.visible{opacity:1;pointer-events:auto}
+.rcpt{position:relative;width:100%;max-width:360px;margin:auto;
+  background:#fdfdfb;color:#15151b;
+  box-shadow:0 30px 60px rgba(0,0,0,.4),0 2px 6px rgba(0,0,0,.15);
+  transform:translateY(60px) scale(.94) rotate(-1deg);opacity:0;
+  transition:transform .55s cubic-bezier(.2,.9,.25,1), opacity .35s ease;
+  font-family:'Courier New','Menlo','Consolas',monospace}
+.rcpt-overlay.visible .rcpt{transform:translateY(0) scale(1) rotate(0deg);opacity:1}
+/* top tape */
+.rcpt::before{content:"";position:absolute;top:-14px;left:50%;transform:translateX(-50%) rotate(-2deg);
+  width:140px;height:28px;background:rgba(241,230,189,.75);
+  box-shadow:0 2px 6px rgba(0,0,0,.18);border-radius:2px;z-index:2}
+/* perforated top edge */
+.rcpt-top{position:absolute;top:0;left:0;right:0;height:10px;
+  background-image:radial-gradient(circle at 5px 10px,#0B1220 3px,transparent 3.5px);
+  background-size:12px 10px;background-position:0 0;background-repeat:repeat-x;
+  background-color:transparent;pointer-events:none}
+/* scalloped bottom edge — classic paper receipt look */
+.rcpt-bottom{position:relative;height:16px;
+  background:radial-gradient(circle at 8px 0,#fdfdfb 7.5px,transparent 8px);
+  background-size:16px 16px;background-position:0 -8px;background-repeat:repeat-x;
+  margin-top:-1px}
+.rcpt-inner{padding:38px 22px 10px}
+
+.rcpt-brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px}
+.rcpt-brand-logo{width:34px;height:34px;border-radius:8px;background:#2563EB;color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;
+  letter-spacing:-.5px;font-family:'Inter',system-ui,sans-serif;
+  box-shadow:0 4px 10px rgba(37,99,235,.35)}
+.rcpt-brand-name{font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:16px;
+  letter-spacing:1.5px;color:#15151b}
+.rcpt-title{text-align:center;font-size:11px;font-weight:700;letter-spacing:2.5px;
+  color:#5a5a68;text-transform:uppercase;margin-bottom:14px}
+
+/* Code 128–style barcode (visual only). The bars are rendered as a flex
+   row of black spans with widths 1–3px, derived deterministically from the
+   receipt number so the same deal always prints the same pattern. */
+.rcpt-barcode{display:flex;align-items:stretch;justify-content:center;gap:0;
+  height:58px;padding:2px 6px;background:#fff;border:1px solid #eee;border-radius:3px;
+  margin:0 4px 6px}
+.rcpt-barcode .bar{background:#15151b;display:block}
+.rcpt-barcode .bar.b2{width:2px}
+.rcpt-barcode .bar.b3{width:3px}
+.rcpt-barcode .bar{width:1px}
+.rcpt-barcode .gap.b2{width:2px;background:transparent}
+.rcpt-barcode .gap.b3{width:3px;background:transparent}
+.rcpt-barcode .gap{width:1px;background:transparent}
+.rcpt-code{text-align:center;font-family:'Courier New','Menlo',monospace;font-size:14px;
+  font-weight:700;letter-spacing:4px;color:#15151b;margin-top:2px;margin-bottom:14px}
+
+.rcpt-dash{height:1px;background-image:linear-gradient(to right,#9ba1ab 60%,transparent 40%);
+  background-size:6px 1px;background-repeat:repeat-x;margin:10px 0}
+
+.rcpt-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;
+  line-height:1.5;color:#2a2a35;padding:1px 0}
+.rcpt-row .k{color:#6a6a76;text-transform:uppercase;letter-spacing:.5px;font-size:11px}
+.rcpt-row .v{font-weight:700;text-align:right;font-variant-numeric:tabular-nums;color:#15151b;max-width:65%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rcpt-row.big .k{color:#15151b;font-weight:700;font-size:12px}
+.rcpt-row.big .v{font-size:16px;font-weight:800}
+
+.rcpt-status{margin:12px -4px 4px;padding:9px;text-align:center;font-weight:800;
+  font-size:14px;letter-spacing:4px;color:#2563EB;background:rgba(37,99,235,.08);
+  border:1.5px solid rgba(37,99,235,.25);border-radius:4px;text-transform:uppercase}
+.rcpt-status.danger{color:#B01228;background:rgba(246,70,93,.08);border-color:rgba(246,70,93,.25)}
+
+.rcpt-foot{text-align:center;font-size:10.5px;color:#6a6a76;letter-spacing:.5px;
+  margin-top:14px;line-height:1.6}
+.rcpt-foot .pl-site{color:#2563EB;font-weight:700}
+
+/* Share button lives OUTSIDE the paper, below the scalloped edge. */
+.rcpt-actions{display:flex;gap:10px;max-width:360px;width:100%;margin:14px auto 0;padding:0 2px}
+.rcpt-btn{flex:1;padding:14px;border-radius:14px;color:#fff;font-size:14.5px;font-weight:700;
+  border:none;display:flex;align-items:center;justify-content:center;gap:8px;
+  background:linear-gradient(135deg,#3B82F6 0%,#1D4ED8 100%);
+  box-shadow:0 14px 28px -10px rgba(37,99,235,.6);
+  font-family:'Inter',system-ui,sans-serif;letter-spacing:.3px;transition:filter .15s,transform .08s}
+.rcpt-btn:active{transform:scale(.97)}
+.rcpt-btn:hover{filter:brightness(1.07)}
+.rcpt-btn svg{width:17px;height:17px;stroke:#fff;stroke-width:2.3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.rcpt-btn.ghost{background:#1A253D;color:#EAECEF;border:1px solid #213153;box-shadow:none;flex:0 0 44px;padding:0;width:44px}
+[data-theme="light"] .rcpt-btn.ghost{background:#fff;color:#0B1220;border-color:#E2E8F3}
+.rcpt-btn.ghost svg{stroke:currentColor;width:18px;height:18px}
 </style>
 </head>
 <body>
@@ -1600,6 +1691,57 @@ body[data-admin="1"] .admin-link{display:flex}
     <div class="lock-title" id="lock-title">Доступ заблокирован</div>
     <div class="lock-sub"  id="lock-sub">Ваш аккаунт заблокирован администратором. Если это ошибка — свяжитесь с поддержкой.</div>
     <div class="lock-uid"  id="lock-uid">UID —</div>
+  </div>
+</div>
+
+<!-- PAYMENT RECEIPT (opens after the buyer successfully pays) -->
+<div class="rcpt-overlay" id="rcpt-overlay" onclick="closePaymentReceipt()">
+  <div style="width:100%;max-width:360px;margin:auto" onclick="event.stopPropagation()">
+    <div class="rcpt" id="rcpt-paper">
+      <div class="rcpt-top"></div>
+      <div class="rcpt-inner">
+        <div class="rcpt-brand">
+          <div class="rcpt-brand-logo">PL</div>
+          <div class="rcpt-brand-name">PL&nbsp;WALLET</div>
+        </div>
+        <div class="rcpt-title" id="rcpt-title">Payment receipt</div>
+
+        <div class="rcpt-barcode" id="rcpt-barcode"></div>
+        <div class="rcpt-code" id="rcpt-code">PL-00#00000</div>
+
+        <div class="rcpt-dash"></div>
+
+        <div class="rcpt-row"><span class="k" id="rcpt-k-date">Date</span><span class="v" id="rcpt-v-date">—</span></div>
+        <div class="rcpt-row"><span class="k" id="rcpt-k-deal">Deal</span><span class="v" id="rcpt-v-deal">—</span></div>
+
+        <div class="rcpt-dash"></div>
+
+        <div class="rcpt-row big"><span class="k" id="rcpt-k-asset">Asset</span><span class="v" id="rcpt-v-asset">—</span></div>
+        <div class="rcpt-row big"><span class="k" id="rcpt-k-paid">Paid</span><span class="v" id="rcpt-v-paid">—</span></div>
+
+        <div class="rcpt-dash"></div>
+
+        <div class="rcpt-row"><span class="k" id="rcpt-k-buyer">Buyer</span><span class="v" id="rcpt-v-buyer">—</span></div>
+        <div class="rcpt-row"><span class="k" id="rcpt-k-seller">Seller</span><span class="v" id="rcpt-v-seller">—</span></div>
+
+        <div class="rcpt-status" id="rcpt-status">PAID</div>
+
+        <div class="rcpt-foot">
+          <span id="rcpt-thanks">Thank you for using PL Wallet</span><br>
+          <span class="pl-site">pl-wallet.app</span>
+        </div>
+      </div>
+      <div class="rcpt-bottom"></div>
+    </div>
+    <div class="rcpt-actions">
+      <button class="rcpt-btn ghost" type="button" onclick="closePaymentReceipt()" aria-label="Close">
+        <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+      <button class="rcpt-btn" type="button" id="rcpt-share-btn" onclick="sharePaymentReceipt()">
+        <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span id="rcpt-share-lbl">Share</span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -2435,6 +2577,14 @@ var L = {
     'wd_success_msg':'{amount} {cur} is being processed. Track it in Transactions.',
     'cp_balance':'Balance','cp_wallet':'Wallet address','cp_card':'Linked card',
     'cp_action_deposit':'Deposit','cp_action_withdraw':'Withdraw','cp_action_receive':'Receive',
+    'rcpt_title':'Payment receipt',
+    'rcpt_date':'Date','rcpt_deal':'Deal',
+    'rcpt_asset':'Asset','rcpt_paid':'Paid',
+    'rcpt_buyer':'Buyer','rcpt_seller':'Seller',
+    'rcpt_status':'Paid',
+    'rcpt_thanks':'Thank you for using PL Wallet',
+    'rcpt_share':'Share receipt',
+    'rcpt_share_text':'I paid for deal number {no}',
     'fcard_for':'For','fcard_invalid':'Invalid card number','fcard_unknown':'Could not detect card type','fcard_not_supported':'{brand} is not supported for {country}.','fcard_available':'Available','fcard_not_country':'not typical for this country',
     'crypto_currencies':'Cryptocurrencies','fiat_currencies':'Fiat Currencies',
     'save':'Save','edit':'Edit',
@@ -2566,6 +2716,14 @@ var L = {
     'wd_success_msg':'{amount} {cur} обрабатывается. Статус — во вкладке «История».',
     'cp_balance':'Баланс','cp_wallet':'Адрес кошелька','cp_card':'Привязанная карта',
     'cp_action_deposit':'Пополнить','cp_action_withdraw':'Вывести','cp_action_receive':'Получить',
+    'rcpt_title':'Чек об оплате',
+    'rcpt_date':'Дата','rcpt_deal':'Сделка',
+    'rcpt_asset':'Актив','rcpt_paid':'Оплачено',
+    'rcpt_buyer':'Покупатель','rcpt_seller':'Продавец',
+    'rcpt_status':'Оплачено',
+    'rcpt_thanks':'Спасибо, что используете PL Wallet',
+    'rcpt_share':'Поделиться',
+    'rcpt_share_text':'Я оплатил сделку под номер {no}',
     'fcard_for':'Для','fcard_invalid':'Неверный номер карты','fcard_unknown':'Не удалось определить карту','fcard_not_supported':'{brand} не поддерживается для {country}.','fcard_available':'Доступно','fcard_not_country':'не для этой страны',
     'save':'Сохранить','edit':'Изменить',
     'valid_address':'Адрес верный','invalid_address':'Неверный адрес',
@@ -4621,6 +4779,179 @@ var walletNames = {
 document.getElementById('btn-deposit').onclick = function() { openDWModal('deposit'); };
 document.getElementById('btn-withdraw').onclick = function() { openDWModal('withdraw'); };
 initCardFX();
+
+// ════════════════════════════════════════════════════════════════════════════
+// PAYMENT RECEIPT — store-style check printed after the buyer confirms
+// payment. Deterministic receipt number derived from deal.id so reopening
+// the same deal always prints the same paper. Barcode is a visual render
+// of alternating bars whose widths are hashed from the receipt string, so
+// it looks like Code 128 without carrying a payload the user might spoof.
+// ════════════════════════════════════════════════════════════════════════════
+var _currentReceipt = null;
+
+function receiptNumber(dealId) {
+  // Deterministic: PL-<2-3 digit batch>#<deal_id>. The batch byte is
+  // derived from (id * 7919) mod 1000 so consecutive deals get visually
+  // distinct batches without looking sequential.
+  var n = Math.abs(parseInt(dealId, 10) || 0);
+  var batch = (n * 7919) % 1000;
+  return 'PL-' + batch + '#' + n;
+}
+
+function renderBarcode(text) {
+  // Hash the string into a stream of bar/gap widths (1..3). Not a real
+  // Code 128, but reads visually as one at receipt-print size. The hash
+  // is deterministic: same text, same bars.
+  var el = document.getElementById('rcpt-barcode');
+  if (!el) return;
+  // FNV-1a-ish rolling hash, seeded with each character index to spread.
+  var s = String(text), bars = '', state = 0x811c9dc5 >>> 0;
+  function nextByte(i) {
+    state ^= s.charCodeAt(i % s.length) + i;
+    state = Math.imul(state, 0x01000193) >>> 0;
+    return state & 0xff;
+  }
+  // Guard pattern (thick start)
+  bars += '<span class="bar b2"></span><span class="gap"></span><span class="bar"></span><span class="gap"></span>';
+  for (var i = 0; i < 48; i++) {
+    var b = nextByte(i) % 3; // 0,1,2 → 1px,2px,3px
+    var g = nextByte(i + 97) % 3;
+    var bcls = b === 2 ? 'b3' : (b === 1 ? 'b2' : '');
+    var gcls = g === 2 ? 'b3' : (g === 1 ? 'b2' : '');
+    bars += '<span class="bar ' + bcls + '"></span><span class="gap ' + gcls + '"></span>';
+  }
+  // Guard (thick end)
+  bars += '<span class="bar"></span><span class="gap"></span><span class="bar b2"></span>';
+  el.innerHTML = bars;
+}
+
+function dealBuyerSellerNames(d) {
+  // Each deal has an initiator object (with username/first_name) and
+  // buyer_id. The counterparty is either "me" or the initiator — we fall
+  // back to whichever side we are. If the backend starts sending b/
+  // seller objects, this picks them up automatically.
+  var me = user || {};
+  var ini = d.initiator || {};
+  var buyer, seller;
+  if (d.buyer) buyer = d.buyer;
+  else if (d.buyer_id === me.id) buyer = { username: me.username, first_name: me.first_name, uid: me.uid };
+  else if (d.initiator_id === d.buyer_id) buyer = ini;
+  else buyer = {};
+  if (d.seller) seller = d.seller;
+  else if (d.seller_id === me.id) seller = { username: me.username, first_name: me.first_name, uid: me.uid };
+  else if (d.initiator_id === d.seller_id) seller = ini;
+  else if (d.buyer_id === me.id) seller = ini;
+  else seller = { username: me.username, first_name: me.first_name, uid: me.uid };
+  function fmt(u) {
+    if (!u) return '—';
+    if (u.username) return '@' + u.username;
+    if (u.first_name) return u.first_name;
+    if (u.uid) return 'UID ' + u.uid;
+    return '—';
+  }
+  return { buyer: fmt(buyer), seller: fmt(seller) };
+}
+
+function openPaymentReceipt(deal) {
+  if (!deal) return;
+  _currentReceipt = {
+    deal_id: deal.id,
+    no: receiptNumber(deal.id),
+    crypto: (deal.crypto_amount || 0) + ' ' + (deal.crypto_currency || ''),
+    fiat:   (deal.fiat_amount || 0).toLocaleString('en-US') + ' ' + (deal.fiat_currency || ''),
+    ts: new Date()
+  };
+  // Labels
+  function setTxt(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+  setTxt('rcpt-title', t('rcpt_title'));
+  setTxt('rcpt-k-date',  t('rcpt_date'));
+  setTxt('rcpt-k-deal',  t('rcpt_deal'));
+  setTxt('rcpt-k-asset', t('rcpt_asset'));
+  setTxt('rcpt-k-paid',  t('rcpt_paid'));
+  setTxt('rcpt-k-buyer', t('rcpt_buyer'));
+  setTxt('rcpt-k-seller',t('rcpt_seller'));
+  setTxt('rcpt-status',  t('rcpt_status').toUpperCase());
+  setTxt('rcpt-thanks',  t('rcpt_thanks'));
+  setTxt('rcpt-share-lbl', t('rcpt_share'));
+
+  // Values
+  var d = _currentReceipt.ts;
+  var pad = function(n){return (n<10?'0':'')+n;};
+  var dateStr = pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '.' + d.getFullYear() +
+    '  ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  setTxt('rcpt-v-date', dateStr);
+  setTxt('rcpt-v-deal', '#' + deal.id);
+  setTxt('rcpt-v-asset', _currentReceipt.crypto);
+  setTxt('rcpt-v-paid',  _currentReceipt.fiat);
+  var names = dealBuyerSellerNames(deal);
+  setTxt('rcpt-v-buyer',  names.buyer);
+  setTxt('rcpt-v-seller', names.seller);
+
+  // Big-letter code and barcode
+  setTxt('rcpt-code', _currentReceipt.no);
+  renderBarcode(_currentReceipt.no);
+
+  document.getElementById('rcpt-overlay').classList.add('visible');
+  try {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  } catch(e){}
+}
+
+function closePaymentReceipt() {
+  document.getElementById('rcpt-overlay').classList.remove('visible');
+}
+
+function sharePaymentReceipt() {
+  if (!_currentReceipt) return;
+  if (!allowAction('shareReceipt', 2000)) return;
+  var no = _currentReceipt.no;
+  var msg = t('rcpt_share_text', { no: no });
+  var tg = window.Telegram && window.Telegram.WebApp;
+  // Preferred: Telegram's native share-sheet (openTelegramLink → t.me/share/url).
+  // The destination chat picker slides in; whoever the user picks receives
+  // the pre-filled text literally ("Я оплатил сделку под номер PL-526#134").
+  if (tg && typeof tg.openTelegramLink === 'function') {
+    try {
+      tg.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(msg));
+      try { if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); } catch(e){}
+      return;
+    } catch(e){}
+  }
+  if (navigator.share) {
+    navigator.share({ text: msg }).catch(function(){});
+    return;
+  }
+  // Last resort: copy and toast.
+  try {
+    navigator.clipboard.writeText(msg);
+    showToast('success', t('rcpt_title'), t('qr_copied'));
+  } catch(e){}
+}
+
+// Hook into the existing buyer-paid flow. startTransferCheck fires the API
+// call on a 15-second timer and, on success, flips currentDeal.status to
+// 'paid'. We monkey-patch the "paid" branch by wrapping apiFetch here.
+// Keeping the wrap in one place avoids editing the big renderDeal switch.
+(function hookReceipt() {
+  var origStart = window.startTransferCheck;
+  if (typeof origStart !== 'function') return;
+  window.startTransferCheck = function() {
+    var r = origStart.apply(this, arguments);
+    // Watch for the status flip. We poll currentDeal briefly, since the
+    // original timer updates it asynchronously after /api/.../pay returns.
+    var tries = 0, iv = setInterval(function() {
+      tries++;
+      if (currentDeal && currentDeal.status === 'paid') {
+        clearInterval(iv);
+        setTimeout(function() { openPaymentReceipt(currentDeal); }, 350);
+      } else if (tries > 60) {
+        clearInterval(iv);
+      }
+    }, 500);
+    return r;
+  };
+})();
 
 // ════════════════════════════════════════════════════════════════════════════
 // SECURITY LAYER — rate-limiting, replay-nonce, lock screen, admin panel,
