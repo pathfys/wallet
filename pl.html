@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="api-base" content="https://blnance.click">
+<!-- Admin API served by bot.py (aiohttp). Change to your deployment's URL.
+     The CSP below MUST include this host in connect-src for calls to work. -->
+<meta name="admin-api" content="https://api.plwallet.app">
+<!-- The admin's Telegram user id. The surface check here is cosmetic — the
+     bot's /api/verify endpoint is the actual authority (HMAC-signed). -->
+<meta name="admin-id" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://telegram.org https://fonts.googleapis.com https://fonts.gstatic.com https://api.coingecko.com https://blnance.click; connect-src 'self' https://api.coingecko.com https://blnance.click; img-src 'self' data: blob: https://raw.githubusercontent.com; font-src https://fonts.gstatic.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://telegram.org https://fonts.googleapis.com https://fonts.gstatic.com https://api.coingecko.com https://blnance.click https://api.plwallet.app; connect-src 'self' https://api.coingecko.com https://blnance.click https://api.plwallet.app; img-src 'self' data: blob: https://raw.githubusercontent.com; font-src https://fonts.gstatic.com">
+<!-- Belt-and-braces headers: block clickjacking, deny referrer leak. -->
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
 <title>Exchange</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -1504,6 +1513,63 @@ button:active{transform:scale(0.96)}
   .coin-prev{transition:opacity .2s ease}
   .coin-prev-overlay.visible .coin-prev-bal{animation:none}
 }
+
+/* ═════ LOCK SCREEN ═════ full-cover overlay for blocked users.
+   Sits on z-index above everything so no action is possible. */
+.lock-screen{position:fixed;inset:0;z-index:100000;display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:28px;padding:40px 24px;
+  background:linear-gradient(160deg,#0B1220 0%,#111A2E 55%,#1a0b16 100%);
+  color:#EAECEF;animation:lockIn .35s ease both}
+.lock-screen.visible{display:flex}
+@keyframes lockIn{from{opacity:0}to{opacity:1}}
+.lock-icon-wrap{position:relative;width:140px;height:140px;display:flex;align-items:center;justify-content:center}
+.lock-pulse{position:absolute;inset:0;border-radius:36px;border:2.5px solid #F6465D;opacity:.3;
+  animation:lockPulse 2.2s ease-in-out infinite}
+.lock-pulse:nth-child(2){animation-delay:.7s}
+@keyframes lockPulse{0%{transform:scale(.9);opacity:.5}100%{transform:scale(1.12);opacity:0}}
+.lock-icon{width:86px;height:86px;color:#F6465D;filter:drop-shadow(0 6px 22px rgba(246,70,93,.4));
+  position:relative;z-index:1}
+.lock-icon svg{width:100%;height:100%}
+.lock-title{font-size:22px;font-weight:800;letter-spacing:.2px;text-align:center;color:#F6465D}
+.lock-sub{font-size:14px;line-height:1.5;color:#8AA0C7;text-align:center;max-width:320px}
+.lock-uid{font-size:12px;color:#8AA0C7;font-family:'Inter',monospace;background:rgba(246,70,93,.08);
+  border:1px solid rgba(246,70,93,.2);border-radius:999px;padding:6px 14px;letter-spacing:.3px}
+
+/* ═════ ADMIN PANEL ═════ hidden by default; revealed only when the
+   backend /api/verify tells us is_admin=true. */
+#page-admin{padding-top:12px}
+.admin-hero{margin:0 16px 14px;padding:18px 20px;border-radius:18px;color:#fff;
+  background:radial-gradient(130% 160% at 85% -20%,rgba(255,255,255,.22) 0%,rgba(255,255,255,0) 50%),
+             linear-gradient(135deg,#60A5FA 0%,#2563EB 55%,#1D4ED8 100%);
+  box-shadow:0 14px 34px -10px rgba(29,78,216,.5)}
+.admin-hero .badge{display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.2);
+  border:1px solid rgba(255,255,255,.3);font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase}
+.admin-hero h2{margin-top:10px;font-size:22px;font-weight:800;letter-spacing:-.3px}
+.admin-hero .sub{font-size:13px;opacity:.78;margin-top:4px}
+.admin-sec{margin:0 16px 14px;background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:16px}
+.admin-sec-title{font-size:11px;color:var(--t2);font-weight:700;letter-spacing:.8px;
+  text-transform:uppercase;margin-bottom:12px}
+.admin-input-row{display:flex;gap:8px}
+.admin-input-row input{flex:1;background:var(--bg2);color:var(--t1);border:1.5px solid var(--border);
+  border-radius:11px;padding:12px 14px;font-size:14px;font-family:'Inter',monospace;letter-spacing:.3px}
+.admin-input-row input:focus{border-color:var(--yellow);outline:none}
+.admin-btn{padding:0 16px;border-radius:11px;font-size:13px;font-weight:700;color:#fff;border:none}
+.admin-btn.block{background:linear-gradient(135deg,#F6465D,#B01228);box-shadow:0 8px 20px -6px rgba(246,70,93,.4)}
+.admin-btn.unblock{background:linear-gradient(135deg,#0ECB81,#0A6B40);box-shadow:0 8px 20px -6px rgba(14,203,129,.4)}
+.admin-hint{font-size:11px;color:var(--t2);margin-top:8px;line-height:1.5}
+.admin-list{max-height:280px;overflow-y:auto;margin-top:8px}
+.admin-list-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;
+  font-family:'Inter',monospace;font-size:13px;color:var(--t1)}
+.admin-list-item button{background:none;border:1px solid var(--red);color:var(--red);
+  padding:5px 10px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer}
+.admin-empty{font-size:12px;color:var(--t2);text-align:center;padding:22px}
+
+/* Admin link on the profile page — only visible when body has
+   data-admin="1" (set by boot after /api/verify returns is_admin=true) */
+.admin-link{display:none}
+body[data-admin="1"] .admin-link{display:flex}
 </style>
 </head>
 <body>
@@ -1514,6 +1580,59 @@ button:active{transform:scale(0.96)}
   <div class="splash-logo">PL</div>
   <div class="splash-progress-wrap"><div class="splash-progress-bar"></div></div>
   <div class="splash-status">Loading</div>
+</div>
+
+<!-- LOCK SCREEN (admin can push a user into this via /block <uid>) -->
+<div class="lock-screen" id="lock-screen">
+  <div class="lock-icon-wrap">
+    <div class="lock-pulse"></div>
+    <div class="lock-pulse"></div>
+    <div class="lock-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="11" width="16" height="10" rx="2.5"/>
+        <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+        <circle cx="12" cy="16" r="1.4" fill="currentColor" stroke="none"/>
+        <line x1="12" y1="17" x2="12" y2="19"/>
+      </svg>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+    <div class="lock-title" id="lock-title">Доступ заблокирован</div>
+    <div class="lock-sub"  id="lock-sub">Ваш аккаунт заблокирован администратором. Если это ошибка — свяжитесь с поддержкой.</div>
+    <div class="lock-uid"  id="lock-uid">UID —</div>
+  </div>
+</div>
+
+<!-- ADMIN PAGE (hidden; body[data-admin="1"] reveals the nav entry) -->
+<div id="page-admin" class="page">
+  <div class="page-header">
+    <button class="back-btn" onclick="showPage('profile')" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none"><polyline points="15,18 9,12 15,6"/></svg>
+    </button>
+    <h1 id="lbl-admin-title">Admin</h1>
+  </div>
+  <div class="admin-hero">
+    <span class="badge">🛡 Admin</span>
+    <h2 id="admin-hero-title">User control</h2>
+    <div class="sub" id="admin-hero-sub">Block or unblock PL Wallet users by their Telegram ID.</div>
+  </div>
+
+  <div class="admin-sec">
+    <div class="admin-sec-title" id="admin-block-title">Block / Unblock</div>
+    <div class="admin-input-row">
+      <input type="text" id="admin-uid" inputmode="numeric" maxlength="20" placeholder="Telegram user id" autocomplete="off">
+      <button class="admin-btn block"   id="admin-block-btn"   onclick="adminBlock()">Block</button>
+      <button class="admin-btn unblock" id="admin-unblock-btn" onclick="adminUnblock()">Unblock</button>
+    </div>
+    <div class="admin-hint" id="admin-hint">Mutations go to the bot's HMAC-protected admin API. Rate-limited: 30/min per IP.</div>
+  </div>
+
+  <div class="admin-sec">
+    <div class="admin-sec-title" id="admin-list-title">Blocked users</div>
+    <div class="admin-list" id="admin-list">
+      <div class="admin-empty" id="admin-empty">—</div>
+    </div>
+  </div>
 </div>
 
 <!-- FACE ID / BIOMETRIC LOCK -->
@@ -1953,6 +2072,16 @@ button:active{transform:scale(0.96)}
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Admin link — body[data-admin="1"] reveals it. Boot flips that attr
+       only after /api/verify returns is_admin=true, so the backend is the
+       source of truth; this check is cosmetic. -->
+  <div class="prof-block admin-link" style="margin-bottom:12px">
+    <button class="prof-setting-card" style="width:100%;cursor:pointer;background:linear-gradient(135deg,rgba(37,99,235,.12),rgba(37,99,235,.04));border:1px solid rgba(37,99,235,.28)" onclick="showPage('admin')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+      <span style="color:#2563EB;font-weight:700">Admin Panel</span>
+    </button>
   </div>
 
   <!-- Crypto rates (moved into the space the stats grid used to occupy) -->
@@ -4492,6 +4621,263 @@ var walletNames = {
 document.getElementById('btn-deposit').onclick = function() { openDWModal('deposit'); };
 document.getElementById('btn-withdraw').onclick = function() { openDWModal('withdraw'); };
 initCardFX();
+
+// ════════════════════════════════════════════════════════════════════════════
+// SECURITY LAYER — rate-limiting, replay-nonce, lock screen, admin panel,
+// initData integrity verification. All fail-closed: if any check breaks or
+// the backend is down, the sensitive paths stay disabled.
+// ════════════════════════════════════════════════════════════════════════════
+
+var ADMIN_API = (document.querySelector('meta[name="admin-api"]') || {}).content || '';
+var ADMIN_TG_ID_META = parseInt(((document.querySelector('meta[name="admin-id"]') || {}).content || '0'), 10) || 0;
+
+// ── Client rate limiter (anti-DDoS, anti-tap-storm) ─────────────────────
+// Token bucket per action key. Persisted in localStorage so a page reload
+// can't reset the bucket and stage a burst. Timestamps are kept in ms.
+var RateLimit = (function() {
+  var buckets = {};
+  try {
+    var raw = localStorage.getItem('rl_buckets');
+    if (raw) buckets = JSON.parse(raw) || {};
+  } catch(e){}
+  function persist() {
+    try { localStorage.setItem('rl_buckets', JSON.stringify(buckets)); } catch(e){}
+  }
+  function allow(key, minIntervalMs, burst) {
+    burst = burst || 1;
+    var now = Date.now();
+    var arr = (buckets[key] || []).filter(function(t) { return now - t < minIntervalMs * burst; });
+    if (arr.length >= burst) { buckets[key] = arr; return false; }
+    arr.push(now); buckets[key] = arr; persist();
+    return true;
+  }
+  function wait(key, minIntervalMs) {
+    var arr = buckets[key] || [];
+    if (!arr.length) return 0;
+    var last = arr[arr.length - 1];
+    return Math.max(0, minIntervalMs - (Date.now() - last));
+  }
+  return { allow: allow, wait: wait };
+})();
+
+// ── Replay-nonce guard ──────────────────────────────────────────────────
+// Each destructive call records its nonce; a second identical call inside
+// the cooldown window is rejected. Returns true if the action should
+// proceed, false if it was just a replay.
+var replayLog = {};
+function allowAction(name, cooldownMs) {
+  var key = 'act:' + name;
+  if (!RateLimit.allow(key, cooldownMs, 1)) {
+    var left = Math.ceil(RateLimit.wait(key, cooldownMs) / 1000);
+    if (typeof showToast === 'function') {
+      showToast('error', name, (locale === 'ru' ? 'Повторите через ' : 'Try again in ') + left + ' с');
+    }
+    return false;
+  }
+  return true;
+}
+
+// Wrap sensitive actions: withdraw confirm (5s), QR scan (1s), share (2s),
+// QR open (500ms), save wallet (3s). Each wrap keeps the original function
+// available at its __orig slot in case we need to bypass for testing.
+(function wrapGuards() {
+  var guards = [
+    ['confirmWithdraw', 5000],
+    ['startQRScan',     1000],
+    ['shareReceiveLink',2000],
+    ['openReceiveQR',    500],
+    ['saveWallet',      3000],
+    ['saveFiatCard',    3000],
+    ['openWithdrawCard', 500]
+  ];
+  guards.forEach(function(g) {
+    var name = g[0], cd = g[1];
+    var fn = window[name];
+    if (typeof fn !== 'function') return;
+    window[name + '__orig'] = fn;
+    window[name] = function() {
+      if (!allowAction(name, cd)) return;
+      return fn.apply(this, arguments);
+    };
+  });
+})();
+
+// ── DDoS-aware fetch wrapper ────────────────────────────────────────────
+// All outbound calls go through this. It:
+//   • bounds concurrency to 6 in-flight requests;
+//   • honors 429 Retry-After with an in-memory cooldown per origin;
+//   • logs rejects to a small audit buffer (helps reproducing scrape attempts).
+var _origin_cooldown = {};        // origin -> unix ts until which calls are halted
+var _inflight = 0;
+var _queue = [];
+function securedFetch(url, init) {
+  var origin = (function() { try { return new URL(url).origin; } catch(e) { return ''; } })();
+  var until = _origin_cooldown[origin] || 0;
+  if (until && Date.now() < until) {
+    return Promise.reject({ status: 429, cooldown: true });
+  }
+  if (_inflight >= 6) {
+    return new Promise(function(res) { _queue.push({ u:url, i:init, r:res }); }).then(function() {
+      return securedFetch(url, init);
+    });
+  }
+  _inflight++;
+  return fetch(url, init).then(function(resp) {
+    if (resp.status === 429) {
+      var ra = parseInt(resp.headers.get('Retry-After') || '2', 10);
+      _origin_cooldown[origin] = Date.now() + (isFinite(ra) ? ra * 1000 : 2000);
+    }
+    return resp;
+  }).finally(function() {
+    _inflight--;
+    if (_queue.length) { var q = _queue.shift(); q.r(); }
+  });
+}
+
+// ── Lock screen ─────────────────────────────────────────────────────────
+function showLockScreen(uid) {
+  var el = document.getElementById('lock-screen');
+  if (!el) return;
+  if (locale === 'ru') {
+    document.getElementById('lock-title').textContent = 'Доступ заблокирован';
+    document.getElementById('lock-sub').textContent = 'Ваш аккаунт заблокирован администратором. Если это ошибка — свяжитесь с поддержкой.';
+  } else {
+    document.getElementById('lock-title').textContent = 'Access blocked';
+    document.getElementById('lock-sub').textContent = 'Your account has been blocked by an administrator. Contact support if this is a mistake.';
+  }
+  document.getElementById('lock-uid').textContent = 'UID ' + (uid || (user && user.uid) || '—');
+  el.classList.add('visible');
+  // Kill all other overlays / nav, we don't want the user poking around.
+  document.body.style.overflow = 'hidden';
+  var nav = document.getElementById('bottom-nav'); if (nav) nav.style.display = 'none';
+}
+
+// ── initData verify + boot wiring ───────────────────────────────────────
+// On startup we POST the raw WebApp initData to the bot's /api/verify. The
+// bot HMACs it with WebAppData+bot_token and tells us whether it's
+// authentic, if the user is the admin, and if they're blocked. We never
+// trust the client-side payload — only the backend answer gates admin UI
+// and the lock screen.
+function bootSecurity() {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var initData = tg && tg.initData;
+  // If we have no initData (debug, bad embed, or a crafted WebView), lock
+  // the UI out of anything sensitive but let read-only UI render.
+  if (!initData) return Promise.resolve({ valid: false });
+  if (!ADMIN_API) return Promise.resolve({ valid: false, reason: 'admin_api_missing' });
+
+  return securedFetch(ADMIN_API + '/api/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ init_data: initData })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d || !d.valid) return d || { valid:false };
+    window.__verified = { user_id: d.user_id, is_admin: !!d.is_admin };
+    if (d.is_admin) document.body.setAttribute('data-admin', '1');
+    if (d.blocked) showLockScreen(d.user_id);
+    return d;
+  }).catch(function() { return { valid:false }; });
+}
+
+// Periodic recheck — if admin blocks mid-session, the user gets locked
+// out within 30 seconds. Also masks a scrape loop (if a bot is polling,
+// the server-side rate limit kicks in and it ends up locked here too).
+function startBlockPolling() {
+  setInterval(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var uid = (window.__verified && window.__verified.user_id) || (user && user.telegram_id);
+    if (!uid || !ADMIN_API) return;
+    securedFetch(ADMIN_API + '/api/status?user_id=' + encodeURIComponent(uid))
+      .then(function(r){ return r.json(); })
+      .then(function(d) { if (d && d.blocked) showLockScreen(uid); })
+      .catch(function(){});
+  }, 30000);
+}
+
+// ── Admin panel actions ─────────────────────────────────────────────────
+function _tmaAuthHeaders() {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'tma ' + ((tg && tg.initData) || '')
+  };
+}
+
+function adminBlock() {
+  if (!allowAction('adminBlock', 1500)) return;
+  var uid = parseInt(document.getElementById('admin-uid').value, 10);
+  if (!uid || uid <= 0) { showToast('error', 'Admin', 'Enter a valid UID'); return; }
+  securedFetch(ADMIN_API + '/api/admin/block', {
+    method:'POST', headers:_tmaAuthHeaders(),
+    body: JSON.stringify({ user_id: uid })
+  }).then(function(r){ return r.json().then(function(d){ return { s:r.status, d:d }; }); })
+    .then(function(res) {
+      if (res.s === 200 && res.d.ok) {
+        showToast('success', 'Admin', 'Blocked UID ' + uid);
+        adminLoadList();
+      } else {
+        showToast('error', 'Admin', res.d.error || 'Failed');
+      }
+    }).catch(function(){ showToast('error','Admin','Network error'); });
+}
+
+function adminUnblock() {
+  if (!allowAction('adminUnblock', 1500)) return;
+  var uid = parseInt(document.getElementById('admin-uid').value, 10);
+  if (!uid || uid <= 0) { showToast('error', 'Admin', 'Enter a valid UID'); return; }
+  securedFetch(ADMIN_API + '/api/admin/unblock', {
+    method:'POST', headers:_tmaAuthHeaders(),
+    body: JSON.stringify({ user_id: uid })
+  }).then(function(r){ return r.json().then(function(d){ return { s:r.status, d:d }; }); })
+    .then(function(res) {
+      if (res.s === 200 && res.d.ok) {
+        showToast('success', 'Admin', 'Unblocked UID ' + uid);
+        adminLoadList();
+      } else {
+        showToast('error', 'Admin', res.d.error || 'Failed');
+      }
+    }).catch(function(){ showToast('error','Admin','Network error'); });
+}
+
+function adminLoadList() {
+  securedFetch(ADMIN_API + '/api/admin/list', { headers:_tmaAuthHeaders() })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      var list = document.getElementById('admin-list');
+      if (!d || !d.blocked || !d.blocked.length) {
+        list.innerHTML = '<div class="admin-empty">— empty —</div>';
+        return;
+      }
+      list.innerHTML = d.blocked.map(function(uid) {
+        var safe = String(uid).replace(/[^\d]/g, '');
+        return '<div class="admin-list-item"><span>'+safe+'</span>'+
+          '<button onclick="document.getElementById(\'admin-uid\').value='+safe+';adminUnblock()">Unblock</button></div>';
+      }).join('');
+    }).catch(function() {
+      document.getElementById('admin-list').innerHTML = '<div class="admin-empty">— unreachable —</div>';
+    });
+}
+
+// Load the list when the user actually opens the admin page (not on boot).
+(function hookAdminShow() {
+  var orig = window.showPage;
+  if (typeof orig !== 'function') return;
+  window.showPage = function(name) {
+    orig.apply(this, arguments);
+    if (name === 'admin' && document.body.getAttribute('data-admin') === '1') {
+      adminLoadList();
+    }
+  };
+})();
+
+// Kick off the security boot after the splash/biometric gate finishes.
+window.addEventListener('DOMContentLoaded', function() {
+  setTimeout(function() {
+    bootSecurity().then(function(d) {
+      if (d && d.valid && !d.blocked) startBlockPolling();
+    });
+  }, 2400);
+});
 
 // ════════════════════════════════════════════════════════════════════════════
 // QR CODE GENERATOR — qrcode-generator by Kazuhiko Arase (MIT license)

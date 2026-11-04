@@ -1,3 +1,6 @@
 # aiogram 3.29+ carries the `style` field on InlineKeyboardButton that
 # Bot API 9.0 added (Apr 2025). Older versions drop it silently.
 aiogram>=3.29,<4
+# aiohttp comes transitively with aiogram, but we import it explicitly for
+# the admin API, so pin it directly.
+aiohttp>=3.9
