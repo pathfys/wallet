@@ -4368,19 +4368,44 @@ function copyReceiveUID() {
 }
 
 function shareReceiveLink() {
-  if (!userLoaded || !user.uid) return;
+  if (!userLoaded || !user.uid) {
+    // Visible feedback: silent returns made this feel like the button did
+    // nothing. Tell the user we're still loading their UID.
+    showToast('error', t('qr_share'), t('qr_loading'));
+    return;
+  }
   var uid = String(user.uid);
   var tg = window.Telegram && window.Telegram.WebApp;
   var text = (locale === 'ru' ? 'Мой PL UID: ' : 'My PL UID: ') + uid;
-  if (tg && typeof tg.switchInlineQuery === 'function') {
-    try { tg.switchInlineQuery(text, ['users']); return; } catch(e){}
+
+  // Primary path: open Telegram's native share sheet via t.me/share/url.
+  // Works for every bot (no inline-mode requirement). openTelegramLink is
+  // handled by the Telegram client itself — the share chat picker slides in
+  // over the mini-app without closing it.
+  if (tg && typeof tg.openTelegramLink === 'function') {
+    try {
+      var shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(text);
+      tg.openTelegramLink(shareUrl);
+      try { if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); } catch(e){}
+      return;
+    } catch(e){}
   }
+  // Secondary: switchInlineQuery — only kicks in for bots with inline mode.
+  if (tg && typeof tg.switchInlineQuery === 'function') {
+    try { tg.switchInlineQuery(text, ['users','groups','channels']); return; } catch(e){}
+  }
+  // Tertiary: Web Share API (outside Telegram, mobile browsers).
   if (navigator.share) {
-    navigator.share({ text: text }).catch(function(){});
+    navigator.share({ text: text, title: 'PL UID' }).catch(function(){});
     return;
   }
-  // Fallback: copy to clipboard
-  try { navigator.clipboard.writeText(text); showToast('success', t('qr_title'), t('qr_copied')); } catch(e){}
+  // Last resort: copy to clipboard, with a toast so the tap registers.
+  try {
+    navigator.clipboard.writeText(text);
+    showToast('success', t('qr_title'), t('qr_copied'));
+  } catch(e) {
+    showToast('error', t('qr_share'), t('qr_scan_fail'));
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
