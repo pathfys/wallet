@@ -1,0 +1,40 @@
+# /etc/systemd/system/pmr-wallet.service — запуск от отдельного пользователя в песочнице systemd
+[Unit]
+Description=PMR Wallet backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pmrwallet
+Group=pmrwallet
+WorkingDirectory=/opt/pmr-wallet/server
+EnvironmentFile=/opt/pmr-wallet/server/.env
+Environment=TZ=Europe/Chisinau
+ExecStart=/usr/bin/node --no-warnings src/index.js
+Restart=always
+RestartSec=3
+LimitNOFILE=65536
+MemoryMax=1G
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/pmr-wallet/server/data
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

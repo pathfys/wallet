@@ -1,0 +1,310 @@
+;; =============================================================================
+;;  PMR Escrow v1 — one contract per P2P order (TON or a jetton such as USD₮).
+;;
+;;  The platform never holds user funds. The seller locks the order amount in
+;;  this contract; it can only ever leave to the BUYER (release), back to the
+;;  SELLER (refund) or, for the platform fee, to the FEE WALLET fixed at deploy.
+;;
+;;    seller  -> RELEASE            : pay buyer (+ fee), close        (happy path)
+;;    buyer   -> CANCEL             : refund seller, close            (buyer gives up)
+;;    seller  -> RECLAIM            : refund seller after `deadline`  (platform gone)
+;;    arbiter -> external decision  : RELEASE / REFUND while open     (appeals, timeouts)
+;;                                    RECOVER leftovers once closed
+;;    seller  -> SWEEP              : TON leftovers once closed; jettons only after refund
+;;
+;;  Arbiter = Ed25519 key of the platform. Decisions are signed off-chain and
+;;  delivered as external messages (the contract pays its own gas), so the
+;;  platform needs no hot wallet. Replay protection: signature covers
+;;  (tag, this contract address, seqno, valid_until, action[, amount]); seqno is
+;;  stored and incremented; everything is validated BEFORE accept_message(), so
+;;  junk external messages cannot drain the contract's gas balance.
+;;
+;;  Storage:
+;;    status:uint8 seqno:uint32 jetton_wallet:MsgAddress ^params
+;;    params = deal_id:uint64 kind:uint1 deadline:uint32 arbiter_key:uint256
+;;             buyer_amount:Coins fee_amount:Coins ^addrs
+;;    addrs  = seller:MsgAddress buyer:MsgAddress fee_wallet:MsgAddress
+;; =============================================================================
+#include "stdlib.fc";
+
+const int op::setup     = 0x504d5201;
+const int op::release   = 0x504d5202;
+const int op::cancel    = 0x504d5203;
+const int op::reclaim   = 0x504d5204;
+const int op::sweep     = 0x504d5205;
+const int op::jetton_transfer       = 0x0f8a7ea5;
+const int op::transfer_notification = 0x7362d09c;
+const int op::excesses              = 0xd53276db;
+
+const int tag::setup    = 0x53455455;  ;; "SETU"
+const int tag::decision = 0x44454349;  ;; "DECI"
+
+const int status::open     = 0;
+const int status::released = 1;
+const int status::refunded = 2;
+
+const int action::release        = 1;
+const int action::refund         = 2;
+const int action::recover_buyer  = 3;
+const int action::recover_seller = 4;
+
+const int kind::ton    = 0;
+const int kind::jetton = 1;
+
+const int MIN_STORAGE = 10000000;   ;; 0.01 TON stays on the contract for storage rent
+const int JETTON_GAS  = 100000000;  ;; 0.1 TON attached to each jetton transfer (excess -> seller)
+const int EXT_GAS     = 20000000;   ;; 0.02 TON budget for processing an external decision
+
+const int err::not_open       = 401;
+const int err::wrong_sender   = 402;
+const int err::bad_signature  = 403;
+const int err::expired        = 404;
+const int err::not_configured = 405;
+const int err::insufficient   = 406;
+const int err::too_early      = 407;
+const int err::already_setup  = 408;
+const int err::bad_kind       = 409;
+const int err::bad_seqno      = 410;
+const int err::bad_action     = 411;
+const int err::still_open     = 412;
+const int err::unknown_op     = 0xffff;
+
+global int st;
+global int seqno;
+global slice jw;
+global cell params;
+global int kind;
+global int deadline;
+global int arbiter_key;
+global int buyer_amount;
+global int fee_amount;
+global slice seller;
+global slice buyer;
+global slice fee_wallet;
+
+() load_data() impure inline {
+  slice ds = get_data().begin_parse();
+  st = ds~load_uint(8);
+  seqno = ds~load_uint(32);
+  jw = ds~load_msg_addr();
+  params = ds~load_ref();
+  ds.end_parse();
+  slice ps = params.begin_parse();
+  ps~load_uint(64);                 ;; deal_id (only exposed via the get-method)
+  kind = ps~load_uint(1);
+  deadline = ps~load_uint(32);
+  arbiter_key = ps~load_uint(256);
+  buyer_amount = ps~load_coins();
+  fee_amount = ps~load_coins();
+  slice as = ps~load_ref().begin_parse();
+  ps.end_parse();
+  seller = as~load_msg_addr();
+  buyer = as~load_msg_addr();
+  fee_wallet = as~load_msg_addr();
+  as.end_parse();
+}
+
+() save_data() impure inline {
+  set_data(begin_cell().store_uint(st, 8).store_uint(seqno, 32).store_slice(jw).store_ref(params).end_cell());
+}
+
+int jw_ready?() inline { return slice_bits(jw) > 2; }   ;; addr_none is 2 bits
+
+int balance() inline { return pair_first(get_balance()); }
+
+;; plain non-bounceable TON transfer (recipients may be fresh, still-uninitialised wallets)
+() send_ton(slice to, int amount, int mode) impure inline {
+  send_raw_message(begin_cell()
+    .store_uint(0x10, 6)
+    .store_slice(to)
+    .store_coins(amount)
+    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+    .end_cell(), mode);
+}
+
+;; TEP-74 transfer from this contract's own jetton wallet; excess TON goes back to the seller
+() send_jetton(slice to, int amount, int query_id) impure inline {
+  cell body = begin_cell()
+    .store_uint(op::jetton_transfer, 32)
+    .store_uint(query_id, 64)
+    .store_coins(amount)
+    .store_slice(to)
+    .store_slice(seller)
+    .store_uint(0, 1)
+    .store_coins(1)
+    .store_uint(0, 1)
+    .end_cell();
+  send_raw_message(begin_cell()
+    .store_uint(0x18, 6)
+    .store_slice(jw)
+    .store_coins(JETTON_GAS)
+    .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+    .store_ref(body)
+    .end_cell(), 1);
+}
+
+;; keep the storage reserve, send everything else to the seller (never fails)
+() rest_to_seller() impure inline {
+  raw_reserve(MIN_STORAGE, 2);
+  send_ton(seller, 0, 128 + 2);
+}
+
+;; --- preconditions (pure checks, run BEFORE accept_message for externals) ----
+() check_release(int bal) impure inline {
+  throw_unless(err::not_open, st == status::open);
+  if (kind == kind::ton) {
+    throw_unless(err::insufficient, bal >= buyer_amount + fee_amount + MIN_STORAGE + EXT_GAS);
+  } else {
+    throw_unless(err::not_configured, jw_ready?());
+    throw_unless(err::insufficient, bal >= JETTON_GAS * 2 + MIN_STORAGE + EXT_GAS);
+  }
+}
+
+() check_refund(int bal) impure inline {
+  throw_unless(err::not_open, st == status::open);
+  if (kind == kind::jetton) {
+    if (jw_ready?()) { throw_unless(err::insufficient, bal >= JETTON_GAS + MIN_STORAGE + EXT_GAS); }
+  }
+}
+
+;; --- effects -----------------------------------------------------------------
+() do_release(int query_id) impure inline {
+  if (kind == kind::ton) {
+    send_ton(buyer, buyer_amount, 1);
+    if (fee_amount > 0) { send_ton(fee_wallet, fee_amount, 1); }
+  } else {
+    send_jetton(buyer, buyer_amount, query_id);
+    if (fee_amount > 0) { send_jetton(fee_wallet, fee_amount, query_id + 1); }
+  }
+  st = status::released;
+  save_data();
+  rest_to_seller();
+}
+
+;; jetton_amount = 0 -> the full expected deposit (buyer_amount + fee_amount)
+() do_refund(int query_id, int jetton_amount) impure inline {
+  if ((kind == kind::jetton) & jw_ready?()) {
+    int amt = jetton_amount > 0 ? jetton_amount : buyer_amount + fee_amount;
+    send_jetton(seller, amt, query_id);
+  }
+  st = status::refunded;
+  save_data();
+  rest_to_seller();
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+  slice cs = in_msg_full.begin_parse();
+  int flags = cs~load_uint(4);
+  if (flags & 1) { return (); }                       ;; ignore bounced messages
+  slice sender = cs~load_msg_addr();
+  if (in_msg_body.slice_empty?()) { return (); }      ;; plain TON top-up (deposit)
+  int op = in_msg_body~load_uint(32);
+  if (op == 0) { return (); }                         ;; text comment top-up
+  if ((op == op::transfer_notification) | (op == op::excesses)) { return (); }
+  int query_id = in_msg_body~load_uint(64);
+  load_data();
+
+  if (op == op::setup) {                              ;; bind the arbiter-attested jetton wallet
+    throw_unless(err::bad_kind, kind == kind::jetton);
+    throw_if(err::already_setup, jw_ready?());
+    slice wallet = in_msg_body~load_msg_addr();
+    slice signature = in_msg_body~load_bits(512);
+    int hash = cell_hash(begin_cell().store_uint(tag::setup, 32).store_slice(my_address()).store_slice(wallet).end_cell());
+    throw_unless(err::bad_signature, check_signature(hash, signature, arbiter_key));
+    throw_unless(err::not_configured, slice_bits(wallet) > 2);
+    jw = wallet;
+    save_data();
+    return ();
+  }
+  if (op == op::release) {
+    throw_unless(err::wrong_sender, equal_slice_bits(sender, seller));
+    check_release(my_balance);
+    do_release(query_id);
+    return ();
+  }
+  if (op == op::cancel) {
+    throw_unless(err::wrong_sender, equal_slice_bits(sender, buyer));
+    check_refund(my_balance);
+    do_refund(query_id, 0);
+    return ();
+  }
+  if (op == op::reclaim) {
+    throw_unless(err::wrong_sender, equal_slice_bits(sender, seller));
+    throw_unless(err::too_early, now() >= deadline);
+    check_refund(my_balance);
+    do_refund(query_id, 0);
+    return ();
+  }
+  if (op == op::sweep) {
+    throw_unless(err::wrong_sender, equal_slice_bits(sender, seller));
+    throw_if(err::still_open, st == status::open);
+    int amount = in_msg_body~load_coins();
+    if (amount > 0) {                                 ;; leftover jettons belong to the seller only after a refund
+      throw_unless(err::bad_kind, (kind == kind::jetton) & (st == status::refunded));
+      throw_unless(err::not_configured, jw_ready?());
+      send_jetton(seller, amount, query_id);
+    }
+    rest_to_seller();
+    return ();
+  }
+  throw(err::unknown_op);
+}
+
+() recv_external(slice in_msg) impure {
+  slice signature = in_msg~load_bits(512);
+  slice payload = in_msg;
+  int msg_seqno = in_msg~load_uint(32);
+  int valid_until = in_msg~load_uint(32);
+  int action = in_msg~load_uint(8);
+  throw_if(err::expired, valid_until <= now());
+  load_data();
+  throw_unless(err::bad_seqno, msg_seqno == seqno);
+  int hash = cell_hash(begin_cell().store_uint(tag::decision, 32).store_slice(my_address()).store_slice(payload).end_cell());
+  throw_unless(err::bad_signature, check_signature(hash, signature, arbiter_key));
+  int bal = balance();
+  int amount = 0;
+  if (action == action::release) {
+    check_release(bal);
+  } elseif (action == action::refund) {
+    amount = in_msg~load_coins();
+    check_refund(bal);
+  } elseif ((action == action::recover_buyer) | (action == action::recover_seller)) {
+    throw_if(err::still_open, st == status::open);
+    amount = in_msg~load_coins();
+    if (kind == kind::jetton) {
+      throw_unless(err::not_configured, jw_ready?());
+      throw_unless(err::insufficient, bal >= JETTON_GAS + MIN_STORAGE + EXT_GAS);
+    } else {
+      throw_unless(err::insufficient, bal >= amount + MIN_STORAGE + EXT_GAS);
+    }
+  } else {
+    throw(err::bad_action);
+  }
+  accept_message();
+  seqno += 1;
+  int query_id = now();
+  if (action == action::release) { do_release(query_id); return (); }
+  if (action == action::refund) { do_refund(query_id, amount); return (); }
+  slice to = action == action::recover_buyer ? buyer : seller;
+  if (kind == kind::jetton) { send_jetton(to, amount, query_id); }
+  else { send_ton(to, amount, 1); }
+  save_data();
+}
+
+;; ----------------------------------------------------------------- get-methods
+(int, int, int, int, int, int, int, int, slice, slice, slice, slice) get_escrow_data() method_id {
+  load_data();
+  slice ps = params.begin_parse();
+  int deal_id = ps~load_uint(64);
+  return (st, seqno, deal_id, kind, deadline, arbiter_key, buyer_amount, fee_amount, seller, buyer, fee_wallet, jw);
+}
+
+int get_status() method_id {
+  return get_data().begin_parse().preload_uint(8);
+}
+
+int get_seqno() method_id {
+  slice ds = get_data().begin_parse();
+  ds~load_uint(8);
+  return ds.preload_uint(32);
+}
