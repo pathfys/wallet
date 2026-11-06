@@ -1,0 +1,23 @@
+[Unit]
+Description=PL Wallet — Telegram bot + REST API
+After=network.target
+
+[Service]
+Type=simple
+User=plwallet
+Group=plwallet
+WorkingDirectory=/opt/plwallet
+EnvironmentFile=/etc/plwallet.env
+ExecStart=/opt/plwallet/.venv/bin/python -m bot.main
+Restart=on-failure
+RestartSec=5s
+# Writable only for its own DB + logs.
+ReadWritePaths=/opt/plwallet /var/log/plwallet
+ProtectSystem=strict
+ProtectHome=true
+NoNewPrivileges=true
+PrivateTmp=true
+# Can bind to the aiohttp port (not <1024) without CAP_NET_BIND_SERVICE.
+
+[Install]
+WantedBy=multi-user.target

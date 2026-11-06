@@ -1,0 +1,121 @@
+PL Wallet — DNS / NS setup for pl-wallet.com
+============================================
+
+The mini-app is served from pl-wallet.com; the REST+admin API from
+api.pl-wallet.com. Both point at the same server (python bot.main
+behind nginx). If you want to split the API onto a separate box
+later, change only the api A-record.
+
+Replace YOUR.SERVER.IP everywhere below with the public IPv4 of
+your server, and YOUR:SERVER::IP with its IPv6 (drop the AAAA lines
+if you don't have v6).
+
+
+1. Delegate the domain to your DNS provider (Cloudflare, Route53,
+   Namecheap's built-in, …) by setting NS records at the registrar:
+
+      pl-wallet.com    NS    ns1.yourdns.com
+      pl-wallet.com    NS    ns2.yourdns.com
+
+   For Cloudflare the registrar NS pair looks like
+   `*.ns.cloudflare.com` — two of those.
+
+
+2. At the DNS provider, create these records:
+
+   # Root — mini-app
+   @           A        300    YOUR.SERVER.IP
+   @           AAAA     300    YOUR:SERVER::IP
+
+   # www → root (so www.pl-wallet.com also loads the app)
+   www         CNAME    300    pl-wallet.com.
+
+   # API host
+   api         A        300    YOUR.SERVER.IP
+   api         AAAA     300    YOUR:SERVER::IP
+
+   # Email (optional — if you want support@pl-wallet.com)
+   @           MX       3600   10 mx.yandex.net.          # or your provider
+   @           TXT      3600   "v=spf1 include:_spf.yandex.net ~all"
+   _dmarc      TXT      3600   "v=DMARC1; p=quarantine; rua=mailto:dmarc@pl-wallet.com"
+
+   # TLS certificate issuance pinning (CAA) — only Let's Encrypt
+   # is allowed to issue. Drop or edit if you use another CA.
+   @           CAA      3600   0 issue "letsencrypt.org"
+   @           CAA      3600   0 issuewild ";"
+
+   # Optional — a short TXT that TonConnect uses for domain binding.
+   # The value is the SHA-256 of your TonConnect manifest URL. Fill
+   # in only if your wallet integration flow says to.
+   @           TXT      3600   "ton-site-verification=<hex>"
+
+
+3. Propagation. Wait for the TTL to pass (15–30 minutes is usually
+   enough). Verify with:
+
+   $ dig +short pl-wallet.com     A
+   $ dig +short api.pl-wallet.com A
+   $ dig +short pl-wallet.com     NS
+
+
+4. Server setup:
+
+   # 4a. Create the service user
+   sudo useradd -r -s /usr/sbin/nologin -d /opt/plwallet -m plwallet
+
+   # 4b. Deploy the code
+   sudo mkdir -p /opt/plwallet
+   sudo chown plwallet:plwallet /opt/plwallet
+   sudo -u plwallet git clone https://github.com/pathfys/wallet.git /opt/plwallet
+   sudo -u plwallet python3 -m venv /opt/plwallet/.venv
+   sudo -u plwallet /opt/plwallet/.venv/bin/pip install -r /opt/plwallet/bot/requirements.txt
+
+   # 4c. Static for the mini-app
+   sudo mkdir -p /var/www/pl-wallet
+   sudo cp /opt/plwallet/pl.html /var/www/pl-wallet/
+   sudo cp /opt/plwallet/tonconnect-manifest.json /var/www/pl-wallet/
+   # Put icon-192.png, terms, privacy here too.
+
+   # 4d. Env file
+   sudo cp /opt/plwallet/deploy/plwallet.env.example /etc/plwallet.env
+   sudo chmod 600 /etc/plwallet.env
+   # edit /etc/plwallet.env and fill in BOT_TOKEN + ADMIN_ID
+
+   # 4e. systemd
+   sudo cp /opt/plwallet/deploy/plwallet.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now plwallet.service
+   sudo journalctl -u plwallet.service -f
+
+   # 4f. nginx + TLS
+   sudo apt install nginx certbot python3-certbot-nginx
+   sudo cp /opt/plwallet/deploy/nginx.conf /etc/nginx/sites-available/pl-wallet
+   sudo ln -s /etc/nginx/sites-available/pl-wallet /etc/nginx/sites-enabled/
+   sudo certbot --nginx -d pl-wallet.com -d www.pl-wallet.com -d api.pl-wallet.com
+   sudo nginx -t && sudo systemctl reload nginx
+
+
+5. BotFather settings (tap @BotFather):
+
+   /setdomain       → pl-wallet.com
+   /setmenubutton   → open https://pl-wallet.com/pl.html
+   /newapp          → bind the WebApp URL to your bot (same URL)
+
+
+6. @BotFather → /setinline → allow inline (optional, needed only if
+   you want the Share button to fall back to switchInlineQuery).
+
+
+7. Smoke test from your laptop after DNS is live:
+
+   curl -i https://pl-wallet.com/tonconnect-manifest.json
+   curl -i https://api.pl-wallet.com/api/status?user_id=1
+   # expect 200 {"blocked": false, "user_id": 1}
+
+
+Frontend meta tags to double-check after DNS:
+   <meta name="api-base"   content="https://api.pl-wallet.com">
+   <meta name="admin-api"  content="https://api.pl-wallet.com">
+   <meta name="admin-id"   content="<your Telegram user id>">
+
+That's it. Open https://t.me/<yourbot> and type /start.

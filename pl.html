@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="api-base" content="https://blnance.click">
+<meta name="api-base" content="https://api.pl-wallet.com">
 <!-- Admin API served by bot.py (aiohttp). Change to your deployment's URL.
      The CSP below MUST include this host in connect-src for calls to work. -->
 <meta name="admin-api" content="https://api.pl-wallet.com">
@@ -13,7 +13,7 @@
 <!-- CSP is split by directive: script/style stay inline+accent CDNs, while
      connect-src adds TonConnect wallet bridges (Tonkeeper, MyTonWallet,
      bridge.tonapi.io) so the TonConnect UI can talk to signers. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://telegram.org https://fonts.googleapis.com https://fonts.gstatic.com https://api.coingecko.com https://blnance.click https://api.pl-wallet.com https://pl-wallet.com https://cdn.jsdelivr.net https://unpkg.com; script-src 'self' 'unsafe-inline' https://telegram.org https://cdn.jsdelivr.net https://unpkg.com; connect-src 'self' https://api.coingecko.com https://blnance.click https://api.pl-wallet.com https://pl-wallet.com https://bridge.tonapi.io https://walletbot.me https://tonapi.io wss://bridge.tonapi.io wss://walletbot.me; img-src 'self' data: blob: https: https://raw.githubusercontent.com; font-src https://fonts.gstatic.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://telegram.org https://fonts.googleapis.com https://fonts.gstatic.com https://api.coingecko.com https://api.pl-wallet.com https://pl-wallet.com https://cdn.jsdelivr.net https://unpkg.com; script-src 'self' 'unsafe-inline' https://telegram.org https://cdn.jsdelivr.net https://unpkg.com; connect-src 'self' https://api.coingecko.com https://api.pl-wallet.com https://pl-wallet.com https://bridge.tonapi.io https://walletbot.me https://tonapi.io wss://bridge.tonapi.io wss://walletbot.me; img-src 'self' data: blob: https: https://raw.githubusercontent.com; font-src https://fonts.gstatic.com">
 <!-- Belt-and-braces headers: block clickjacking, deny referrer leak. -->
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
