@@ -67,11 +67,14 @@ log = logging.getLogger("pl")
 
 BOT_TOKEN      = os.environ.get("BOT_TOKEN", "")
 ADMIN_ID       = int(os.environ.get("ADMIN_ID", "0") or "0")
-WEBAPP_URL     = os.environ.get("WEBAPP_URL", "https://pl-wallet.com/pl.html")
+WEBAPP_URL     = os.environ.get("WEBAPP_URL", "https://pl-wallet.com/")
 BOT_HTTP_HOST  = os.environ.get("BOT_HTTP_HOST", "0.0.0.0")
 BOT_HTTP_PORT  = int(os.environ.get("BOT_HTTP_PORT", "8080"))
 DB_PATH        = Path(os.environ.get("DB_PATH", "data.db"))
 INIT_MAX_AGE   = int(os.environ.get("INIT_MAX_AGE", "300"))
+# Telegram channel where deal/admin/security events are posted. The bot
+# must be an admin of this channel with "Post Messages" permission.
+LOG_CHANNEL_ID = int(os.environ.get("LOG_CHANNEL_ID", "-1003739089115") or "0")
 ALLOWED_ORIGINS = {
     o.strip() for o in os.environ.get(
         "CORS_ORIGINS", "https://pl-wallet.com,https://www.pl-wallet.com,null"
@@ -205,6 +208,43 @@ def audit_log(
             )
     except Exception as exc:  # audit must never break the main flow
         log.warning("audit_log failed: %s", exc)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Telegram channel log sink
+#
+# One Bot instance is created in main() and stashed in _bot_ref; every
+# audit-worthy event async-posts a formatted HTML message to LOG_CHANNEL_ID.
+# Non-blocking: send failures land in local logs and never propagate.
+# ──────────────────────────────────────────────────────────────────────────
+
+_bot_ref: Optional["Bot"] = None
+
+
+def _esc_html(s: Any) -> str:
+    return (str(s if s is not None else "")
+            .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+async def tg_log(text: str) -> None:
+    if not LOG_CHANNEL_ID or _bot_ref is None:
+        return
+    try:
+        await _bot_ref.send_message(
+            LOG_CHANNEL_ID, text, parse_mode="HTML",
+            disable_web_page_preview=True,
+        )
+    except Exception as exc:
+        log.warning("tg_log channel=%s failed: %s", LOG_CHANNEL_ID, exc)
+
+
+def tg_log_bg(text: str) -> None:
+    """Fire-and-forget: schedule tg_log on the running event loop. Safe to
+    call from sync contexts (e.g. inside asyncio.to_thread callbacks)."""
+    try:
+        asyncio.get_running_loop().create_task(tg_log(text))
+    except RuntimeError:
+        pass  # no running loop — startup phase, drop
 
 VALID_STATUSES = {
     "awaiting_acceptance", "awaiting_payment", "paid",
@@ -699,6 +739,15 @@ async def route_deal_create_direct(request: web.Request) -> web.Response:
     if len(links) > MAX_LINKS or any(not isinstance(l, str) or len(l) > MAX_LINK_LEN for l in links):
         return web.json_response({"detail": "bad_links"}, status=400)
     deal = await aio(create_direct_deal, u["id"], role, currency, amount, links)
+    # Channel log — include the initiator's handle, role, deal number.
+    initiator = deal.get("initiator") or {}
+    handle = ("@" + initiator["username"]) if initiator.get("username") else _esc_html(initiator.get("first_name") or "user")
+    await tg_log(
+        f"🆕 <b>New deal #{deal['id']}</b>\n"
+        f"Initiator: {handle} (UID <code>{initiator.get('uid', 0)}</code>)\n"
+        f"Role: <b>{role}</b> · Currency: <b>{_esc_html(currency)}</b> · Amount: <b>{amount}</b>\n"
+        f"Links: {len([l for l in links if l and l.strip()])}"
+    )
     return web.json_response(deal, status=201)
 
 
@@ -771,6 +820,12 @@ async def route_deal_action(request: web.Request) -> web.Response:
     await aio(audit_log, kind=f"deal.{action}", user_id=u["id"], deal_id=did,
               ip=_client_ip(request),
               meta={"from": prev, "to": nxt})
+    actor_handle = ("@" + u["username"]) if u.get("username") else _esc_html(u.get("first_name") or "user")
+    icon = {"accept":"✅","pay":"💸","confirm-payment":"🔵","ship":"📦","confirm":"🎉"}.get(action, "➡️")
+    await tg_log(
+        f"{icon} <b>Deal #{did}</b> · {prev} → <b>{nxt}</b>\n"
+        f"By: {actor_handle} (UID <code>{u.get('uid', 0)}</code>)"
+    )
     if nxt == "completed":
         if deal.get("buyer_id"):  await aio(bump_user_stats, deal["buyer_id"],  successful=1)
         if deal.get("seller_id"): await aio(bump_user_stats, deal["seller_id"], successful=1)
@@ -798,6 +853,11 @@ async def route_deal_cancel(request: web.Request) -> web.Response:
     log.info("deal.cancel id=%s by user=%s prev=%s", did, u["id"], deal["status"])
     await aio(audit_log, kind="deal.cancel", user_id=u["id"], deal_id=did,
               ip=_client_ip(request), meta={"prev": deal["status"]})
+    actor_handle = ("@" + u["username"]) if u.get("username") else _esc_html(u.get("first_name") or "user")
+    await tg_log(
+        f"❌ <b>Deal #{did}</b> cancelled by {actor_handle}\n"
+        f"Prev state: <code>{deal['status']}</code>"
+    )
     if deal.get("buyer_id"):  await aio(bump_user_stats, deal["buyer_id"],  cancelled=1)
     if deal.get("seller_id"): await aio(bump_user_stats, deal["seller_id"], cancelled=1)
     return web.json_response(await aio(deal_with_parties, did))
@@ -868,6 +928,7 @@ async def route_admin_block(request: web.Request) -> web.Response:
     if uid == ADMIN_ID:
         return web.json_response({"detail": "cannot_block_admin"}, status=400)
     await aio(block, uid, "admin")
+    await tg_log(f"🚫 <b>Admin blocked user</b> <code>{uid}</code>")
     return web.json_response({"ok": True, "blocked": uid})
 
 
@@ -881,6 +942,7 @@ async def route_admin_unblock(request: web.Request) -> web.Response:
     except (ValueError, KeyError, TypeError, json.JSONDecodeError):
         return web.json_response({"detail": "bad_request"}, status=400)
     await aio(unblock, uid)
+    await tg_log(f"✅ <b>Admin unblocked user</b> <code>{uid}</code>")
     return web.json_response({"ok": True, "unblocked": uid})
 
 
@@ -920,6 +982,15 @@ async def route_audit(request: web.Request) -> web.Response:
     log.info("client.audit kind=%s tg=%s meta=%s", kind, init.id if init else None, meta)
     await aio(audit_log, kind=f"client.{kind}", user_id=init.id if init else None,
               ip=_client_ip(request), meta=meta)
+    # Security-relevant client events go to the log channel immediately so
+    # the admin can spot probes in real time.
+    if kind in ("client_ddos_budget", "web_blocked_hit", "replay_spike"):
+        await tg_log(
+            f"⚠️ <b>Client security event</b>: <code>{_esc_html(kind)}</code>\n"
+            f"User: <code>{init.id if init else 'anon'}</code>\n"
+            f"IP: <code>{_esc_html(_client_ip(request))}</code>\n"
+            f"Meta: <code>{_esc_html(json.dumps(meta or {}, separators=(',',':'))[:400])}</code>"
+        )
     return web.json_response({"ok": True})
 
 
@@ -1184,6 +1255,7 @@ def register_handlers(dp: Dispatcher) -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 
 async def main() -> None:
+    global _bot_ref
     if not BOT_TOKEN:
         raise SystemExit("BOT_TOKEN is not set.")
     db_init()
@@ -1193,6 +1265,14 @@ async def main() -> None:
     register_handlers(dp)
 
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    _bot_ref = bot  # make the bot available to tg_log() from anywhere
+    if LOG_CHANNEL_ID:
+        log.info("Channel logging enabled → %s", LOG_CHANNEL_ID)
+        try:
+            await bot.send_message(LOG_CHANNEL_ID,
+                "🟢 <b>PL Wallet backend started</b>", parse_mode="HTML")
+        except Exception as exc:
+            log.warning("startup channel ping failed: %s", exc)
 
     app = make_web_app()
     runner = web.AppRunner(app)
