@@ -164,7 +164,47 @@ CREATE TABLE IF NOT EXISTS blocklist (
   blocked_at INTEGER NOT NULL,
   reason TEXT
 );
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  user_id INTEGER,
+  deal_id INTEGER,
+  ip TEXT,
+  meta TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_ts    ON audit_log(ts DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_kind  ON audit_log(kind, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_user  ON audit_log(user_id, ts DESC);
 """
+
+
+def audit_log(
+    *,
+    kind: str,
+    user_id: int | None = None,
+    deal_id: int | None = None,
+    ip: str | None = None,
+    meta: dict | None = None,
+) -> None:
+    """
+    Append a security-relevant event. Non-blocking by design (sqlite is
+    fast), and writes stay forward-compatible: `kind` is a dotted string
+    (deal.create, deal.transition, security.ddos_budget, …) and `meta`
+    is free-form JSON for anything a particular event needs.
+    """
+    try:
+        with _conn() as c:
+            c.execute(
+                "INSERT INTO audit_log (ts, kind, user_id, deal_id, ip, meta) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (int(now_s()), kind, user_id, deal_id, ip,
+                 json.dumps(meta, separators=(",", ":")) if meta else None),
+            )
+    except Exception as exc:  # audit must never break the main flow
+        log.warning("audit_log failed: %s", exc)
 
 VALID_STATUSES = {
     "awaiting_acceptance", "awaiting_payment", "paid",
@@ -312,7 +352,17 @@ def create_direct_deal(
             "VALUES (?, ?, ?, ?, ?, ?, 'awaiting_acceptance', ?, ?)",
             (initiator_id, buyer, seller, float(amount), currency, links_blob, now, now),
         )
-        return deal_with_parties(cur.lastrowid)  # type: ignore[return-value]
+        deal_id = cur.lastrowid
+    # Audit — one log line per deal creation, parseable by any log pipeline.
+    log.info(
+        "deal.create id=%s initiator=%s role=%s currency=%s amount=%s links=%d",
+        deal_id, initiator_id, role, currency, amount,
+        len([l for l in links if l and l.strip()]),
+    )
+    audit_log(kind="deal.create", user_id=initiator_id, deal_id=deal_id,
+              meta={"role": role, "currency": currency, "amount": amount,
+                    "links": len(links)})
+    return deal_with_parties(deal_id)  # type: ignore[return-value]
 
 
 def assign_counterparty(deal_id: int, user_id: int) -> Optional[dict[str, Any]]:
@@ -717,6 +767,10 @@ async def route_deal_action(request: web.Request) -> web.Response:
     if not allowed(deal, u["id"]):
         return web.json_response({"detail": "forbidden"}, status=403)
     await aio(update_deal_status, did, nxt)
+    log.info("deal.transition id=%s %s→%s by user=%s", did, prev, nxt, u["id"])
+    await aio(audit_log, kind=f"deal.{action}", user_id=u["id"], deal_id=did,
+              ip=_client_ip(request),
+              meta={"from": prev, "to": nxt})
     if nxt == "completed":
         if deal.get("buyer_id"):  await aio(bump_user_stats, deal["buyer_id"],  successful=1)
         if deal.get("seller_id"): await aio(bump_user_stats, deal["seller_id"], successful=1)
@@ -741,6 +795,9 @@ async def route_deal_cancel(request: web.Request) -> web.Response:
     if deal["status"] in {"payment_confirmed", "goods_sent", "completed", "cancelled"}:
         return web.json_response({"detail": "bad_state"}, status=409)
     await aio(update_deal_status, did, "cancelled")
+    log.info("deal.cancel id=%s by user=%s prev=%s", did, u["id"], deal["status"])
+    await aio(audit_log, kind="deal.cancel", user_id=u["id"], deal_id=did,
+              ip=_client_ip(request), meta={"prev": deal["status"]})
     if deal.get("buyer_id"):  await aio(bump_user_stats, deal["buyer_id"],  cancelled=1)
     if deal.get("seller_id"): await aio(bump_user_stats, deal["seller_id"], cancelled=1)
     return web.json_response(await aio(deal_with_parties, did))
@@ -843,6 +900,29 @@ async def route_status(request: web.Request) -> web.Response:
     return web.json_response({"blocked": await aio(is_blocked, uid), "user_id": uid})
 
 
+@rate_limit(_rl_write)
+async def route_audit(request: web.Request) -> web.Response:
+    """
+    Client-side security event sink. The mini-app posts here when its own
+    DDoS guard trips (e.g. 25+ actions in 5 s) or any other suspicious
+    state is observed. Requires valid initData so we can attribute the
+    event to the Telegram user. Signed-but-blocked users are still
+    allowed in — if they were already blocked and are still probing us,
+    we want that noise logged.
+    """
+    init = init_from_request(request)
+    try:
+        body = await request.json()
+        kind = str(body.get("kind", "client.unknown"))[:64]
+        meta = body.get("meta") if isinstance(body.get("meta"), dict) else None
+    except (ValueError, json.JSONDecodeError):
+        return web.json_response({"detail": "bad_request"}, status=400)
+    log.info("client.audit kind=%s tg=%s meta=%s", kind, init.id if init else None, meta)
+    await aio(audit_log, kind=f"client.{kind}", user_id=init.id if init else None,
+              ip=_client_ip(request), meta=meta)
+    return web.json_response({"ok": True})
+
+
 @rate_limit(_rl_read)
 async def route_verify(request: web.Request) -> web.Response:
     try:
@@ -879,6 +959,7 @@ def make_web_app() -> web.Application:
     r.add_post  ("/api/deals/{id}/messages", route_messages_post)
     r.add_get   ("/api/status",             route_status)
     r.add_post  ("/api/verify",             route_verify)
+    r.add_post  ("/api/audit",              route_audit)
     r.add_get   ("/api/admin/list",         route_admin_list)
     r.add_post  ("/api/admin/block",        route_admin_block)
     r.add_post  ("/api/admin/unblock",      route_admin_unblock)

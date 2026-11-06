@@ -5143,14 +5143,50 @@ function allowAction(name, cooldownMs) {
 // QR open (500ms), save wallet (3s). Each wrap keeps the original function
 // available at its __orig slot in case we need to bypass for testing.
 (function wrapGuards() {
+  // Each entry is [fn-name, cooldown-ms]. Pick the cooldown from how
+  // destructive/expensive the action is: network+state changes get a few
+  // seconds, read-only overlays get 0.3–0.5s.
   var guards = [
-    ['confirmWithdraw', 5000],
-    ['startQRScan',     1000],
-    ['shareReceiveLink',2000],
-    ['openReceiveQR',    500],
-    ['saveWallet',      3000],
-    ['saveFiatCard',    3000],
-    ['openWithdrawCard', 500]
+    // ── Withdraw flow ──
+    ['confirmWithdraw',    5000],   // Face ID + API submit
+    ['openWithdrawCard',    500],
+    // ── Receive / QR ──
+    ['startQRScan',         1000],
+    ['shareReceiveLink',    2000],
+    ['openReceiveQR',        500],
+    ['copyReceiveUID',       800],  // clipboard spam
+    // ── Wallet binding ──
+    ['saveWallet',          3000],
+    ['saveFiatCard',        3000],
+    ['editWallet',          2000],
+    ['editFiatCard',        2000],
+    // ── Deal creation / lifecycle — CRITICAL, no spam ──
+    ['coSubmit',           10000],  // actual deal creation
+    ['coShowStep',           250],  // wizard step jumps
+    ['openDeal',             400],
+    ['dealEscrowAction',    3000],  // accept / pay / confirm-payment / ship / confirm
+    ['dealCancel',          3000],
+    ['escrowConfirmReceived', 3000],
+    ['escrowCompleteCelebrate', 3000],
+    ['startTransferCheck', 20000],  // 15s process + 5s safety
+    ['openEscrowRelay',     2000],
+    // ── Chat ──
+    ['sendChatMsg',         1200],  // anti-flood, matches Telegram's own
+    // ── Receipt ──
+    ['sharePaymentReceipt', 2000],
+    ['openPaymentReceipt',   400],
+    // ── TonConnect ──
+    ['openTonConnect',      1500],
+    // ── Admin panel ──
+    ['adminBlock',          1500],
+    ['adminUnblock',        1500],
+    ['adminLoadList',       1000],
+    // ── Nav / overlays ──
+    ['showPage',             200],
+    ['openDWModal',          400],
+    ['openCoinPreview',      300],
+    ['flipProfileCard',      400],
+    ['copyUID',              800]
   ];
   guards.forEach(function(g) {
     var name = g[0], cd = g[1];
@@ -5163,6 +5199,42 @@ function allowAction(name, cooldownMs) {
     };
   });
 })();
+
+// ── Global DDoS budget ──────────────────────────────────────────────────
+// If the user (or a script pretending to be them) fires more than 25 UI
+// actions in a 5-second window, the whole app enters a 3-second cool-off:
+// every allowAction() call fails, which short-circuits every guarded
+// function. Catches rapid-fire tap attacks, bots driving the DOM, and
+// honest-to-god "stuck key" DDoS from a broken device.
+var _globalEvents = [];
+var _globalCoolUntil = 0;
+var _origAllow = allowAction;
+allowAction = function(name, cooldownMs) {
+  var now = Date.now();
+  if (_globalCoolUntil && now < _globalCoolUntil) {
+    try { showToast && showToast('error', name, (locale === 'ru' ? 'Слишком много действий, подождите' : 'Too many actions — slow down')); } catch(e){}
+    return false;
+  }
+  _globalEvents = _globalEvents.filter(function(t) { return now - t < 5000; });
+  _globalEvents.push(now);
+  if (_globalEvents.length > 25) {
+    _globalCoolUntil = now + 3000;
+    try {
+      var tg = window.Telegram && window.Telegram.WebApp;
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+    } catch(e){}
+    // Audit this to the backend so the admin can tell if someone is probing.
+    try {
+      if (ADMIN_API) securedFetch(ADMIN_API + '/api/audit', {
+        method: 'POST', headers: { 'Content-Type':'application/json',
+          'X-Telegram-Init-Data': (window.Telegram && Telegram.WebApp && Telegram.WebApp.initData) || '' },
+        body: JSON.stringify({ kind: 'client_ddos_budget', count: _globalEvents.length, window_ms: 5000 })
+      }).catch(function(){});
+    } catch(e){}
+    return false;
+  }
+  return _origAllow(name, cooldownMs);
+};
 
 // ── DDoS-aware fetch wrapper ────────────────────────────────────────────
 // All outbound calls go through this. It:
