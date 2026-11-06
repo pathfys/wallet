@@ -168,6 +168,28 @@ CREATE TABLE IF NOT EXISTS blocklist (
   reason TEXT
 );
 
+-- Secondary admins — granted via /ggz approval. The main admin is defined by
+-- the ADMIN_ID env var and is NOT stored here; no DB row can impersonate them.
+CREATE TABLE IF NOT EXISTS staff_admins (
+  user_id INTEGER PRIMARY KEY,         -- users.id
+  telegram_id INTEGER NOT NULL UNIQUE,
+  approved_at INTEGER NOT NULL,
+  approved_by INTEGER NOT NULL          -- telegram_id of the reviewer
+);
+
+CREATE TABLE IF NOT EXISTS admin_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  telegram_id INTEGER NOT NULL,
+  username TEXT,
+  first_name TEXT,
+  requested_at INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',   -- pending | approved | rejected
+  reviewed_at INTEGER,
+  reviewed_by INTEGER                        -- telegram_id of the reviewer
+);
+CREATE INDEX IF NOT EXISTS idx_adm_req_status ON admin_requests(status, id DESC);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts INTEGER NOT NULL,
@@ -497,6 +519,113 @@ def blocked_all() -> list[int]:
     return [r["user_id"] for r in rows]
 
 
+# ── Admin roles ──────────────────────────────────────────────────────────
+
+def is_staff_admin(telegram_id: int) -> bool:
+    """Secondary admin (granted via /ggz). Does NOT include the main admin."""
+    with _conn() as c:
+        return c.execute(
+            "SELECT 1 FROM staff_admins WHERE telegram_id = ?", (telegram_id,)
+        ).fetchone() is not None
+
+
+def grant_staff_admin(telegram_id: int, approved_by: int) -> bool:
+    u = user_by_tg(telegram_id)
+    if not u:
+        return False
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO staff_admins (user_id, telegram_id, approved_at, approved_by) "
+            "VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(user_id) DO UPDATE SET "
+            " approved_at = excluded.approved_at, approved_by = excluded.approved_by",
+            (u["id"], telegram_id, int(now_s()), approved_by),
+        )
+    return True
+
+
+def revoke_staff_admin(telegram_id: int) -> None:
+    with _conn() as c:
+        c.execute("DELETE FROM staff_admins WHERE telegram_id = ?", (telegram_id,))
+
+
+def staff_admins_all() -> list[dict[str, Any]]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT s.telegram_id, s.approved_at, u.uid, u.username, u.first_name "
+            "FROM staff_admins s LEFT JOIN users u ON u.id = s.user_id "
+            "ORDER BY s.approved_at DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def create_admin_request(telegram_id: int, username: str | None, first_name: str | None) -> Optional[dict[str, Any]]:
+    """Create a /ggz request. Returns None if a pending one already exists."""
+    u = user_by_tg(telegram_id)
+    if not u:
+        return None
+    with _conn() as c:
+        exists = c.execute(
+            "SELECT 1 FROM admin_requests WHERE telegram_id = ? AND status = 'pending'",
+            (telegram_id,),
+        ).fetchone()
+        if exists:
+            return None
+        cur = c.execute(
+            "INSERT INTO admin_requests (user_id, telegram_id, username, first_name, requested_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (u["id"], telegram_id, username, first_name, int(now_s())),
+        )
+        row = c.execute("SELECT * FROM admin_requests WHERE id = ?", (cur.lastrowid,)).fetchone()
+    return dict(row) if row else None
+
+
+def get_admin_request(req_id: int) -> Optional[dict[str, Any]]:
+    with _conn() as c:
+        row = c.execute("SELECT * FROM admin_requests WHERE id = ?", (req_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def resolve_admin_request(req_id: int, status: str, reviewer_tg_id: int) -> Optional[dict[str, Any]]:
+    """Set the request to approved/rejected. Returns the request row."""
+    if status not in ("approved", "rejected"):
+        return None
+    with _conn() as c:
+        row = c.execute("SELECT * FROM admin_requests WHERE id = ?", (req_id,)).fetchone()
+        if not row or row["status"] != "pending":
+            return dict(row) if row else None
+        c.execute(
+            "UPDATE admin_requests SET status = ?, reviewed_at = ?, reviewed_by = ? WHERE id = ?",
+            (status, int(now_s()), reviewer_tg_id, req_id),
+        )
+        row = c.execute("SELECT * FROM admin_requests WHERE id = ?", (req_id,)).fetchone()
+    return dict(row) if row else None
+
+
+# ── Balances ─────────────────────────────────────────────────────────────
+
+def add_balance(user_id: int, currency: str, amount: float) -> float:
+    """Credit (or debit, if negative) the user's balance. Returns new total."""
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO balances (user_id, currency, balance) VALUES (?, ?, ?) "
+            "ON CONFLICT(user_id, currency) DO UPDATE SET balance = balance + excluded.balance",
+            (user_id, currency, float(amount)),
+        )
+        row = c.execute(
+            "SELECT balance FROM balances WHERE user_id = ? AND currency = ?",
+            (user_id, currency),
+        ).fetchone()
+    return float(row["balance"]) if row else 0.0
+
+
+def all_user_telegram_ids() -> list[int]:
+    """Every /start'd user's telegram_id — for /broadcast."""
+    with _conn() as c:
+        rows = c.execute("SELECT telegram_id FROM users").fetchall()
+    return [r["telegram_id"] for r in rows]
+
+
 # Async wrappers — handlers call these so disk I/O doesn't block the loop.
 async def aio(fn: Callable, *args, **kwargs):
     return await asyncio.to_thread(fn, *args, **kwargs)
@@ -739,16 +868,47 @@ async def route_deal_create_direct(request: web.Request) -> web.Response:
     if len(links) > MAX_LINKS or any(not isinstance(l, str) or len(l) > MAX_LINK_LEN for l in links):
         return web.json_response({"detail": "bad_links"}, status=400)
     deal = await aio(create_direct_deal, u["id"], role, currency, amount, links)
-    # Channel log — include the initiator's handle, role, deal number.
     initiator = deal.get("initiator") or {}
-    handle = ("@" + initiator["username"]) if initiator.get("username") else _esc_html(initiator.get("first_name") or "user")
+    buyer    = deal.get("buyer")    or (initiator if role == "buyer"  else {})
+    seller   = deal.get("seller")   or (initiator if role == "seller" else {})
+    gift     = _gift_from_links([l for l in links if isinstance(l, str)])
     await tg_log(
-        f"🆕 <b>New deal #{deal['id']}</b>\n"
-        f"Initiator: {handle} (UID <code>{initiator.get('uid', 0)}</code>)\n"
-        f"Role: <b>{role}</b> · Currency: <b>{_esc_html(currency)}</b> · Amount: <b>{amount}</b>\n"
-        f"Links: {len([l for l in links if l and l.strip()])}"
+        f"🔷 <b>Новая сделка #{deal['id']}</b>\n\n"
+        f"Покупатель(uid): {_who_label(buyer)}\n"
+        f"Продавец(uid): {_who_label(seller)}\n\n"
+        f"🎁 Подарок: {_esc_html(gift)}\n"
+        f"💰 Сумма: <b>{amount} {_esc_html(currency)}</b>"
     )
     return web.json_response(deal, status=201)
+
+
+def _who_label(u: dict | None) -> str:
+    """'@username (12345678)' style line for log messages."""
+    if not u:
+        return "—"
+    uid = u.get("uid") or 0
+    if u.get("username"):
+        return f"@{_esc_html(u['username'])} (<code>{uid}</code>)"
+    if u.get("first_name"):
+        return f"{_esc_html(u['first_name'])} (<code>{uid}</code>)"
+    return f"UID <code>{uid}</code>"
+
+
+def _gift_from_links(links: list[str]) -> str:
+    """First URL's last path segment, else first link, else '—'."""
+    for raw in links:
+        s = raw.strip()
+        if not s:
+            continue
+        try:
+            from urllib.parse import urlparse, unquote
+            p = urlparse(s)
+            tail = (p.path or "").rstrip("/").split("/")
+            tail = next((t for t in reversed(tail) if t), "") or p.netloc
+            return unquote(tail)
+        except Exception:
+            return s[:40]
+    return "—"
 
 
 @rate_limit(_rl_read)
@@ -820,11 +980,24 @@ async def route_deal_action(request: web.Request) -> web.Response:
     await aio(audit_log, kind=f"deal.{action}", user_id=u["id"], deal_id=did,
               ip=_client_ip(request),
               meta={"from": prev, "to": nxt})
-    actor_handle = ("@" + u["username"]) if u.get("username") else _esc_html(u.get("first_name") or "user")
-    icon = {"accept":"✅","pay":"💸","confirm-payment":"🔵","ship":"📦","confirm":"🎉"}.get(action, "➡️")
+    # Russian log in the screenshot-style format with buyer/seller/gift/sum.
+    buyer_u  = deal.get("buyer")  or {}
+    seller_u = deal.get("seller") or {}
+    links_s  = [x for x in (deal.get("links","").split("\n") if deal.get("links") else []) if x.strip()]
+    gift     = _gift_from_links(links_s)
+    status_ru = {
+        "accept":          ("🤝", "Сделка принята"),
+        "pay":             ("💸", "Сделка оплачена"),
+        "confirm-payment": ("🔵", "Оплата подтверждена"),
+        "ship":            ("📦", "Подарок отправлен"),
+        "confirm":         ("🎉", "Сделка завершена"),
+    }[action]
     await tg_log(
-        f"{icon} <b>Deal #{did}</b> · {prev} → <b>{nxt}</b>\n"
-        f"By: {actor_handle} (UID <code>{u.get('uid', 0)}</code>)"
+        f"{status_ru[0]} <b>{status_ru[1]} #{did}</b>\n\n"
+        f"Покупатель: {_who_label(buyer_u)}\n"
+        f"Продавец: {_who_label(seller_u)}\n\n"
+        f"🎁 Подарок: {_esc_html(gift)}\n"
+        f"💰 Сумма: <b>{deal.get('fiat_amount', 0)} {_esc_html(deal.get('fiat_currency',''))}</b>"
     )
     if nxt == "completed":
         if deal.get("buyer_id"):  await aio(bump_user_stats, deal["buyer_id"],  successful=1)
@@ -855,8 +1028,9 @@ async def route_deal_cancel(request: web.Request) -> web.Response:
               ip=_client_ip(request), meta={"prev": deal["status"]})
     actor_handle = ("@" + u["username"]) if u.get("username") else _esc_html(u.get("first_name") or "user")
     await tg_log(
-        f"❌ <b>Deal #{did}</b> cancelled by {actor_handle}\n"
-        f"Prev state: <code>{deal['status']}</code>"
+        f"❌ <b>Сделка #{did} отменена</b>\n\n"
+        f"Инициатор отмены: {actor_handle}\n"
+        f"Предыдущее состояние: <code>{deal['status']}</code>"
     )
     if deal.get("buyer_id"):  await aio(bump_user_stats, deal["buyer_id"],  cancelled=1)
     if deal.get("seller_id"): await aio(bump_user_stats, deal["seller_id"], cancelled=1)
@@ -928,7 +1102,7 @@ async def route_admin_block(request: web.Request) -> web.Response:
     if uid == ADMIN_ID:
         return web.json_response({"detail": "cannot_block_admin"}, status=400)
     await aio(block, uid, "admin")
-    await tg_log(f"🚫 <b>Admin blocked user</b> <code>{uid}</code>")
+    await tg_log(f"🚫 <b>Админ заблокировал пользователя</b>\n\nTelegram ID: <code>{uid}</code>")
     return web.json_response({"ok": True, "blocked": uid})
 
 
@@ -942,7 +1116,7 @@ async def route_admin_unblock(request: web.Request) -> web.Response:
     except (ValueError, KeyError, TypeError, json.JSONDecodeError):
         return web.json_response({"detail": "bad_request"}, status=400)
     await aio(unblock, uid)
-    await tg_log(f"✅ <b>Admin unblocked user</b> <code>{uid}</code>")
+    await tg_log(f"✅ <b>Админ разблокировал пользователя</b>\n\nTelegram ID: <code>{uid}</code>")
     return web.json_response({"ok": True, "unblocked": uid})
 
 
@@ -986,10 +1160,11 @@ async def route_audit(request: web.Request) -> web.Response:
     # the admin can spot probes in real time.
     if kind in ("client_ddos_budget", "web_blocked_hit", "replay_spike"):
         await tg_log(
-            f"⚠️ <b>Client security event</b>: <code>{_esc_html(kind)}</code>\n"
-            f"User: <code>{init.id if init else 'anon'}</code>\n"
+            f"⚠️ <b>Клиентское событие безопасности</b>\n\n"
+            f"Тип: <code>{_esc_html(kind)}</code>\n"
+            f"Пользователь: <code>{init.id if init else 'не авторизован'}</code>\n"
             f"IP: <code>{_esc_html(_client_ip(request))}</code>\n"
-            f"Meta: <code>{_esc_html(json.dumps(meta or {}, separators=(',',':'))[:400])}</code>"
+            f"Детали: <code>{_esc_html(json.dumps(meta or {}, separators=(',',':'))[:400])}</code>"
         )
     return web.json_response({"ok": True})
 
@@ -1132,8 +1307,14 @@ def _esc(s: str) -> str:
     return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _is_admin(uid: int) -> bool:
+def _is_main_admin(uid: int) -> bool:
+    """The env-defined admin. Full power including /broadcast + approvals."""
     return ADMIN_ID != 0 and uid == ADMIN_ID
+
+
+def _is_admin(uid: int) -> bool:
+    """Either the main admin or anyone granted via /ggz approval."""
+    return _is_main_admin(uid) or is_staff_admin(uid)
 
 
 def register_handlers(dp: Dispatcher) -> None:
@@ -1177,14 +1358,26 @@ def register_handlers(dp: Dispatcher) -> None:
     async def admin_menu(message: Message) -> None:
         if not _is_admin(message.from_user.id):
             return
-        await message.answer(
-            "🛡️  <b>Админ-панель</b>\n\n"
+        is_main = _is_main_admin(message.from_user.id)
+        role = "👑 Главный админ" if is_main else "🛡 Админ"
+        body = (
+            f"🛡️ <b>Админ-панель</b> · {role}\n\n"
+            "<b>Общие команды:</b>\n"
             "• <code>/block &lt;telegram_id&gt;</code>\n"
             "• <code>/unblock &lt;telegram_id&gt;</code>\n"
             "• <code>/blocked</code>\n"
-            "• <code>/whoami</code>",
-            reply_markup=admin_keyboard(),
+            "• <code>/whoami</code>\n"
+            "• <code>/dealinfo &lt;ID&gt;</code>\n"
+            "• <code>/addbalance &lt;UID&gt; &lt;валюта&gt; &lt;сумма&gt;</code>\n"
+            "• <code>/admins</code>"
         )
+        if is_main:
+            body += (
+                "\n\n<b>Только главный админ:</b>\n"
+                "• <code>/broadcast &lt;текст&gt;</code> — рассылка всем\n"
+                "• <code>/revokeadmin &lt;telegram_id&gt;</code> — снять права"
+            )
+        await message.answer(body, reply_markup=admin_keyboard())
 
     @dp.message(Command("block"))
     async def block_cmd(message: Message) -> None:
@@ -1238,16 +1431,286 @@ def register_handlers(dp: Dispatcher) -> None:
         if action == "list":
             ids = await aio(blocked_all)
             text = ("📋 Пусто." if not ids else
-                    f"📋 Blocked: {len(ids)}\n\n" +
+                    f"📋 Заблокированных: {len(ids)}\n\n" +
                     "\n".join(f"<code>{x}</code>" for x in ids[:50]))
             await cb.message.answer(text)
         elif action == "help":
             await cb.message.answer(
-                "Admin panel is also available inside the mini-app: open "
-                "PlayerOK → Profile → the Admin section is visible only to "
-                "you. UID input + Block/Unblock buttons call the same API."
+                "Админ-панель также доступна в мини-приложении: открой "
+                "PlayerOK → в нижней навигации иконка «Admin» видна только тебе."
             )
         await cb.answer()
+
+    # ──────────────────────────────────────────────────────────────────────
+    # /ggz — заявка на admin-права
+    # ──────────────────────────────────────────────────────────────────────
+    @dp.message(Command("ggz"))
+    async def ggz_request(message: Message) -> None:
+        uid = message.from_user.id
+        if _is_admin(uid):
+            await message.answer("У вас уже есть админ-права.")
+            return
+        # Upsert так же, как в /start — на случай если ещё не стартовал.
+        await aio(upsert_user, uid, message.from_user.username, message.from_user.first_name)
+        req = await aio(create_admin_request, uid,
+                        message.from_user.username, message.from_user.first_name)
+        if not req:
+            await message.answer("⏳ У вас уже есть ожидающая заявка. Дождитесь решения главного админа.")
+            return
+        await message.answer(
+            "✅ Заявка отправлена главному администратору.\n\n"
+            "Дождитесь решения. Как только её одобрят — я пришлю список доступных команд."
+        )
+        # Отправляем заявку в лог-канал с кнопками.
+        req_user = await aio(user_by_tg, uid)
+        req_uid  = (req_user or {}).get("uid", 0)
+        handle   = ("@" + message.from_user.username) if message.from_user.username \
+                   else _esc_html(message.from_user.first_name or "user")
+        if LOG_CHANNEL_ID:
+            kb = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="✅ Принять",   callback_data=f"admreq:approve:{req['id']}", style="success"),
+                InlineKeyboardButton(text="❌ Отклонить", callback_data=f"admreq:reject:{req['id']}",  style="danger"),
+            ]])
+            try:
+                await _bot_ref.send_message(
+                    LOG_CHANNEL_ID,
+                    f"🛡 <b>Заявка на админ-права</b>\n\n"
+                    f"Пользователь: {handle}\n"
+                    f"UID: <code>{req_uid}</code>\n"
+                    f"Telegram ID: <code>{uid}</code>\n"
+                    f"Заявка №<code>{req['id']}</code>",
+                    parse_mode="HTML",
+                    reply_markup=kb,
+                )
+            except Exception as exc:
+                log.warning("admin_request channel post failed: %s", exc)
+
+    # Принять / отклонить через inline-кнопки — только главный админ.
+    @dp.callback_query(F.data.startswith("admreq:"))
+    async def admreq_cb(cb: CallbackQuery) -> None:
+        if not _is_main_admin(cb.from_user.id):
+            await cb.answer("Только главный админ может решать заявки.", show_alert=True)
+            return
+        parts = (cb.data or "").split(":")
+        if len(parts) != 3:
+            await cb.answer(); return
+        action, req_id_s = parts[1], parts[2]
+        try:
+            req_id = int(req_id_s)
+        except ValueError:
+            await cb.answer(); return
+        if action not in ("approve", "reject"):
+            await cb.answer(); return
+        status = "approved" if action == "approve" else "rejected"
+        row = await aio(resolve_admin_request, req_id, status, cb.from_user.id)
+        if not row:
+            await cb.answer("Заявка не найдена.", show_alert=True); return
+        if row["status"] != status:
+            await cb.answer("Заявка уже обработана.", show_alert=True)
+            return
+
+        target_tg = row["telegram_id"]
+        if status == "approved":
+            await aio(grant_staff_admin, target_tg, cb.from_user.id)
+            # Уведомить пользователя в личку с описанием команд.
+            try:
+                await _bot_ref.send_message(
+                    target_tg,
+                    "🎉 <b>Ваша заявка одобрена — теперь вы администратор.</b>\n\n"
+                    + ADMIN_COMMANDS_HELP_RU,
+                    parse_mode="HTML",
+                )
+            except Exception as exc:
+                log.warning("notify approved user failed: %s", exc)
+            await cb.message.edit_text(
+                cb.message.html_text + f"\n\n✅ <b>Одобрено</b> главным админом",
+                parse_mode="HTML",
+            )
+        else:
+            try:
+                await _bot_ref.send_message(
+                    target_tg,
+                    "❌ Ваша заявка на админ-права отклонена."
+                )
+            except Exception as exc:
+                log.warning("notify rejected user failed: %s", exc)
+            await cb.message.edit_text(
+                cb.message.html_text + f"\n\n❌ <b>Отклонено</b> главным админом",
+                parse_mode="HTML",
+            )
+        await cb.answer("Готово")
+
+    # ──────────────────────────────────────────────────────────────────────
+    # /broadcast <текст> — только главный админ
+    # ──────────────────────────────────────────────────────────────────────
+    @dp.message(Command("broadcast"))
+    async def broadcast_cmd(message: Message) -> None:
+        if not _is_main_admin(message.from_user.id):
+            await message.answer(
+                "Доступно только главному админу. Второстепенные админы (/ggz) "
+                "эту команду использовать не могут."
+            ); return
+        text = (message.text or "").partition(" ")[2].strip()
+        if not text:
+            await message.answer("Использование: <code>/broadcast &lt;текст сообщения&gt;</code>")
+            return
+        targets = await aio(all_user_telegram_ids)
+        await message.answer(f"📢 Рассылаю {len(targets)} пользователям…")
+        sent = failed = 0
+        for tid in targets:
+            try:
+                await _bot_ref.send_message(tid, text, parse_mode="HTML",
+                                            disable_web_page_preview=True)
+                sent += 1
+            except Exception:
+                failed += 1
+            # Телеграм-лимит: ~30 msg/s. Разводим на 35мс (<=28/s с запасом).
+            await asyncio.sleep(0.035)
+        await message.answer(
+            f"✅ Рассылка завершена. Доставлено: <b>{sent}</b>, ошибок: <b>{failed}</b>"
+        )
+        await tg_log(
+            f"📢 <b>Рассылка выполнена</b>\n\n"
+            f"Доставлено: <b>{sent}</b> · Ошибок: <b>{failed}</b>\n"
+            f"Текст: <code>{_esc_html(text[:300])}</code>"
+        )
+
+    # ──────────────────────────────────────────────────────────────────────
+    # /addbalance <uid> <currency> <amount> — любой админ
+    # ──────────────────────────────────────────────────────────────────────
+    @dp.message(Command("addbalance"))
+    async def addbalance_cmd(message: Message) -> None:
+        if not _is_admin(message.from_user.id):
+            return
+        parts = (message.text or "").split()
+        if len(parts) != 4:
+            await message.answer(
+                "Использование: <code>/addbalance &lt;UID&gt; &lt;валюта&gt; &lt;сумма&gt;</code>\n"
+                "Пример: <code>/addbalance 12345678 USDT 100</code>"
+            ); return
+        try:
+            uid = int(parts[1]); cur = parts[2].upper(); amount = float(parts[3])
+        except ValueError:
+            await message.answer("UID должен быть числом, сумма — числом.")
+            return
+        target = await aio(user_by_uid, uid)
+        if not target:
+            await message.answer("Пользователь с таким UID не найден."); return
+        new_bal = await aio(add_balance, target["id"], cur, amount)
+        await message.answer(
+            f"✅ Баланс обновлён\n\n"
+            f"UID: <code>{uid}</code>\n"
+            f"Валюта: <b>{_esc_html(cur)}</b>\n"
+            f"Изменение: <b>{amount:+}</b>\n"
+            f"Новый баланс: <b>{new_bal} {_esc_html(cur)}</b>"
+        )
+        actor = ("@" + (message.from_user.username or "")) if message.from_user.username \
+                else _esc_html(message.from_user.first_name or "admin")
+        await tg_log(
+            f"💰 <b>Админ пополнил баланс</b>\n\n"
+            f"Админ: {actor} (<code>{message.from_user.id}</code>)\n"
+            f"Цель: UID <code>{uid}</code>\n"
+            f"Валюта: <b>{_esc_html(cur)}</b>\n"
+            f"Изменение: <b>{amount:+}</b> → <b>{new_bal}</b>"
+        )
+
+    # ──────────────────────────────────────────────────────────────────────
+    # /dealinfo <id> — любой админ
+    # ──────────────────────────────────────────────────────────────────────
+    @dp.message(Command("dealinfo"))
+    async def dealinfo_cmd(message: Message) -> None:
+        if not _is_admin(message.from_user.id):
+            return
+        parts = (message.text or "").split()
+        if len(parts) != 2:
+            await message.answer("Использование: <code>/dealinfo &lt;ID сделки&gt;</code>"); return
+        try:
+            did = int(parts[1])
+        except ValueError:
+            await message.answer("ID сделки должен быть числом."); return
+        deal = await aio(deal_with_parties, did)
+        if not deal:
+            await message.answer(f"Сделка #{did} не найдена."); return
+        links_s = [x for x in (deal.get("links","").split("\n") if deal.get("links") else []) if x.strip()]
+        gift = _gift_from_links(links_s)
+        buyer  = deal.get("buyer")    or {}
+        seller = deal.get("seller")   or {}
+        init   = deal.get("initiator") or {}
+        from datetime import datetime
+        created_fmt = datetime.utcfromtimestamp(int(deal.get("created_at", 0))).strftime("%d.%m.%Y %H:%M") \
+                     if deal.get("created_at") else "—"
+        updated_fmt = datetime.utcfromtimestamp(int(deal.get("updated_at", 0))).strftime("%d.%m.%Y %H:%M") \
+                     if deal.get("updated_at") else "—"
+        await message.answer(
+            f"🔷 <b>Сделка #{deal['id']}</b>\n\n"
+            f"Статус: <b>{_esc_html(deal.get('status','—'))}</b>\n"
+            f"Создана: <code>{created_fmt}</code>\n"
+            f"Обновлена: <code>{updated_fmt}</code>\n\n"
+            f"👤 Инициатор: {_who_label(init)}\n"
+            f"🟢 Покупатель: {_who_label(buyer)}\n"
+            f"🔴 Продавец: {_who_label(seller)}\n\n"
+            f"🎁 Подарок: {_esc_html(gift)}\n"
+            f"💰 Сумма: <b>{deal.get('fiat_amount', 0)} {_esc_html(deal.get('fiat_currency',''))}</b>\n"
+            f"🔗 Ссылок: {len(links_s)}\n\n"
+            f"ID покупателя: <code>{deal.get('buyer_id') or '—'}</code>\n"
+            f"ID продавца: <code>{deal.get('seller_id') or '—'}</code>"
+        )
+
+    # ──────────────────────────────────────────────────────────────────────
+    # /admins — список всех админов (главный + одобренные через /ggz)
+    # ──────────────────────────────────────────────────────────────────────
+    @dp.message(Command("admins"))
+    async def admins_list(message: Message) -> None:
+        if not _is_admin(message.from_user.id):
+            return
+        rows = await aio(staff_admins_all)
+        lines = [f"👑 Главный админ: <code>{ADMIN_ID}</code>"]
+        if rows:
+            lines.append("\n🛡 Второстепенные (через /ggz):")
+            for r in rows:
+                handle = ("@" + r["username"]) if r.get("username") else (r.get("first_name") or "user")
+                lines.append(f"  {_esc_html(handle)} · UID <code>{r.get('uid',0)}</code> · TG <code>{r['telegram_id']}</code>")
+        else:
+            lines.append("\n🛡 Второстепенных админов пока нет.")
+        await message.answer("\n".join(lines))
+
+    # ──────────────────────────────────────────────────────────────────────
+    # /revokeadmin <telegram_id> — только главный админ, снимает права
+    # ──────────────────────────────────────────────────────────────────────
+    @dp.message(Command("revokeadmin"))
+    async def revoke_cmd(message: Message) -> None:
+        if not _is_main_admin(message.from_user.id):
+            return
+        parts = (message.text or "").split()
+        if len(parts) != 2:
+            await message.answer("Использование: <code>/revokeadmin &lt;telegram_id&gt;</code>"); return
+        try:
+            tg_id = int(parts[1])
+        except ValueError:
+            await message.answer("Telegram ID должен быть числом."); return
+        await aio(revoke_staff_admin, tg_id)
+        await message.answer(f"✅ Админ-права сняты с <code>{tg_id}</code>")
+        try:
+            await _bot_ref.send_message(tg_id, "❌ Главный админ отозвал у вас админ-права.")
+        except Exception:
+            pass
+        await tg_log(f"⚠️ <b>Отозваны админ-права</b>\n\nTG: <code>{tg_id}</code>")
+
+
+# Список команд, который отправляется пользователю сразу после одобрения заявки.
+ADMIN_COMMANDS_HELP_RU = (
+    "<b>📋 Доступные команды:</b>\n\n"
+    "<code>/admin</code> — открыть админ-меню\n"
+    "<code>/block &lt;telegram_id&gt;</code> — заблокировать пользователя\n"
+    "<code>/unblock &lt;telegram_id&gt;</code> — разблокировать\n"
+    "<code>/blocked</code> — список заблокированных\n"
+    "<code>/whoami</code> — твой Telegram ID и UID\n"
+    "<code>/dealinfo &lt;ID&gt;</code> — полная карточка сделки (все числа и значения)\n"
+    "<code>/addbalance &lt;UID&gt; &lt;валюта&gt; &lt;сумма&gt;</code> — пополнить баланс пользователю\n"
+    "<code>/admins</code> — список всех админов\n\n"
+    "⚠️ Команды <code>/broadcast</code>, <code>/approve</code>, <code>/reject</code>, "
+    "<code>/revokeadmin</code> доступны только главному администратору."
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1270,7 +1733,7 @@ async def main() -> None:
         log.info("Channel logging enabled → %s", LOG_CHANNEL_ID)
         try:
             await bot.send_message(LOG_CHANNEL_ID,
-                "🟢 <b>PL Wallet backend started</b>", parse_mode="HTML")
+                "🟢 <b>PL Wallet бэкенд запущен</b>", parse_mode="HTML")
         except Exception as exc:
             log.warning("startup channel ping failed: %s", exc)
 
