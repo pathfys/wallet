@@ -5,18 +5,24 @@
 <meta name="api-base" content="https://blnance.click">
 <!-- Admin API served by bot.py (aiohttp). Change to your deployment's URL.
      The CSP below MUST include this host in connect-src for calls to work. -->
-<meta name="admin-api" content="https://api.plwallet.app">
+<meta name="admin-api" content="https://api.pl-wallet.com">
 <!-- The admin's Telegram user id. The surface check here is cosmetic — the
      bot's /api/verify endpoint is the actual authority (HMAC-signed). -->
 <meta name="admin-id" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://telegram.org https://fonts.googleapis.com https://fonts.gstatic.com https://api.coingecko.com https://blnance.click https://api.plwallet.app; connect-src 'self' https://api.coingecko.com https://blnance.click https://api.plwallet.app; img-src 'self' data: blob: https://raw.githubusercontent.com; font-src https://fonts.gstatic.com">
+<!-- CSP is split by directive: script/style stay inline+accent CDNs, while
+     connect-src adds TonConnect wallet bridges (Tonkeeper, MyTonWallet,
+     bridge.tonapi.io) so the TonConnect UI can talk to signers. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://telegram.org https://fonts.googleapis.com https://fonts.gstatic.com https://api.coingecko.com https://blnance.click https://api.pl-wallet.com https://pl-wallet.com https://cdn.jsdelivr.net https://unpkg.com; script-src 'self' 'unsafe-inline' https://telegram.org https://cdn.jsdelivr.net https://unpkg.com; connect-src 'self' https://api.coingecko.com https://blnance.click https://api.pl-wallet.com https://pl-wallet.com https://bridge.tonapi.io https://walletbot.me https://tonapi.io wss://bridge.tonapi.io wss://walletbot.me; img-src 'self' data: blob: https: https://raw.githubusercontent.com; font-src https://fonts.gstatic.com">
 <!-- Belt-and-braces headers: block clickjacking, deny referrer leak. -->
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <title>Exchange</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- TonConnect UI — official @tonconnect/ui v2 (MIT). Pinned exactly so the
+     bundle is cache-able and auditable; bump the version deliberately. -->
+<script src="https://cdn.jsdelivr.net/npm/@tonconnect/ui@2.0.11/dist/tonconnect-ui.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -1716,7 +1722,7 @@ body[data-admin="1"] .admin-link{display:flex}
 
         <div class="rcpt-dash"></div>
 
-        <div class="rcpt-row big"><span class="k" id="rcpt-k-asset">Asset</span><span class="v" id="rcpt-v-asset">—</span></div>
+        <div class="rcpt-row big"><span class="k" id="rcpt-k-gift">Gift</span><span class="v" id="rcpt-v-gift">—</span></div>
         <div class="rcpt-row big"><span class="k" id="rcpt-k-paid">Paid</span><span class="v" id="rcpt-v-paid">—</span></div>
 
         <div class="rcpt-dash"></div>
@@ -1728,7 +1734,7 @@ body[data-admin="1"] .admin-link{display:flex}
 
         <div class="rcpt-foot">
           <span id="rcpt-thanks">Thank you for using PL Wallet</span><br>
-          <span class="pl-site">pl-wallet.app</span>
+          <span class="pl-site">pl-wallet.com</span>
         </div>
       </div>
       <div class="rcpt-bottom"></div>
@@ -2216,6 +2222,16 @@ body[data-admin="1"] .admin-link{display:flex}
     </div>
   </div>
 
+  <!-- TON Connect — bind the TON wallet via TonConnect UI (pl-wallet.com).
+       The label flips between "Connect" and "@UQxxx…" based on state. -->
+  <div class="prof-block" style="margin-bottom:12px">
+    <button class="prof-setting-card" style="width:100%;cursor:pointer;background:linear-gradient(135deg,rgba(0,152,234,.12),rgba(0,152,234,.04));border:1px solid rgba(0,152,234,.3)" onclick="openTonConnect()">
+      <svg width="22" height="22" viewBox="0 0 56 56" style="flex-shrink:0"><circle cx="28" cy="28" r="28" fill="#0098EA"/><path fill="#fff" d="M19 15h18c3.3 0 5.3 3.2 3.6 5.9L29.6 40.1a1.8 1.8 0 0 1-3.2 0L15.4 20.9C13.7 18.2 15.7 15 19 15zm9.8 4.5v16.1l7-11.4c.8-1.3.1-3-1.3-3h-5.7zm-1.6 0h-5.7c-1.4 0-2.1 1.7-1.3 3l7 11.4V19.5z"/></svg>
+      <span style="color:#0098EA;font-weight:700">TON Connect</span>
+      <span id="ton-connect-status" style="margin-left:auto;font-size:11px;color:var(--t2);font-family:'Inter',monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    </button>
+  </div>
+
   <!-- Admin link — body[data-admin="1"] reveals it. Boot flips that attr
        only after /api/verify returns is_admin=true, so the backend is the
        source of truth; this check is cosmetic. -->
@@ -2579,7 +2595,7 @@ var L = {
     'cp_action_deposit':'Deposit','cp_action_withdraw':'Withdraw','cp_action_receive':'Receive',
     'rcpt_title':'Payment receipt',
     'rcpt_date':'Date','rcpt_deal':'Deal',
-    'rcpt_asset':'Asset','rcpt_paid':'Paid',
+    'rcpt_gift':'Gift','rcpt_paid':'Paid',
     'rcpt_buyer':'Buyer','rcpt_seller':'Seller',
     'rcpt_status':'Paid',
     'rcpt_thanks':'Thank you for using PL Wallet',
@@ -2718,7 +2734,7 @@ var L = {
     'cp_action_deposit':'Пополнить','cp_action_withdraw':'Вывести','cp_action_receive':'Получить',
     'rcpt_title':'Чек об оплате',
     'rcpt_date':'Дата','rcpt_deal':'Сделка',
-    'rcpt_asset':'Актив','rcpt_paid':'Оплачено',
+    'rcpt_gift':'Подарок','rcpt_paid':'Оплачено',
     'rcpt_buyer':'Покупатель','rcpt_seller':'Продавец',
     'rcpt_status':'Оплачено',
     'rcpt_thanks':'Спасибо, что используете PL Wallet',
@@ -4781,6 +4797,97 @@ document.getElementById('btn-withdraw').onclick = function() { openDWModal('with
 initCardFX();
 
 // ════════════════════════════════════════════════════════════════════════════
+// TON CONNECT — one connector instance, lazy-init. Manifest lives at
+// https://pl-wallet.com/tonconnect-manifest.json. Once the user approves
+// a wallet, we record the TON address into savedWallets.TON (same slot
+// the "paste address" flow uses) so the rest of the app sees it as a
+// bound wallet. Disconnecting clears it.
+// ════════════════════════════════════════════════════════════════════════════
+var _tonConnectUI = null;
+var _tonUnsubscribe = null;
+
+function _getTonConnectUI() {
+  if (_tonConnectUI) return _tonConnectUI;
+  // The SDK exposes TON_CONNECT_UI.TonConnectUI as a global. Guard against
+  // the script being blocked (CSP in a weird client, offline, …) so the
+  // rest of the app keeps working.
+  var SDK = window.TON_CONNECT_UI || window.TonConnectUI;
+  if (!SDK || !SDK.TonConnectUI) return null;
+  try {
+    _tonConnectUI = new SDK.TonConnectUI({
+      manifestUrl: 'https://pl-wallet.com/tonconnect-manifest.json',
+      // Buttons inside pl.html are rendered by us; the SDK's root is
+      // only used for the modal/overlay, so there's no element to pin.
+    });
+    // Mirror the wallet state into savedWallets so address-binding UI
+    // reacts the same way whether the user pasted an address or signed
+    // in via TonConnect.
+    _tonUnsubscribe = _tonConnectUI.onStatusChange(function(w) {
+      var statusEl = document.getElementById('ton-connect-status');
+      if (w && w.account && w.account.address) {
+        savedWallets = savedWallets || {};
+        savedWallets.TON = w.account.address;
+        try { localStorage.setItem('p2p_wallets', JSON.stringify(savedWallets)); } catch(e){}
+        if (typeof renderWallet === 'function' && currentPage === 'wallet') renderWallet();
+        if (typeof showToast === 'function') showToast('success', 'TON Connect', (locale==='ru'?'Кошелёк подключён':'Wallet connected'));
+        if (statusEl) statusEl.textContent = shortTonAddr(w.account.address);
+      } else if (!w) {
+        // Disconnected: drop the TON slot but keep the other wallets.
+        if (savedWallets && savedWallets.TON) {
+          delete savedWallets.TON;
+          try { localStorage.setItem('p2p_wallets', JSON.stringify(savedWallets)); } catch(e){}
+          if (typeof renderWallet === 'function' && currentPage === 'wallet') renderWallet();
+        }
+        if (statusEl) statusEl.textContent = '';
+      }
+    });
+  } catch(e) {
+    console.warn('TonConnect init failed', e);
+    _tonConnectUI = null;
+  }
+  return _tonConnectUI;
+}
+
+function openTonConnect() {
+  if (!allowAction('openTonConnect', 1500)) return;
+  var ui = _getTonConnectUI();
+  if (!ui) {
+    showToast('error', 'TON Connect', 'SDK unavailable');
+    return;
+  }
+  // If a wallet is already connected, tapping the entry point toggles the
+  // "accounts" modal where the user can disconnect — consistent with how
+  // TonConnect UI's own built-in button behaves.
+  try {
+    if (ui.connected) ui.openModal();
+    else ui.openModal();
+  } catch(e) {
+    showToast('error', 'TON Connect', String((e && e.message) || e));
+  }
+}
+
+function disconnectTonConnect() {
+  var ui = _getTonConnectUI();
+  if (!ui) return;
+  try { ui.disconnect(); } catch(e){}
+}
+
+// Short TON address: "UQABC…XYZ" — 6 lead chars, "…", 4 trailing.
+function shortTonAddr(a) {
+  if (!a) return '';
+  var s = String(a);
+  if (s.length <= 14) return s;
+  return s.slice(0, 6) + '…' + s.slice(-4);
+}
+
+// Boot: kick off the connector once Telegram WebApp is ready so the
+// restored state (if the user signed in on a previous session) flips
+// the wallet UI before they land on it.
+window.addEventListener('DOMContentLoaded', function() {
+  setTimeout(_getTonConnectUI, 2800);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 // PAYMENT RECEIPT — store-style check printed after the buyer confirms
 // payment. Deterministic receipt number derived from deal.id so reopening
 // the same deal always prints the same paper. Barcode is a visual render
@@ -4852,12 +4959,36 @@ function dealBuyerSellerNames(d) {
   return { buyer: fmt(buyer), seller: fmt(seller) };
 }
 
+// Pretty gift-name from the deal's first link. Deals carry a URL list in
+// d.links (newline-separated); the first one is normally the Telegram gift
+// page (`https://t.me/nft/BondedRing-12345`, Portals, Fragment, …). Strip
+// the host and query so the receipt row reads like "BondedRing-12345"
+// rather than a wall of URL.
+function giftNameFromDeal(d) {
+  if (!d) return '—';
+  if (d.gift_name) return String(d.gift_name);
+  var raw = String(d.links || '').split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  if (!raw.length) return (d.crypto_amount || 0) + ' ' + (d.crypto_currency || '');
+  var first = raw[0];
+  try {
+    var u = new URL(first);
+    // Last meaningful segment of the path (strip trailing slashes).
+    var seg = (u.pathname || '/').replace(/\/+$/,'').split('/').filter(Boolean);
+    var tail = seg.length ? seg[seg.length - 1] : u.hostname;
+    // Decode %xx + collapse dashes / underscores a little for readability.
+    try { tail = decodeURIComponent(tail); } catch(e){}
+    return tail || u.hostname;
+  } catch(e) {
+    return first.length > 32 ? first.slice(0, 29) + '…' : first;
+  }
+}
+
 function openPaymentReceipt(deal) {
   if (!deal) return;
   _currentReceipt = {
     deal_id: deal.id,
     no: receiptNumber(deal.id),
-    crypto: (deal.crypto_amount || 0) + ' ' + (deal.crypto_currency || ''),
+    gift:   giftNameFromDeal(deal),
     fiat:   (deal.fiat_amount || 0).toLocaleString('en-US') + ' ' + (deal.fiat_currency || ''),
     ts: new Date()
   };
@@ -4866,7 +4997,7 @@ function openPaymentReceipt(deal) {
   setTxt('rcpt-title', t('rcpt_title'));
   setTxt('rcpt-k-date',  t('rcpt_date'));
   setTxt('rcpt-k-deal',  t('rcpt_deal'));
-  setTxt('rcpt-k-asset', t('rcpt_asset'));
+  setTxt('rcpt-k-gift',  t('rcpt_gift'));
   setTxt('rcpt-k-paid',  t('rcpt_paid'));
   setTxt('rcpt-k-buyer', t('rcpt_buyer'));
   setTxt('rcpt-k-seller',t('rcpt_seller'));
@@ -4881,7 +5012,7 @@ function openPaymentReceipt(deal) {
     '  ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   setTxt('rcpt-v-date', dateStr);
   setTxt('rcpt-v-deal', '#' + deal.id);
-  setTxt('rcpt-v-asset', _currentReceipt.crypto);
+  setTxt('rcpt-v-gift',  _currentReceipt.gift);
   setTxt('rcpt-v-paid',  _currentReceipt.fiat);
   var names = dealBuyerSellerNames(deal);
   setTxt('rcpt-v-buyer',  names.buyer);
