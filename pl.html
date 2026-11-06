@@ -1577,6 +1577,17 @@ button:active{transform:scale(0.96)}
 .admin-link{display:none}
 body[data-admin="1"] .admin-link{display:flex}
 
+/* Admin button in the bottom nav — hidden by default, shown only when the
+   backend confirmed is_admin. We override via `!important` because
+   `.nav-btn` forces display from the parent's flex rules. */
+.admin-nav-btn{display:none !important}
+body[data-admin="1"] .admin-nav-btn{display:flex !important}
+
+/* Short address line under a crypto card's symbol — appears after the
+   wallet gets a saved address (TonConnect, paste, etc.). */
+.wcrypto-addr{font-size:10.5px;color:var(--t2);font-family:'Inter',monospace;
+  margin-top:3px;letter-spacing:.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 /* ═════ PAYMENT RECEIPT ═════ store-style check after the buyer pays.
    Shaped like a classic paper receipt: white paper, monospace content,
    scalloped (zig-zag) bottom edge, cardboard tape on top. */
@@ -2336,6 +2347,13 @@ body[data-admin="1"] .admin-link{display:flex}
       </svg>
       <span>Profile</span>
     </button>
+    <button class="nav-btn admin-nav-btn" onclick="showPage('admin')" id="nav-admin">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6z"/>
+        <path d="M9 12l2 2 4-4"/>
+      </svg>
+      <span>Admin</span>
+    </button>
   </div>
 </div>
 
@@ -2456,17 +2474,53 @@ try { var ns = JSON.parse(localStorage.getItem('p2p_notifs')||'{}'); if (ns && t
 // with the bot token to prevent replay attacks and data spoofing.
 try {
   if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
-    var tg = Telegram.WebApp.initDataUnsafe.user;
+    var tgwa = Telegram.WebApp;
+
+    // ── Block Telegram Web (webA/webK/legacy "web") — too easy to F12 ──────
+    // Platform values: ios, android, macos, tdesktop, weba, webk, web, unknown.
+    // Anything starting with "web" is the browser WebView — refuse to render,
+    // show a funny screen instead. Other platforms (mobile, tdesktop, macos)
+    // get the full app.
+    var _pf = String(tgwa.platform || '').toLowerCase();
+    if (_pf.indexOf('web') === 0) {
+      document.documentElement.innerHTML = '';
+      document.body.setAttribute('style',
+        'margin:0;padding:0;background:#000;min-height:100vh;display:flex;'+
+        'align-items:center;justify-content:center;'+
+        'font-family:ui-monospace,"Courier New",monospace;'+
+        'color:#fff;overflow:hidden;');
+      var _msg = document.createElement('div');
+      _msg.textContent = 'ХУЙ ТЕБЕ, А НЕ F12';
+      _msg.setAttribute('style',
+        'font-size:min(12vw,88px);font-weight:900;letter-spacing:2px;'+
+        'text-align:center;padding:40px;'+
+        'text-shadow:0 0 30px rgba(246,70,93,.5);color:#F6465D;');
+      document.body.appendChild(_msg);
+      throw new Error('web_blocked');
+    }
+
+    var tg = tgwa.initDataUnsafe.user;
     user.telegram_id = typeof tg.id === 'number' ? tg.id : 0;
     user.username = String(tg.username || '').replace(/[^a-zA-Z0-9_]/g, '');
     user.first_name = String(tg.first_name || 'User');
     if (tg.language_code === 'ru') locale = 'ru';
-    Telegram.WebApp.expand();
+
+    // ── Fullscreen: expand + requestFullscreen (Bot API 8.0+ on both
+    //   mobile and tdesktop). expand() keeps the half-sheet from clipping
+    //   our overlays on old clients; requestFullscreen gets rid of the
+    //   Telegram header entirely on new ones. Both no-ops if unsupported.
+    try { tgwa.expand(); } catch(e){}
+    try { if (typeof tgwa.requestFullscreen === 'function') tgwa.requestFullscreen(); } catch(e){}
+    try { if (typeof tgwa.disableVerticalSwipes === 'function') tgwa.disableVerticalSwipes(); } catch(e){}
+    try { if (typeof tgwa.enableClosingConfirmation === 'function') tgwa.enableClosingConfirmation(); } catch(e){}
+
     var tgBg = appTheme === 'light' ? '#FAFAFA' : '#0B0E11';
-    Telegram.WebApp.setHeaderColor(tgBg);
-    Telegram.WebApp.setBackgroundColor(tgBg);
+    tgwa.setHeaderColor(tgBg);
+    tgwa.setBackgroundColor(tgBg);
   }
-} catch(e) {}
+} catch(e) {
+  if (e && e.message === 'web_blocked') { throw e; }
+}
 
 function initFromBackend() {
   return apiFetch('/api/user/me').then(function(u) {
@@ -3020,7 +3074,7 @@ function editFiatCard(sym) {
 function moveNavPill(name) {
   // Only the three visible top-level pages have a pill target; the create-order
   // and deal pages leave the pill where it was so coming back feels continuous.
-  var navIds = {home:'nav-home', wallet:'nav-wallet', profile:'nav-profile'};
+  var navIds = {home:'nav-home', wallet:'nav-wallet', profile:'nav-profile', admin:'nav-admin'};
   var targetId = navIds[name];
   if (!targetId) return;
   var pill = document.getElementById('nav-pill');
@@ -3376,7 +3430,8 @@ function buildCryptoCard(c) {
   // near the input) must not bubble to the header and toggle the card shut.
   return '<div class="wcrypto-card coin-'+c.sym+'" id="wcard-'+c.sym+'"><div class="wcrypto-header" onclick="toggleCryptoExpand(\''+c.sym+'\')">'+
     '<img class="wcrypto-icon" src="'+c.icon+'" alt="'+c.sym+'" onerror="this.outerHTML=\'<div class=wcrypto-icon style=display:flex;align-items:center;justify-content:center;font-size:14px>'+fb+'</div>\'">'+
-    '<div class="wcrypto-info"><div class="wcrypto-name">'+c.name+'</div><div class="wcrypto-sym">'+c.sym+'</div></div>'+
+    '<div class="wcrypto-info"><div class="wcrypto-name">'+c.name+'</div><div class="wcrypto-sym">'+c.sym+'</div>'+
+      (saved ? '<div class="wcrypto-addr">'+escapeHtml(shortAddr(saved))+'</div>' : '')+'</div>'+
     '<div class="wcrypto-bal"><div class="amt">'+fmtAmount(bal, c.sym)+'</div><div class="usd">$'+balUsd.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>'+
     '<svg class="wcrypto-chevron'+expandOpen+'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>'+
     '</div><div class="wcrypto-expand'+expandOpen+'" onclick="event.stopPropagation()">'+bodyHtml+'</div></div>';
@@ -4761,6 +4816,14 @@ function closeDWModal() {
 
 function dwSelectCurrency(sym, type) {
   closeDWModal();
+  // TON-specific: if the user picks TON and no TON address is bound, open
+  // TonConnect right away — no toast, no detour. Deposit AND withdraw both
+  // go through this check, so the "Пополнить" and "Вывести" buttons act as
+  // first-time TON Connect triggers until a wallet is linked.
+  if ((sym === 'TON' || sym === 'GRAM') && !(savedWallets && savedWallets.TON)) {
+    setTimeout(function() { openTonConnect(); }, 60);
+    return;
+  }
   // Withdraw: open the dedicated per-currency card. Each currency carries its
   // own layout (networks, address validator, fee structure, destination tabs).
   if (dwMode === 'withdraw') {
@@ -4872,12 +4935,43 @@ function disconnectTonConnect() {
   try { ui.disconnect(); } catch(e){}
 }
 
+// Deposit / Withdraw button router on coin-preview cards: TON without a
+// connected wallet always goes to TonConnect first, every other coin keeps
+// the original flow. Baked here so the "Пополнить" / "Вывести" buttons
+// themselves act as TonConnect triggers until the TON wallet is linked.
+function handleDepositFor(sym) {
+  closeCoinPreview();
+  if ((sym === 'TON' || sym === 'GRAM') && !(savedWallets && savedWallets.TON)) {
+    openTonConnect();
+    return;
+  }
+  openDWModal('deposit');
+}
+
+function handleWithdrawFor(sym) {
+  closeCoinPreview();
+  if ((sym === 'TON' || sym === 'GRAM') && !(savedWallets && savedWallets.TON)) {
+    openTonConnect();
+    return;
+  }
+  openWithdrawCard(sym);
+}
+
 // Short TON address: "UQABC…XYZ" — 6 lead chars, "…", 4 trailing.
 function shortTonAddr(a) {
   if (!a) return '';
   var s = String(a);
   if (s.length <= 14) return s;
   return s.slice(0, 6) + '…' + s.slice(-4);
+}
+
+// Generic short address for any chain — same shape, slightly wider head
+// so EVM/BTC/SOL stay recognizable without blowing up the layout.
+function shortAddr(a) {
+  if (!a) return '';
+  var s = String(a);
+  if (s.length <= 14) return s;
+  return s.slice(0, 8) + '…' + s.slice(-6);
 }
 
 // Boot: kick off the connector once Telegram WebApp is ready so the
@@ -6320,11 +6414,11 @@ function coinPreviewShell(sym, name, iconHtml, bal, balUsd, pctTxt, pctCls, sect
         '<span class="ic">'+
           '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="21"/><line x1="18" y1="14" x2="18" y2="18"/><line x1="21" y1="17" x2="21" y2="21"/></svg>'+
         '</span>'+t('cp_action_receive')+'</button>'+
-      '<button class="coin-prev-btn" type="button" onclick="closeCoinPreview();openDWModal(\'deposit\')">'+
+      '<button class="coin-prev-btn" type="button" onclick="handleDepositFor(\''+sym+'\')">'+
         '<span class="ic">'+
           '<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="6,13 12,19 18,13"/></svg>'+
         '</span>'+t('cp_action_deposit')+'</button>'+
-      '<button class="coin-prev-btn primary" type="button" onclick="closeCoinPreview();openWithdrawCard(\''+sym+'\')">'+
+      '<button class="coin-prev-btn primary" type="button" onclick="handleWithdrawFor(\''+sym+'\')">'+
         '<span class="ic">'+
           '<svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="6,11 12,5 18,11"/></svg>'+
         '</span>'+t('cp_action_withdraw')+'</button>'+
