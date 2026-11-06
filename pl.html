@@ -519,7 +519,12 @@ button:active{transform:scale(0.96)}
   background:#fff;border-radius:50%;transition:transform .3s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .notif-toggle.on .knob{transform:translateX(20px)}
 
-/* UID Badge */
+/* UID is hidden from every user-facing surface. The backend still uses it
+   internally, but the UI surface area (profile badge, QR sheet, lock
+   screen, accept card, deal rows) no longer renders it. */
+.uid-badge, .qr-uid-card, .lock-uid, .accept-from-meta { display:none !important }
+
+/* UID Badge (hidden above) */
 .uid-badge{display:inline-flex;align-items:center;gap:6px;background:var(--bg2);
   border:1px solid var(--border);border-radius:8px;padding:6px 14px;margin-top:8px;cursor:pointer;transition:all .2s}
 .uid-badge:active{transform:scale(0.96)}
@@ -3873,7 +3878,9 @@ function coSubmit() {
   // UID step was removed from the wizard — the deal is created without a
   // counterparty on the client side; the backend assigns one on acceptance.
   apiFetch('/api/deals/direct', {method:'POST', body:{
-    role: coData.role,
+    // Wizard stores 'buy'/'sell' internally; the backend expects the full
+    // 'buyer'/'seller' tokens.
+    role: coData.role === 'buy' ? 'buyer' : 'seller',
     currency: coData.currency,
     amount: parseFloat(coData.amount),
     links: coData.links
@@ -5058,7 +5065,8 @@ function dealBuyerSellerNames(d) {
     if (!u) return '—';
     if (u.username) return '@' + u.username;
     if (u.first_name) return u.first_name;
-    if (u.uid) return 'UID ' + u.uid;
+    // UID is deliberately not shown — the backend keeps using it, but the
+    // user never sees a bare number on a receipt.
     return '—';
   }
   return { buyer: fmt(buyer), seller: fmt(seller) };
@@ -5730,7 +5738,9 @@ function shareReceiveLink() {
   }
   var uid = String(user.uid);
   var tg = window.Telegram && window.Telegram.WebApp;
-  var text = (locale === 'ru' ? 'Мой PL UID: ' : 'My PL UID: ') + uid;
+  // Share a pl:// deep-link to the sender's chat instead of the bare UID —
+  // the recipient's app opens it directly; their eyes never see the number.
+  var text = 'pl://user/' + uid;
 
   // Primary path: open Telegram's native share sheet via t.me/share/url.
   // Works for every bot (no inline-mode requirement). openTelegramLink is
