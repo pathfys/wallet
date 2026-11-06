@@ -356,7 +356,10 @@ button:active{transform:scale(0.96)}
 .wcard-flip-hint{position:absolute;right:16px;bottom:18px;z-index:3;display:flex;align-items:center;gap:5px;
   font-size:11px;font-weight:600;color:rgba(255,255,255,.72)}
 .wcard-flip-hint svg{width:12px;height:12px}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
+/* Top bar sits below the device safe-area / Dynamic Island when the app
+   runs fullscreen (tg.requestFullscreen). --sa-top is set from JS on boot. */
+.topbar{display:flex;align-items:center;justify-content:space-between;
+  padding:calc(12px + var(--sa-top, env(safe-area-inset-top, 0px))) 16px 12px}
 .avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;
   font-weight:700;color:#fff;background:var(--yellow)}
 
@@ -432,7 +435,8 @@ button:active{transform:scale(0.96)}
 
 .back-btn{background:none;color:var(--t2);padding:8px}
 .back-btn svg{width:24px;height:24px;stroke:currentColor;stroke-width:2}
-.page-header{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.page-header{display:flex;align-items:center;gap:12px;
+  padding:calc(12px + var(--sa-top, env(safe-area-inset-top, 0px))) 16px 12px}
 .page-header h1{font-size:18px;font-weight:600;color:var(--t1)}
 
 .lang-switch{display:flex;background:var(--card);border-radius:8px;overflow:hidden}
@@ -2189,9 +2193,7 @@ body[data-admin="1"] .admin-nav-btn{display:flex !important}
             <span id="prof-status-text">Beginner</span>
           </div>
         </div>
-        <div class="idc-center">
-          <div class="idc-chip-pl">PL</div>
-        </div>
+        <div class="idc-center"></div>
         <div class="idc-bottom-strip">
           <div class="pcard-user-strip"><span id="prof-user-strip">@username</span></div>
           <div class="avatar idc-ava" id="prof-avatar">D</div>
@@ -2233,25 +2235,11 @@ body[data-admin="1"] .admin-nav-btn{display:flex !important}
     </div>
   </div>
 
-  <!-- TON Connect — bind the TON wallet via TonConnect UI (pl-wallet.com).
-       The label flips between "Connect" and "@UQxxx…" based on state. -->
-  <div class="prof-block" style="margin-bottom:12px">
-    <button class="prof-setting-card" style="width:100%;cursor:pointer;background:linear-gradient(135deg,rgba(0,152,234,.12),rgba(0,152,234,.04));border:1px solid rgba(0,152,234,.3)" onclick="openTonConnect()">
-      <svg width="22" height="22" viewBox="0 0 56 56" style="flex-shrink:0"><circle cx="28" cy="28" r="28" fill="#0098EA"/><path fill="#fff" d="M19 15h18c3.3 0 5.3 3.2 3.6 5.9L29.6 40.1a1.8 1.8 0 0 1-3.2 0L15.4 20.9C13.7 18.2 15.7 15 19 15zm9.8 4.5v16.1l7-11.4c.8-1.3.1-3-1.3-3h-5.7zm-1.6 0h-5.7c-1.4 0-2.1 1.7-1.3 3l7 11.4V19.5z"/></svg>
-      <span style="color:#0098EA;font-weight:700">TON Connect</span>
-      <span id="ton-connect-status" style="margin-left:auto;font-size:11px;color:var(--t2);font-family:'Inter',monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-    </button>
-  </div>
-
-  <!-- Admin link — body[data-admin="1"] reveals it. Boot flips that attr
-       only after /api/verify returns is_admin=true, so the backend is the
-       source of truth; this check is cosmetic. -->
-  <div class="prof-block admin-link" style="margin-bottom:12px">
-    <button class="prof-setting-card" style="width:100%;cursor:pointer;background:linear-gradient(135deg,rgba(37,99,235,.12),rgba(37,99,235,.04));border:1px solid rgba(37,99,235,.28)" onclick="showPage('admin')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
-      <span style="color:#2563EB;font-weight:700">Admin Panel</span>
-    </button>
-  </div>
+  <!-- TonConnect and Admin links moved: TonConnect fires from the Deposit/
+       Withdraw buttons of the TON coin preview; Admin lives in the bottom
+       nav for admins only. The hidden #ton-connect-status element stays so
+       the connector callback has something to write into (no DOM error). -->
+  <span id="ton-connect-status" style="display:none"></span>
 
   <!-- Crypto rates (moved into the space the stats grid used to occupy) -->
   <div class="section-title" id="lbl-prof-rates">Crypto Rates</div>
@@ -2513,6 +2501,28 @@ try {
     try { if (typeof tgwa.requestFullscreen === 'function') tgwa.requestFullscreen(); } catch(e){}
     try { if (typeof tgwa.disableVerticalSwipes === 'function') tgwa.disableVerticalSwipes(); } catch(e){}
     try { if (typeof tgwa.enableClosingConfirmation === 'function') tgwa.enableClosingConfirmation(); } catch(e){}
+
+    // ── Safe area: in fullscreen mode the Dynamic Island / notch covers the
+    //   very top of the viewport. tg.safeAreaInset.top tells us how many
+    //   px to push content down. Pipe it into --sa-top so .topbar /
+    //   .page-header shift down automatically. Fallback: env(...) picks up
+    //   the OS value when tg didn't provide one yet.
+    function _applySA() {
+      try {
+        var sa = tgwa.safeAreaInset || tgwa.contentSafeAreaInset || {};
+        var top = (sa && sa.top) || 0;
+        document.documentElement.style.setProperty('--sa-top', top + 'px');
+      } catch(e){}
+    }
+    _applySA();
+    try {
+      if (typeof tgwa.onEvent === 'function') {
+        tgwa.onEvent('safeAreaChanged',        _applySA);
+        tgwa.onEvent('contentSafeAreaChanged', _applySA);
+        tgwa.onEvent('fullscreenChanged',      _applySA);
+        tgwa.onEvent('viewportChanged',        _applySA);
+      }
+    } catch(e){}
 
     var tgBg = appTheme === 'light' ? '#FAFAFA' : '#0B0E11';
     tgwa.setHeaderColor(tgBg);
@@ -4912,7 +4922,8 @@ function _getTonConnectUI() {
 }
 
 function openTonConnect() {
-  if (!allowAction('openTonConnect', 1500)) return;
+  // wrapGuards already owns the cooldown on this name; don't double-guard,
+  // otherwise the outer check stamps the bucket and the inner one refuses.
   var ui = _getTonConnectUI();
   if (!ui) {
     showToast('error', 'TON Connect', 'SDK unavailable');
