@@ -329,6 +329,20 @@ def user_by_tg(telegram_id: int) -> Optional[dict[str, Any]]:
         return _row(c.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,)).fetchone())
 
 
+def user_by_username(username: str) -> Optional[dict[str, Any]]:
+    """Case-insensitive username lookup. The leading @ is stripped."""
+    if not username:
+        return None
+    clean = username.lstrip("@").strip()
+    if not clean:
+        return None
+    with _conn() as c:
+        return _row(c.execute(
+            "SELECT * FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1",
+            (clean,),
+        ).fetchone())
+
+
 def bump_user_stats(user_id: int, successful: int = 0, cancelled: int = 0, disputed: int = 0) -> None:
     with _conn() as c:
         c.execute(
@@ -400,11 +414,20 @@ def create_direct_deal(
     currency: str,
     amount: float,
     links: list[str],
+    counterparty_id: int | None = None,
 ) -> dict[str, Any]:
+    """Create a deal. If `counterparty_id` is given, the opposite slot is
+    pre-filled with that user; otherwise it stays None and the first
+    stranger who opens the deal link is assigned (legacy flow)."""
     if role not in ("buyer", "seller"):
         raise ValueError("role must be 'buyer' or 'seller'")
-    buyer  = initiator_id if role == "buyer"  else None
-    seller = initiator_id if role == "seller" else None
+    buyer  = initiator_id    if role == "buyer"  else counterparty_id
+    seller = counterparty_id if role == "buyer"  else initiator_id if role == "seller" else None
+    # The previous line looks tangled but is correct:
+    # role=buyer  → initiator is buyer, counterparty (if any) is seller.
+    # role=seller → counterparty (if any) is buyer, initiator is seller.
+    if role == "seller":
+        buyer, seller = counterparty_id, initiator_id
     links_blob = "\n".join(l.strip() for l in links if l and l.strip())
     now = int(now_s())
     with _conn() as c:
@@ -415,15 +438,14 @@ def create_direct_deal(
             (initiator_id, buyer, seller, float(amount), currency, links_blob, now, now),
         )
         deal_id = cur.lastrowid
-    # Audit — one log line per deal creation, parseable by any log pipeline.
     log.info(
-        "deal.create id=%s initiator=%s role=%s currency=%s amount=%s links=%d",
+        "deal.create id=%s initiator=%s role=%s currency=%s amount=%s links=%d cp=%s",
         deal_id, initiator_id, role, currency, amount,
-        len([l for l in links if l and l.strip()]),
+        len([l for l in links if l and l.strip()]), counterparty_id,
     )
     audit_log(kind="deal.create", user_id=initiator_id, deal_id=deal_id,
               meta={"role": role, "currency": currency, "amount": amount,
-                    "links": len(links)})
+                    "links": len(links), "counterparty_id": counterparty_id})
     return deal_with_parties(deal_id)  # type: ignore[return-value]
 
 
@@ -857,6 +879,7 @@ async def route_deal_create_direct(request: web.Request) -> web.Response:
         currency = str(body["currency"]).strip().upper()
         amount   = float(body["amount"])
         links    = body.get("links", [])
+        counterparty_username = str(body.get("counterparty_username", "")).strip().lstrip("@")
         if not isinstance(links, list):
             raise ValueError
     except (ValueError, KeyError, TypeError, json.JSONDecodeError):
@@ -867,18 +890,60 @@ async def route_deal_create_direct(request: web.Request) -> web.Response:
         return web.json_response({"detail": "bad_amount"}, status=400)
     if len(links) > MAX_LINKS or any(not isinstance(l, str) or len(l) > MAX_LINK_LEN for l in links):
         return web.json_response({"detail": "bad_links"}, status=400)
-    deal = await aio(create_direct_deal, u["id"], role, currency, amount, links)
-    initiator = deal.get("initiator") or {}
-    buyer    = deal.get("buyer")    or (initiator if role == "buyer"  else {})
-    seller   = deal.get("seller")   or (initiator if role == "seller" else {})
-    gift     = _gift_from_links([l for l in links if isinstance(l, str)])
+    # Required counterparty — the wizard now forces a @username.
+    if not counterparty_username:
+        return web.json_response({"detail": "counterparty_required"}, status=400)
+    cp = await aio(user_by_username, counterparty_username)
+    if not cp:
+        return web.json_response({"detail": "counterparty_not_found"}, status=404)
+    if cp["telegram_id"] == u["telegram_id"]:
+        return web.json_response({"detail": "counterparty_is_self"}, status=400)
+
+    deal = await aio(create_direct_deal, u["id"], role, currency, amount, links, cp["id"])
+
+    buyer  = deal.get("buyer")  or {}
+    seller = deal.get("seller") or {}
+    gift   = _gift_from_links([l for l in links if isinstance(l, str)])
+
     await tg_log(
         f"🔷 <b>Новая сделка #{deal['id']}</b>\n\n"
-        f"Покупатель(uid): {_who_label(buyer)}\n"
-        f"Продавец(uid): {_who_label(seller)}\n\n"
+        f"Покупатель: {_who_label(buyer)}\n"
+        f"Продавец: {_who_label(seller)}\n\n"
         f"🎁 Подарок: {_esc_html(gift)}\n"
         f"💰 Сумма: <b>{amount} {_esc_html(currency)}</b>"
     )
+
+    # DM the counterparty so they know a deal was created in their name and
+    # can open the mini-app to accept it. Failure is silent (user may have
+    # blocked the bot, never pressed /start, etc.).
+    if _bot_ref and cp.get("telegram_id"):
+        initiator = deal.get("initiator") or {}
+        init_handle = ("@" + initiator["username"]) if initiator.get("username") \
+                       else _esc_html(initiator.get("first_name") or "user")
+        # role here is the initiator's side — the counterparty is the opposite.
+        cp_role = "продавцом" if role == "buyer" else "покупателем"
+        try:
+            kb = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text="Открыть сделку",
+                    web_app=WebAppInfo(url=f"{WEBAPP_URL.rstrip('/')}/?deal={deal['id']}"),
+                    style="primary",
+                )
+            ]])
+            await _bot_ref.send_message(
+                cp["telegram_id"],
+                f"🔔 <b>Новая сделка</b>\n\n"
+                f"{init_handle} создал сделку, где вы будете <b>{cp_role}</b>.\n\n"
+                f"🎁 Подарок: {_esc_html(gift)}\n"
+                f"💰 Сумма: <b>{amount} {_esc_html(currency)}</b>\n"
+                f"Номер сделки: #{deal['id']}\n\n"
+                f"Нажмите кнопку ниже, чтобы открыть сделку в PlayerOK.",
+                parse_mode="HTML",
+                reply_markup=kb,
+            )
+        except Exception as exc:
+            log.warning("counterparty DM failed uid=%s: %s", cp.get("telegram_id"), exc)
+
     return web.json_response(deal, status=201)
 
 
@@ -1714,9 +1779,7 @@ ADMIN_COMMANDS_HELP_RU = (
     "<code>/addbalance &lt;UID&gt; &lt;валюта&gt; &lt;сумма&gt;</code> — "
     "пополнить баланс пользователя (отрицательная сумма — списать)\n"
     "<code>/admins</code> — список всех админов\n"
-    "<code>/whoami</code> — твой Telegram ID и UID\n\n"
-    "⚠️ Модерация (<code>/block</code>, <code>/unblock</code>, <code>/blocked</code>) "
-    "и рассылка (<code>/broadcast</code>) доступны только главному администратору."
+    "<code>/whoami</code> — твой Telegram ID"
 )
 
 

@@ -775,6 +775,18 @@ button:active{transform:scale(0.96)}
   border:1px solid var(--border)}
 .co-flow-list li .actor{color:var(--t2);font-size:11px;margin-left:6px}
 .co-confirm-data{background:var(--card);border-radius:12px;padding:16px;margin-bottom:20px}
+.co-cp-wrap{margin:0 0 18px}
+.co-cp-lbl{display:block;font-size:12px;font-weight:700;color:var(--t2);letter-spacing:.5px;
+  text-transform:uppercase;margin-bottom:8px}
+.co-cp-input{width:100%;background:var(--card);color:var(--t1);border:2px solid var(--border);
+  border-radius:11px;padding:12px 14px;font-size:14px;font-family:'Inter',system-ui,sans-serif;
+  transition:border-color .18s}
+.co-cp-input:focus{border-color:var(--yellow);outline:none}
+.co-cp-input.valid{border-color:var(--green)}
+.co-cp-input.invalid{border-color:var(--red)}
+.co-cp-hint{font-size:11.5px;color:var(--t2);margin-top:6px;min-height:14px;line-height:1.5}
+.co-cp-hint.bad{color:var(--red)}
+.co-cp-hint.ok{color:var(--green)}
 .co-confirm-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
 .co-confirm-row:last-child{border-bottom:none}
 .co-confirm-row .lbl{color:var(--t2);font-size:13px}
@@ -2123,6 +2135,17 @@ body[data-admin="1"] .admin-nav-btn{display:flex !important}
       <ol class="co-flow-list" id="co-flow-list"></ol>
     </div>
     <div class="co-confirm-data" id="co-confirm-data"></div>
+
+    <!-- Counterparty username — recipient of the deal notification. -->
+    <div class="co-cp-wrap" id="co-cp-wrap">
+      <label class="co-cp-lbl" id="co-cp-lbl"></label>
+      <input type="text" class="co-cp-input" id="co-cp-input"
+             placeholder="@username" autocomplete="off"
+             autocorrect="off" autocapitalize="off" spellcheck="false"
+             maxlength="33" oninput="coCpInput()">
+      <div class="co-cp-hint" id="co-cp-hint"></div>
+    </div>
+
     <div class="co-confirm-btns">
       <button class="co-cfm-btn ok disabled" id="co-cfm-ok" onclick="coSubmit()" disabled></button>
       <button class="co-cfm-btn no disabled" id="co-cfm-no" onclick="coCancel()" disabled></button>
@@ -2691,6 +2714,10 @@ var L = {
     'co_amount_invalid':'Enter an amount greater than zero',
     'co_q6_buy':'Specify the purchase amount','co_q6_sell':'Specify the sale amount',
     'co_confirm_warn':'Make sure all order fields are filled correctly!',
+    'co_cp_lbl':'Counterparty @username',
+    'co_cp_hint':'The recipient will be notified about the deal in Telegram.',
+    'co_cp_bad':'Enter a valid Telegram @username.',
+    'co_cp_required':'Specify the counterparty @username to continue.',
     'co_confirm':'Confirm','co_cancel':'Cancel',
     'co_success':'You have successfully created an order!',
     'co_success_msg':'Go to the bot chat for further trading',
@@ -2829,6 +2856,10 @@ var L = {
     'co_amount_invalid':'Введите сумму больше нуля',
     'co_q6_buy':'Укажите сумму покупки','co_q6_sell':'Укажите сумму продажи',
     'co_confirm_warn':'Убедитесь в правильности заполнения всех пунктов ордера!',
+    'co_cp_lbl':'@username контрагента',
+    'co_cp_hint':'Пользователю придёт уведомление о сделке в Telegram.',
+    'co_cp_bad':'Введите корректный Telegram @username.',
+    'co_cp_required':'Укажите @username контрагента, чтобы продолжить.',
     'co_confirm':'Подтвердить','co_cancel':'Отказаться',
     'co_success':'Вы успешно создали ордер!',
     'co_success_msg':'Перейдите в чат с ботом, для дальнейшей торговли',
@@ -3844,6 +3875,12 @@ function coRenderStep6() {
   html += '<div class="co-confirm-row"><span class="lbl">'+escapeHtml(t('co_amount_lbl'))+'</span><span class="val">'+escapeHtml(coData.amount)+' '+escapeHtml(coData.currency)+'</span></div>';
   document.getElementById('co-confirm-data').innerHTML = html;
 
+  // Counterparty @username field + localized labels.
+  document.getElementById('co-cp-lbl').textContent = t('co_cp_lbl');
+  document.getElementById('co-cp-hint').textContent = t('co_cp_hint');
+  var cpInp = document.getElementById('co-cp-input');
+  if (cpInp) cpInp.value = coData.counterparty_username || '';
+
   var okBtn = document.getElementById('co-cfm-ok');
   var noBtn = document.getElementById('co-cfm-no');
   okBtn.classList.add('disabled'); okBtn.disabled = true;
@@ -3871,16 +3908,46 @@ function coRenderStep7() {
   document.getElementById('co-ok-msg').textContent = t('co_success_msg');
 }
 
+// Normalize and validate the counterparty @username. Returns the clean
+// handle (no leading @) or null if it doesn't match Telegram's shape.
+function coNormalizeUsername(raw) {
+  if (!raw) return null;
+  var s = String(raw).trim().replace(/^@+/, '');
+  // Telegram usernames: 5–32 chars, letters/digits/underscores, must not
+  // start with a digit and can't have a trailing underscore.
+  return /^[A-Za-z][A-Za-z0-9_]{3,30}[A-Za-z0-9]$/.test(s) ? s : null;
+}
+
+function coCpInput() {
+  var inp = document.getElementById('co-cp-input');
+  var hint = document.getElementById('co-cp-hint');
+  var v = (inp.value || '').trim();
+  coData.counterparty_username = coNormalizeUsername(v);
+  inp.className = 'co-cp-input' + (v ? (coData.counterparty_username ? ' valid' : ' invalid') : '');
+  hint.className = 'co-cp-hint' + (v ? (coData.counterparty_username ? ' ok' : ' bad') : '');
+  hint.textContent = !v
+    ? t('co_cp_hint')
+    : (coData.counterparty_username ? t('co_cp_hint') : t('co_cp_bad'));
+}
+
 function coSubmit() {
   var btn = document.getElementById('co-cfm-ok');
   if (btn.disabled) return;
+  // Require a valid counterparty username before firing the API call.
+  if (!coData.counterparty_username) {
+    var hint = document.getElementById('co-cp-hint');
+    hint.textContent = t('co_cp_required');
+    hint.className = 'co-cp-hint bad';
+    var inp = document.getElementById('co-cp-input');
+    if (inp) { inp.className = 'co-cp-input invalid'; inp.focus(); }
+    return;
+  }
   btn.disabled = true;
-  // UID step was removed from the wizard — the deal is created without a
-  // counterparty on the client side; the backend assigns one on acceptance.
   apiFetch('/api/deals/direct', {method:'POST', body:{
     // Wizard stores 'buy'/'sell' internally; the backend expects the full
     // 'buyer'/'seller' tokens.
     role: coData.role === 'buy' ? 'buyer' : 'seller',
+    counterparty_username: coData.counterparty_username,
     currency: coData.currency,
     amount: parseFloat(coData.amount),
     links: coData.links
@@ -5451,7 +5518,7 @@ function _tmaAuthHeaders() {
 }
 
 function adminBlock() {
-  if (!allowAction('adminBlock', 1500)) return;
+  // wrapGuards already owns the cooldown — don't double-stamp the bucket.
   var uid = parseInt(document.getElementById('admin-uid').value, 10);
   if (!uid || uid <= 0) { showToast('error', 'Admin', 'Enter a valid UID'); return; }
   securedFetch(ADMIN_API + '/api/admin/block', {
@@ -5469,7 +5536,7 @@ function adminBlock() {
 }
 
 function adminUnblock() {
-  if (!allowAction('adminUnblock', 1500)) return;
+  // wrapGuards already owns the cooldown — don't double-stamp the bucket.
   var uid = parseInt(document.getElementById('admin-uid').value, 10);
   if (!uid || uid <= 0) { showToast('error', 'Admin', 'Enter a valid UID'); return; }
   securedFetch(ADMIN_API + '/api/admin/unblock', {
