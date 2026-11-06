@@ -1358,31 +1358,34 @@ def register_handlers(dp: Dispatcher) -> None:
     async def admin_menu(message: Message) -> None:
         if not _is_admin(message.from_user.id):
             return
-        is_main = _is_main_admin(message.from_user.id)
-        role = "👑 Главный админ" if is_main else "🛡 Админ"
-        body = (
-            f"🛡️ <b>Админ-панель</b> · {role}\n\n"
-            "<b>Общие команды:</b>\n"
-            "• <code>/block &lt;telegram_id&gt;</code>\n"
-            "• <code>/unblock &lt;telegram_id&gt;</code>\n"
-            "• <code>/blocked</code>\n"
-            "• <code>/whoami</code>\n"
-            "• <code>/dealinfo &lt;ID&gt;</code>\n"
-            "• <code>/addbalance &lt;UID&gt; &lt;валюта&gt; &lt;сумма&gt;</code>\n"
-            "• <code>/admins</code>"
-        )
-        if is_main:
-            body += (
-                "\n\n<b>Только главный админ:</b>\n"
+        if _is_main_admin(message.from_user.id):
+            # Главный админ: модерация + управление командой + рассылка.
+            await message.answer(
+                "🛡️ <b>Админ-панель</b> · 👑 Главный админ\n\n"
+                "• <code>/block &lt;telegram_id&gt;</code> — заблокировать\n"
+                "• <code>/unblock &lt;telegram_id&gt;</code> — разблокировать\n"
+                "• <code>/blocked</code> — список заблокированных\n"
+                "• <code>/whoami</code> — твой TG-ID и UID\n"
+                "• <code>/admins</code> — все админы\n"
                 "• <code>/broadcast &lt;текст&gt;</code> — рассылка всем\n"
-                "• <code>/revokeadmin &lt;telegram_id&gt;</code> — снять права"
+                "• <code>/revokeadmin &lt;telegram_id&gt;</code> — снять права\n\n"
+                "Заявки на админ-права одобряешь кнопками ✅/❌ в лог-канале.",
+                reply_markup=admin_keyboard(),
             )
-        await message.answer(body, reply_markup=admin_keyboard())
+        else:
+            # Стафф-админ: операционные команды.
+            await message.answer(
+                "🛡️ <b>Админ-панель</b> · 🛡 Админ\n\n"
+                "• <code>/dealinfo &lt;ID&gt;</code> — полная карточка сделки\n"
+                "• <code>/addbalance &lt;UID&gt; &lt;валюта&gt; &lt;сумма&gt;</code> — пополнить баланс\n"
+                "• <code>/whoami</code> — твой TG-ID и UID\n"
+                "• <code>/admins</code> — список админов"
+            )
 
     @dp.message(Command("block"))
     async def block_cmd(message: Message) -> None:
-        if not _is_admin(message.from_user.id):
-            return
+        if not _is_main_admin(message.from_user.id):
+            return  # staff admins cannot block — only the main admin can
         parts = (message.text or "").split()
         if len(parts) < 2:
             await message.answer("Usage: <code>/block &lt;telegram_id&gt;</code>"); return
@@ -1397,8 +1400,8 @@ def register_handlers(dp: Dispatcher) -> None:
 
     @dp.message(Command("unblock"))
     async def unblock_cmd(message: Message) -> None:
-        if not _is_admin(message.from_user.id):
-            return
+        if not _is_main_admin(message.from_user.id):
+            return  # staff admins cannot unblock — only the main admin can
         parts = (message.text or "").split()
         if len(parts) < 2:
             await message.answer("Usage: <code>/unblock &lt;telegram_id&gt;</code>"); return
@@ -1411,8 +1414,8 @@ def register_handlers(dp: Dispatcher) -> None:
 
     @dp.message(Command("blocked"))
     async def blocked_list_cmd(message: Message) -> None:
-        if not _is_admin(message.from_user.id):
-            return
+        if not _is_main_admin(message.from_user.id):
+            return  # staff admins cannot see the blocklist — only the main admin can
         ids = await aio(blocked_all)
         if not ids:
             await message.answer("List is empty."); return
@@ -1580,7 +1583,11 @@ def register_handlers(dp: Dispatcher) -> None:
     # ──────────────────────────────────────────────────────────────────────
     @dp.message(Command("addbalance"))
     async def addbalance_cmd(message: Message) -> None:
-        if not _is_admin(message.from_user.id):
+        # Operations tool — staff admins only. The main admin stays out of
+        # direct balance mutations so they can audit without conflict of
+        # interest; the main admin retains /revokeadmin to pull access if a
+        # staff member abuses this.
+        if not is_staff_admin(message.from_user.id):
             return
         parts = (message.text or "").split()
         if len(parts) != 4:
@@ -1619,7 +1626,8 @@ def register_handlers(dp: Dispatcher) -> None:
     # ──────────────────────────────────────────────────────────────────────
     @dp.message(Command("dealinfo"))
     async def dealinfo_cmd(message: Message) -> None:
-        if not _is_admin(message.from_user.id):
+        # Operations tool — staff admins only (same reasoning as /addbalance).
+        if not is_staff_admin(message.from_user.id):
             return
         parts = (message.text or "").split()
         if len(parts) != 2:
@@ -1701,15 +1709,14 @@ def register_handlers(dp: Dispatcher) -> None:
 ADMIN_COMMANDS_HELP_RU = (
     "<b>📋 Доступные команды:</b>\n\n"
     "<code>/admin</code> — открыть админ-меню\n"
-    "<code>/block &lt;telegram_id&gt;</code> — заблокировать пользователя\n"
-    "<code>/unblock &lt;telegram_id&gt;</code> — разблокировать\n"
-    "<code>/blocked</code> — список заблокированных\n"
-    "<code>/whoami</code> — твой Telegram ID и UID\n"
-    "<code>/dealinfo &lt;ID&gt;</code> — полная карточка сделки (все числа и значения)\n"
-    "<code>/addbalance &lt;UID&gt; &lt;валюта&gt; &lt;сумма&gt;</code> — пополнить баланс пользователю\n"
-    "<code>/admins</code> — список всех админов\n\n"
-    "⚠️ Команды <code>/broadcast</code>, <code>/approve</code>, <code>/reject</code>, "
-    "<code>/revokeadmin</code> доступны только главному администратору."
+    "<code>/dealinfo &lt;ID сделки&gt;</code> — полная карточка сделки: статус, "
+    "суммы, покупатель, продавец, подарок, временные метки и ID\n"
+    "<code>/addbalance &lt;UID&gt; &lt;валюта&gt; &lt;сумма&gt;</code> — "
+    "пополнить баланс пользователя (отрицательная сумма — списать)\n"
+    "<code>/admins</code> — список всех админов\n"
+    "<code>/whoami</code> — твой Telegram ID и UID\n\n"
+    "⚠️ Модерация (<code>/block</code>, <code>/unblock</code>, <code>/blocked</code>) "
+    "и рассылка (<code>/broadcast</code>) доступны только главному администратору."
 )
 
 
