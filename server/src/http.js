@@ -159,7 +159,8 @@ export function makeServer(ctx, router) {
       const m = router.match(req.method, url.pathname);
       if (!m) throw new HttpError(404, "not_found", "Не найдено");
       const { r, params } = m;
-      if (r.limit && !limiter.take(`${r.limit.key}:${ip}`, r.limit.n, r.limit.ms)) throw tooMany();
+      // public routes (login) are limited per IP; signed routes per account (many users share one mobile IP)
+      if (r.limit && r.auth === "public" && !limiter.take(`${r.limit.key}:${ip}`, r.limit.n, r.limit.ms)) throw tooMany();
       const body = req.method === "GET" || req.method === "DELETE" ? Buffer.alloc(0) : await readBody(req, r.maxBody);
       let json = null;
       if (!r.raw && body.length) {
@@ -172,6 +173,7 @@ export function makeServer(ctx, router) {
         a = await authSession(req, url, body, ip);
         if (a.user.banned_at && r.auth !== "session-any") throw new HttpError(403, "banned", "Аккаунт заблокирован: " + (a.user.ban_reason || "нарушение правил"));
         if (r.auth === "admin" && a.user.role !== "admin") throw new HttpError(403, "forbidden", "Только для администраторов");
+        if (r.limit && !limiter.take(`${r.limit.key}:u${a.user.id}`, r.limit.n, r.limit.ms)) throw tooMany();
       }
       const out = await r.handler({ req, res, ip, url, params, query: url.searchParams, body: json || {}, rawBody: body, user: a?.user, sess: a?.sess, tokenHash: a?.tokenHash, headers: req.headers });
       if (out && out.__file) {

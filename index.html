@@ -1762,7 +1762,8 @@ function renderAdForm(){
       ?`<div class="field"><label>Цена за 1 ${esc(d.asset)}, ${esc(d.fiat)}</label><input class="input" id="afPrice" inputmode="decimal" value="${esc(d.price)}" placeholder="0.00"></div>`
       :`<div class="field"><label>Процент от рыночной цены (80–120%)</label><input class="input" id="afFloat" inputmode="decimal" value="${esc(d.floatPct)}" placeholder="100"></div>`}
     <p class="hint" id="afIdx">Рыночная цена: загрузка…</p>
-    <div class="field"><label>Общее количество, ${esc(d.asset)}</label><input class="input" id="afTotal" inputmode="decimal" value="${esc(d.total)}" placeholder="0"></div>
+    <div class="field"><label>Общее количество, ${esc(d.asset)}</label><input class="input" id="afTotal" inputmode="decimal" value="${esc(d.total)}" placeholder="0">
+      ${sell?`<p class="hint" style="margin:8px 2px 0">На кошельке: ${fmtCrypto(humanBal(d.asset))} ${esc(d.asset)}${d.asset==="USDT"?` · ${fmtCrypto(humanBal("GRAM"))} GRAM`:""}. Можно выставить до ${fmtCrypto(maxAdVolume(d.asset))} ${esc(d.asset)}.</p>`:""}</div>
     <div class="row2">
       <div class="field"><label>Мин. сумма, ${esc(d.fiat)}</label><input class="input" id="afMin" inputmode="decimal" value="${esc(d.min)}"></div>
       <div class="field"><label>Макс. сумма, ${esc(d.fiat)}</label><input class="input" id="afMax" inputmode="decimal" value="${esc(d.max)}"></div>
@@ -1777,7 +1778,7 @@ function renderAdForm(){
       <div class="field"><label>Мин. сделок у контрагента</label><input class="input" id="afCo" inputmode="numeric" value="${esc(d.condMinOrders)}"></div>
       <div class="field"><label>Мин. дней с регистрации</label><input class="input" id="afCd" inputmode="numeric" value="${esc(d.condRegDays)}"></div>
     </div>
-    ${sell?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Объявление ничего не блокирует. Когда покупатель создаст ордер, у вас будет ${API.cfg?API.cfg.lockWindowMin:15} мин, чтобы заблокировать сумму ордера в смарт‑контракте эскроу.</div></div>`:""}
+    ${sell?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Сервер проверит в блокчейне, что на кошельке есть весь объём + комиссия ${p2pSidePct()}%${d.asset==="USDT"?" и ≈0.47 GRAM на газ":""}; перед каждым ордером проверка повторяется. Само объявление ничего не блокирует: когда покупатель создаст ордер, у вас будет ${API.cfg?API.cfg.lockWindowMin:15} мин, чтобы заблокировать сумму ордера в смарт‑контракте эскроу.</div></div>`:""}
     <button class="btn btn-primary btn-lg btn-block" id="afGo" data-act="adf-save">${edit?"Сохранить":"Опубликовать"}</button>`);
   for(const [id,k] of AF_FIELDS){ const i=el(id); if(i) i.addEventListener("input",()=>{ d[k]=i.value; }); }
   const a=el("afAsset"), f=el("afFiat");
@@ -1791,6 +1792,12 @@ const AF_FIELDS=[["afPrice","price"],["afFloat","floatPct"],["afTotal","total"],
 // перед любой перерисовкой формы забираем введённые значения из DOM
 function syncAdForm(){ if(!adDraft) return; for(const [id,k] of AF_FIELDS){ const i=el(id); if(i) adDraft[k]=i.value; } }
 function syncTake(){ const i=el("tkAmt"); if(i&&takeState) takeState.value=i.value; }
+// максимум, который пройдёт проверку сервера: (баланс − газ эскроу для GRAM) / (1 + комиссия), с округлением вниз
+function maxAdVolume(asset){
+  const step=asset==="USDT"?100:10000;
+  const free=humanBal(asset)-(asset==="GRAM"?0.08:0);
+  return Math.max(0,Math.floor(free/(1+p2pSidePct()/100)*step)/step);
+}
 async function saveAd(){
   syncAdForm();
   const d=adDraft, b=el("afGo");

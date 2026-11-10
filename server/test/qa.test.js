@@ -261,3 +261,86 @@ test("fees: every order shows the configured percentage per side and matches the
   assert.equal(BigInt(o.escrow.buyerAmountUnits), 100_000_000n - side);
   await B().req("POST", `/api/orders/${o.id}/cancel`, {});
 });
+
+// ---------------------------------------------------------------- on-chain balance checks
+test("balance: a sell ad needs the whole amount + 2% fee on the wallet (and GRAM for USDT gas)", async () => {
+  const s = await new Client(base, { id: 2030, first_name: "Bal" }).ready("bal_seller");
+  const raw = s.address.toRawString();
+  const pmId = await pm(s);
+  const body = (total) => ({ side: "sell", asset: "USDT", fiat: "RUB(ПМР)", priceType: "fixed", price: "16.10", total, min: "100", max: "1610", payWindow: 15, pmIds: [pmId] });
+  chain.balances.set(raw, { ton: 1_000_000_000n, usdt: 150_000_000n });           // 150 USDT, 1 GRAM
+  let r = await s.req("POST", "/api/ads", body("200"));
+  assert.equal(r.status, 400);
+  assert.equal(r.body.error, "insufficient_balance");
+  assert.match(r.body.message, /есть 150, нужно 204/);
+  r = await s.req("POST", "/api/ads", body("147"));                                 // 147 + 2.94 = 149.94 <= 150
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  chain.balances.set(raw, { ton: 100_000_000n, usdt: 150_000_000n });             // 0.1 GRAM — not enough gas
+  r = await s.req("POST", "/api/ads", body("100"));
+  assert.equal(r.body.error, "insufficient_gas");
+  assert.match(r.body.message, /0\.47 GRAM/);
+  // a buy ad does not need coins on the wallet
+  r = await s.req("POST", "/api/ads", { side: "buy", asset: "USDT", fiat: "RUB(ПМР)", priceType: "fixed", price: "15", total: "1000", min: "100", max: "1000", payWindow: 15, payTypes: ["АПБ"] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+});
+
+test("balance: raising an ad's volume is checked again; price-only edits are not", async () => {
+  const s = await new Client(base, { id: 2031, first_name: "Ed" }).ready("bal_editor");
+  const raw = s.address.toRawString();
+  chain.balances.set(raw, { ton: 1_000_000_000n, usdt: 110_000_000n });
+  const ad = (await s.req("POST", "/api/ads", { side: "sell", asset: "USDT", fiat: "RUB(ПМР)", priceType: "fixed", price: "16.10", total: "100", min: "100", max: "1610", payWindow: 15, pmIds: [await pm(s)] })).body;
+  const edit = (total, price) => s.req("POST", `/api/ads/${ad.id}`, { priceType: "fixed", price, total, min: "100", max: "1610", payWindow: 15, pmIds: ad.pmIds });
+  assert.equal((await edit("100", "16.20")).status, 200);
+  const r = await edit("500", "16.20");
+  assert.equal(r.status, 400);
+  assert.equal(r.body.error, "insufficient_balance");
+});
+
+test("balance: an order is refused when the seller no longer holds the coins; an empty ad goes offline", async () => {
+  const s = await new Client(base, { id: 2032, first_name: "Em" }).ready("empty_seller");
+  const raw = s.address.toRawString();
+  chain.balances.set(raw, { ton: 1_000_000_000n, usdt: 200_000_000n });
+  const ad = (await s.req("POST", "/api/ads", { side: "sell", asset: "USDT", fiat: "RUB(ПМР)", priceType: "fixed", price: "16.10", total: "100", min: "161", max: "1610", payWindow: 15, pmIds: [await pm(s)] })).body;
+  chain.balances.set(raw, { ton: 1_000_000_000n, usdt: 30_000_000n });            // seller moved coins away: 30 USDT left
+  notes = [];
+  let r = await B().req("POST", "/api/orders", { adId: ad.id, amount: "50", payType: "АПБ", idem: "bal-order-big1" });
+  assert.equal(r.status, 409);
+  assert.equal(r.body.error, "seller_insufficient");
+  assert.doesNotMatch(r.body.message, /30/, "the buyer does not see the seller's balance");
+  assert.equal((await s.req("GET", "/api/ads/mine")).body.items.find((x) => x.id === ad.id).status, "online", "10 USDT min order is still possible");
+  r = await B().req("POST", "/api/orders", { adId: ad.id, amount: "10", payType: "АПБ", idem: "bal-order-ok01" });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  await B().req("POST", `/api/orders/${r.body.id}/cancel`, {});
+  chain.balances.set(raw, { ton: 1_000_000_000n, usdt: 5_000_000n });             // 5 USDT: not even the 10 USDT minimum
+  r = await B().req("POST", "/api/orders", { adId: ad.id, amount: "10", payType: "АПБ", idem: "bal-order-min1" });
+  assert.equal(r.status, 409);
+  assert.equal((await s.req("GET", "/api/ads/mine")).body.items.find((x) => x.id === ad.id).status, "offline");
+  assert.ok(notes.some((n) => n.uid === 2032 && /скрыто/.test(n.text)), "maker is told why");
+  assert.equal((await B().req("GET", "/api/ads?side=sell&asset=USDT")).body.items.some((x) => x.id === ad.id), false);
+});
+
+test("balance: on a buy ad the taker is the seller and must hold the coins", async () => {
+  const buyerMaker = await new Client(base, { id: 2033, first_name: "Bm" }).ready("buy_maker");
+  const ad = (await buyerMaker.req("POST", "/api/ads", { side: "buy", asset: "USDT", fiat: "RUB(ПМР)", priceType: "fixed", price: "15.80", total: "100", min: "100", max: "1580", payWindow: 15, payTypes: ["АПБ"] })).body;
+  const t = await new Client(base, { id: 2034, first_name: "Ts" }).ready("poor_taker");
+  chain.balances.set(t.address.toRawString(), { ton: 1_000_000_000n, usdt: 5_000_000n });
+  const r = await t.req("POST", "/api/orders", { adId: ad.id, amount: "10", payType: "АПБ", pmId: await pm(t), idem: "bal-taker-0001" });
+  assert.equal(r.status, 400);
+  assert.match(r.body.message, /есть 5, нужно 10\.2/);
+});
+
+test("balance: a GRAM sell ad counts the escrow gas reserve; RPC outage fails closed", async () => {
+  const s = await new Client(base, { id: 2035, first_name: "Gr" }).ready("gram_seller");
+  chain.balances.set(s.address.toRawString(), { ton: 10_200_000_000n, usdt: 0n }); // 10.2 GRAM
+  const body = (total) => ({ side: "sell", asset: "GRAM", fiat: "USD", priceType: "fixed", price: "5", total, min: "10", max: "50", payWindow: 15, pmIds: [await_pm] });
+  const await_pm = await pm(s);
+  let r = await s.req("POST", "/api/ads", body("10"));                              // 10 + 0.2 fee + 0.08 gas > 10.2
+  assert.equal(r.body.error, "insufficient_balance");
+  r = await s.req("POST", "/api/ads", body("9.9"));                                 // 9.9 + 0.198 + 0.08 = 10.178
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  chain.setBalanceDown(true);
+  r = await B().req("POST", "/api/orders", { adId: r.body.id, amount: "2", payType: "АПБ", idem: "bal-rpc-down01" });
+  chain.setBalanceDown(false);
+  assert.equal(r.status, 503);
+  assert.equal(r.body.error, "balance_unavailable");
+});

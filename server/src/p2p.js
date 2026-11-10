@@ -54,6 +54,28 @@ export function registerP2P(router, ctx) {
   }
   const friendly = (raw) => Address.parse(raw).toString({ bounceable: false, testOnly: cfg.network === "testnet" });
 
+  // ---- реальный баланс продавца в блокчейне ----
+  // Продавец должен держать на кошельке сумму сделки + свою комиссию, а для USDT ещё и GRAM на газ эскроу.
+  const NET_GAS = 20_000_000n; // запас на комиссию сети за саму транзакцию
+  const pctTxt = () => (cfg.p2pFeeSideBps / 100).toString().replace(".", ",");
+  async function sellerFunding(rawAddress, asset, lockUnits) {
+    let bal;
+    try { bal = await chain.walletBalances(Address.parse(rawAddress)); }
+    catch { throw new HttpError(503, "balance_unavailable", "Не удалось проверить баланс в блокчейне. Повторите через минуту"); }
+    if (asset === "USDT") {
+      const gas = ESCROW_TON.jettonDealDeploy + ESCROW_TON.jettonTransferValue + NET_GAS;
+      return { coinsOk: bal.usdt >= lockUnits, gasOk: bal.ton >= gas, have: bal.usdt, need: lockUnits, haveGas: bal.ton, needGas: gas };
+    }
+    const need = lockUnits + ESCROW_TON.tonDealReserve + NET_GAS;
+    return { coinsOk: bal.ton >= need, gasOk: true, have: bal.ton, need };
+  }
+  function ownFundingError(asset, f) {
+    const d = ASSETS[asset].dec;
+    if (!f.coinsOk) return bad("insufficient_balance", `Недостаточно ${asset} на кошельке: есть ${toStr(f.have, d)}, нужно ${toStr(f.need, d)} (сумма + комиссия ${pctTxt()}%${asset === "GRAM" ? " + газ эскроу" : ""}). Уменьшите количество или пополните кошелёк.`);
+    return bad("insufficient_gas", `Для сделок в USDT нужно ≈${toStr(f.needGas, 9)} GRAM на газ эскроу (неиспользованное вернётся). Сейчас на кошельке ${toStr(f.haveGas, 9)} GRAM.`);
+  }
+  const lockFor = async (units, asset) => BigInt(units) + sideFee(units, asset, await prices.usdE6(asset), cfg.p2pFeeSideBps, cfg.p2pFeeMaxSideUsdE6);
+
   async function adPriceE6(ad) {
     if (ad.price_type === "fixed") return BigInt(ad.price_e6);
     const idx = await prices.index(ad.asset, ad.fiat);
@@ -282,6 +304,10 @@ export function registerP2P(router, ctx) {
     const idem = body.idem ? v.str(body.idem, "idem", { min: 8, max: 64, re: /^[A-Za-z0-9_-]+$/ }) : null;
     if (idem) { const ex = db.get("SELECT * FROM ads WHERE idem=? AND user_id=?", idem, user.id); if (ex) return adView(ex, await adPriceE6(ex), user.id); }
     if (db.get("SELECT COUNT(*) n FROM ads WHERE user_id=? AND status IN ('online','offline')", user.id).n >= MAX_ACTIVE_ADS) throw bad("limit", `Максимум ${MAX_ACTIVE_ADS} объявлений`);
+    if (p.side === "sell") {   // продать можно только то, что реально лежит на кошельке
+      const f = await sellerFunding(user.wallet_address, p.asset, await lockFor(p.total, p.asset));
+      if (!f.coinsOk || !f.gasOk) throw ownFundingError(p.asset, f);
+    }
     const t = now();
     const r = db.run(`INSERT INTO ads(user_id,side,asset,fiat,price_type,price_e6,float_e2,total_units,remaining_units,min_cents,max_cents,pay_window,pay_types,pm_ids,remarks,cond_min_orders,cond_reg_days,status,idem,created_at,updated_at)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'online',?,?,?)`, user.id, p.side, p.asset, p.fiat, p.priceType, p.priceE6, p.floatE2,
@@ -300,6 +326,10 @@ export function registerP2P(router, ctx) {
     const p = await parseAd(body, user, ad);
     const executed = BigInt(ad.total_units) - BigInt(ad.remaining_units);
     if (p.total < executed) throw bad("bad_total", `Количество не может быть меньше уже исполненного (${toStr(executed, ASSETS[ad.asset].dec)})`);
+    if (ad.side === "sell" && p.total > BigInt(ad.total_units)) {   // увеличение объёма — снова проверяем кошелёк
+      const f = await sellerFunding(user.wallet_address, ad.asset, await lockFor(p.total - executed, ad.asset));
+      if (!f.coinsOk || !f.gasOk) throw ownFundingError(ad.asset, f);
+    }
     db.run(`UPDATE ads SET price_type=?,price_e6=?,float_e2=?,total_units=?,remaining_units=?,min_cents=?,max_cents=?,pay_window=?,pay_types=?,pm_ids=?,remarks=?,cond_min_orders=?,cond_reg_days=?,updated_at=? WHERE id=?`,
       p.priceType, p.priceE6, p.floatE2, p.total, p.total - executed, p.min, p.max, p.payWindow, JSON.stringify(p.payTypes), JSON.stringify(p.pmIds), p.remarks, p.condMinOrders, p.condRegDays, now(), ad.id);
     const n = db.get("SELECT * FROM ads WHERE id=?", ad.id);
@@ -401,6 +431,18 @@ export function registerP2P(router, ctx) {
       if (!pmRow || pmRow.type !== payType) throw bad("need_pm", "Выберите свои реквизиты для получения оплаты");
     }
     const seller = takerIsBuyer ? maker : user, buyer = takerIsBuyer ? user : maker;
+    // у продавца в блокчейне должны быть монеты на эту сделку (+ комиссия), иначе ордер не создаём
+    const funding = await sellerFunding(seller.wallet_address, ad.asset, units + fee);
+    if (!funding.coinsOk || !funding.gasOk) {
+      if (!takerIsBuyer) throw ownFundingError(ad.asset, funding);
+      const minUnits = unitsForCents(ad.min_cents, ad.asset, priceE6);
+      const minF = await sellerFunding(seller.wallet_address, ad.asset, minUnits + sideFee(minUnits, ad.asset, usd, cfg.p2pFeeSideBps, cfg.p2pFeeMaxSideUsdE6));
+      if (!minF.coinsOk || !minF.gasOk) {   // не хватает даже на минимальный ордер — прячем объявление
+        const r = db.run("UPDATE ads SET status='offline', updated_at=? WHERE id=? AND status='online'", now(), ad.id);
+        if (r.changes) tell(ad.user_id, `Объявление #${ad.id} скрыто: на кошельке не хватает ${ad.asset}${minF.coinsOk ? " или GRAM на газ" : ""} даже на минимальную сделку. Пополните кошелёк и включите объявление снова.`, null);
+      }
+      throw conflict("seller_insufficient", "У продавца сейчас недостаточно средств для этой сделки. Выберите меньшую сумму или другое объявление.");
+    }
     const details = { type: pmRow.type, ...dec(pmRow.details_enc, "pm:" + pmRow.user_id) };
     const dealId = randomU64();
     const escrowDeadline = nowSec() + cfg.escrowReclaimDays * 86400;

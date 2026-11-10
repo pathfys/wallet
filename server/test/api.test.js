@@ -78,6 +78,7 @@ before(async () => {
     async jettonWalletOf(owner) { return Address.parse("0:" + createHash("sha256").update(owner.toRawString()).digest("hex")); },
     async sendBoc(b64) { sent.push(b64); return { ok: true }; },
     async getTransactions() { return []; },
+    async walletBalances() { return { ton: 100_000_000_000n, usdt: 100_000_000_000n }; },
   };
   const prices = { async index(asset, fiat) { return fiat === "USD" ? (asset === "USDT" ? 1_000_000n : 5_000_000n) : 0n; }, async usdE6(a) { return a === "USDT" ? 1_000_000n : 5_000_000n; } };
   app = createApp(cfg, { chain, prices, bot: { notify() {} }, log: makeLog(true) });

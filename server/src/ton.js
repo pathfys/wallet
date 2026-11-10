@@ -65,7 +65,7 @@ export class Toncenter {
 // High-level chain operations used by the P2P module (mockable in tests).
 export function makeChain(cfg, rpc) {
   const usdtMaster = Address.parse(cfg.usdtMaster);
-  const jwCache = new Map();
+  const jwCache = new Map(), balCache = new Map();
   return {
     async jettonWalletOf(owner) {
       const k = owner.toString();
@@ -80,6 +80,17 @@ export function makeChain(cfg, rpc) {
       const acc = await rpc.getAccount(jw);
       if (acc.state !== "active") return 0n;
       return (await rpc.runGet(jw, "get_wallet_data")).readBigNumber();
+    },
+    // real wallet balances of a user (nanotons / USDT units), cached for 10 s
+    async walletBalances(owner) {
+      const k = owner.toRawString(), c = balCache.get(k);
+      if (c && Date.now() - c.at < 10_000) return c.v;
+      const acc = await rpc.getAccount(owner);
+      const usdt = cfg.network === "mainnet" ? await this.jettonBalance(await this.jettonWalletOf(owner)) : 0n;
+      const v = { ton: acc.balance, usdt };
+      if (balCache.size > 10_000) balCache.clear();
+      balCache.set(k, { at: Date.now(), v });
+      return v;
     },
     // -> { deployed, status, seqno, tonBalance, jettonBalance, jettonWallet, data }
     async escrowState(order) {

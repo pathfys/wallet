@@ -69,9 +69,16 @@ export const mockPrices = {
 };
 
 export function makeMockChain() {
-  const state = new Map(), sent = [], txs = [];
+  const state = new Map(), sent = [], txs = [], balances = new Map();
+  let balanceDown = false;
   return {
-    state, sent, txs,
+    state, sent, txs, balances,
+    setBalanceDown(v) { balanceDown = v; },
+    // by default every wallet is rich; tests override per address (raw form)
+    async walletBalances(owner) {
+      if (balanceDown) throw new Error("rpc down");
+      return balances.get(owner.toRawString()) || { ton: 100_000_000_000n, usdt: 100_000_000_000n };
+    },
     async escrowState(o) { return state.get(o.escrow_address) || { deployed: false, tonBalance: 0n }; },
     async jettonWalletOf(owner) { return Address.parse("0:" + createHash("sha256").update(owner.toRawString()).digest("hex")); },
     async sendBoc(b64) { sent.push(b64); return { ok: true }; },

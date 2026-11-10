@@ -24,6 +24,7 @@ function sandboxChain() {
     async sendBoc(b64) { const r = await bc.sendMessage(Cell.fromBoc(Buffer.from(b64, "base64"))[0]); chainLog.push(r); return { ok: true }; },
     async jettonWalletOf() { throw new Error("no jettons in this test"); },
     async getTransactions() { return []; },
+    async walletBalances(owner) { return { ton: (await bc.getContract(owner)).balance, usdt: 0n }; },
   };
 }
 const sentTo = (r, to) => r.transactions.filter((t) => t.inMessage?.info.type === "internal" && t.inMessage.info.dest.equals(to)).reduce((a, t) => a + t.inMessage.info.value.coins, 0n);
