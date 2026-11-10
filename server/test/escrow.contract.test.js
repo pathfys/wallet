@@ -266,3 +266,55 @@ describe("jetton deal", () => {
     assert.ok(outs[0].to.equals(seller.address));
   });
 });
+
+describe("seller cannot take locked funds back while the deal is open", () => {
+  beforeEach(setup);
+  const fakeJw = () => Address.parse("0:" + randomBytes(32).toString("hex"));
+
+  test("TON deal: cancel / reclaim / sweep / forged arbiter refund all fail; funds stay locked", async () => {
+    const p = params();
+    const { addr } = await deploy(p, toNano("10.16"));
+    const locked = await bal(addr);
+    const tries = [bodyCancel(), bodyReclaim(), bodySweep(0n), bodySweep(toNano("10"))];
+    for (const body of tries) {
+      const r = await seller.send({ to: addr, value: toNano("0.05"), body });
+      assert.equal(aborted(r, addr), true);
+      assert.equal(sentValue(r, addr, seller.address) > toNano("0.06"), false, "nothing paid out to the seller");
+    }
+    // a refund "decision" signed by anyone except the platform arbiter is rejected
+    assert.ok(await extRejected(addr, buildDecisionExternal(evil.priv, addr, { seqno: 0, validUntil: bc.now + 60, action: ACTION.refund, amount: 0 }).body));
+    assert.equal((await data(addr)).status, STATUS.open);
+    assert.ok((await bal(addr)) >= locked - toNano("0.001"), "locked amount is still on the escrow");
+  });
+
+  test("USDT deal: the seller cannot move the escrow's jettons back while open", async () => {
+    const p = params({ kind: KIND.jetton, buyerAmount: 98_000_000n, feeAmount: 4_000_000n });
+    const addr = escrowAddress(p);
+    const jw = fakeJw();
+    await seller.send({ to: addr, value: toNano("0.3"), init: escrowStateInit(p), body: buildSetupBody(jw, edSignHash(arb.priv, setupHash(addr, jw))), bounce: true });
+    for (const body of [bodyCancel(), bodyReclaim(), bodySweep(102_000_000n)]) {
+      const r = await seller.send({ to: addr, value: toNano("0.2"), body });
+      assert.equal(aborted(r, addr), true);
+      assert.equal(outTo(r, addr, jw).length, 0, "no jetton transfer was issued");
+    }
+    // the only seller action that moves jettons is RELEASE — and it pays the BUYER (+ fee wallet)
+    const r = await seller.send({ to: addr, value: toNano("0.05"), body: bodyRelease() });
+    const outs = outTo(r, addr, jw).map((t) => { const sl = t.inMessage.body.beginParse(); sl.loadUint(32); sl.loadUintBig(64); return { amount: sl.loadCoins(), to: sl.loadAddress() }; });
+    assert.ok(outs[0].to.equals(buyer.address) && outs[0].amount === 98_000_000n);
+    assert.ok(outs[1].to.equals(fee.address) && outs[1].amount === 4_000_000n);
+    assert.ok(outs.every((o) => !o.to.equals(seller.address)));
+  });
+
+  test("the only way back to the seller: buyer cancels, platform arbiter refunds, or 14-day deadline passes", async () => {
+    const p = params();
+    const { addr } = await deploy(p, toNano("10.16"));
+    let r = await seller.send({ to: addr, value: toNano("0.05"), body: bodyReclaim() });
+    assert.equal(aborted(r, addr), true, "before the deadline");
+    bc.now = p.deadline - 60;
+    r = await seller.send({ to: addr, value: toNano("0.05"), body: bodyReclaim() });
+    assert.equal(aborted(r, addr), true, "one minute before the deadline");
+    bc.now = p.deadline;
+    r = await seller.send({ to: addr, value: toNano("0.05"), body: bodyReclaim() });
+    assert.equal(aborted(r, addr), false, "at the deadline");
+  });
+});
