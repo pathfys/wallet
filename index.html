@@ -572,6 +572,61 @@ a.tlink{color:var(--primary-2);font-weight:600;}
 .unread{min-width:18px;height:18px;border-radius:9px;background:var(--sell);color:#fff;font-size:10.5px;font-weight:800;display:inline-grid;place-items:center;padding:0 5px;}
 button.tlink{background:none;padding:0;font-size:inherit;}
 .adm-ractions .adm-b{cursor:pointer;}
+
+/* ===================== Отправка: адрес · валюта · QR / сумма / MEMO ===================== */
+.snd-row{display:flex;gap:8px;align-items:stretch;}
+.addr-field{position:relative;flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:56px;padding:0 6px 0 10px;background:var(--panel-2);border:1px solid var(--line);border-radius:16px;transition:border-color .15s var(--ease),background .15s var(--ease);cursor:text;}
+.addr-field:focus-within{border-color:var(--primary);background:var(--panel);}
+.addr-field.ok{border-color:rgba(46,189,133,.6);}
+.addr-field.bad{border-color:var(--sell);}
+.addr-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--panel-3);color:var(--ink-3);flex:0 0 auto;transition:background .2s,color .2s;}
+.addr-ic svg{width:16px;height:16px;}
+.addr-field.ok .addr-ic{background:var(--buy-ghost);color:var(--buy);}
+.addr-in{flex:1;min-width:0;height:100%;font-family:var(--mono);font-size:13px;color:var(--ink);}
+.addr-in::placeholder{font-family:var(--font);color:var(--ink-4);font-size:14.5px;font-weight:500;}
+.addr-short{position:absolute;left:50px;right:12px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:15.5px;font-weight:700;letter-spacing:-.02em;color:var(--ink);pointer-events:none;opacity:0;white-space:nowrap;overflow:hidden;transition:opacity .15s;}
+.addr-field.ok:not(:focus-within) .addr-short{opacity:1;}
+.addr-field.ok:not(:focus-within) .addr-in{color:transparent;}
+.addr-paste{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;color:var(--primary-2);flex:0 0 auto;}
+.addr-paste svg{width:17px;height:17px;}
+.addr-field.filled .addr-paste{display:none;}
+.cur-switch{position:relative;flex:0 0 auto;width:88px;height:56px;border-radius:16px;background:var(--panel-2);border:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;align-items:stretch;padding:5px;}
+.cur-switch .cs-knob{position:absolute;top:5px;bottom:5px;left:5px;width:calc(50% - 5px);border-radius:12px;background:var(--panel);box-shadow:0 2px 10px -3px rgba(15,19,25,.22),0 0 0 1px var(--line);transition:transform .3s var(--ease);}
+.cur-switch.is-gram .cs-knob{transform:translateX(100%);}
+.cs-opt{position:relative;z-index:1;display:grid;place-items:center;opacity:.4;filter:grayscale(1);transition:opacity .25s,filter .25s;}
+.cs-opt img{width:26px;height:26px;object-fit:contain;display:block;}
+.cur-switch:not(.is-gram) .cs-opt:nth-of-type(2),.cur-switch.is-gram .cs-opt:nth-of-type(3){opacity:1;filter:none;}
+.cur-switch:active .cs-knob{transform:scale(.94);}
+.cur-switch.is-gram:active .cs-knob{transform:translateX(100%) scale(.94);}
+.cur-switch:disabled{opacity:.7;cursor:not-allowed;}
+.qr-btn{flex:0 0 auto;width:56px;height:56px;border-radius:16px;background:var(--primary);color:#fff;display:grid;place-items:center;box-shadow:0 10px 22px -12px rgba(var(--primary-rgb),.9);}
+.qr-btn svg{width:22px;height:22px;}
+.qr-btn:active,.addr-paste:active,.amt-max:active{transform:scale(.94);}
+.snd-sub{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--ink-3);font-weight:500;margin:8px 4px 14px;}
+.snd-sub .snd-cur{font-weight:700;color:var(--ink-2);white-space:nowrap;}
+.amt-card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin-bottom:12px;transition:border-color .15s var(--ease);box-shadow:var(--sh-1);}
+.amt-card:focus-within{border-color:var(--primary);}
+.amt-card.bad{border-color:var(--sell);}
+.amt-top{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--ink-3);font-weight:600;}
+.amt-top b{color:var(--ink-2);}
+.amt-line{display:flex;align-items:center;gap:10px;margin:6px 0 4px;}
+.amt-in{flex:1;min-width:0;font-size:32px;font-weight:800;font-family:var(--mono);letter-spacing:-.03em;color:var(--ink);padding:2px 0;}
+.amt-in::placeholder{color:var(--ink-4);}
+.amt-sym{font-weight:800;font-size:15px;color:var(--ink-2);}
+.amt-max{font-size:11.5px;font-weight:800;letter-spacing:.06em;padding:9px 11px;border-radius:10px;background:var(--primary-ghost);color:var(--primary-2);flex:0 0 auto;}
+.amt-calc{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink-3);font-weight:600;min-height:18px;}
+.amt-calc b{color:var(--ink);}
+.memo-field{display:flex;align-items:center;gap:10px;height:52px;padding:0 14px 0 8px;background:var(--panel-2);border:1px solid var(--line);border-radius:16px;cursor:text;transition:border-color .15s var(--ease),background .15s var(--ease);}
+.memo-field:focus-within{border-color:var(--primary);background:var(--panel);}
+.memo-field.bad{border-color:var(--sell);}
+.memo-tag{font:800 10.5px/1 var(--mono);letter-spacing:.1em;padding:8px 9px;border-radius:9px;background:var(--panel-3);color:var(--ink-2);flex:0 0 auto;}
+.memo-field input{flex:1;min-width:0;height:100%;font-size:14.5px;color:var(--ink);}
+.memo-field input::placeholder{color:var(--ink-4);}
+.memo-cnt{font-size:11px;color:var(--ink-4);font-family:var(--mono);flex:0 0 auto;}
+.snd-note{display:flex;gap:6px;align-items:flex-start;font-size:11.5px;color:var(--ink-3);line-height:1.45;margin:8px 4px 0;}
+.snd-note svg{width:14px;height:14px;flex:0 0 auto;margin-top:1px;}
+.snd-err{color:var(--sell);font-size:12.5px;font-weight:600;min-height:18px;margin:10px 4px 8px;}
+.kv .v.addr-full{font-size:12px;word-break:break-all;max-width:70%;}
 </style>
 </head>
 <body>
@@ -1045,9 +1100,10 @@ async function sendJettonOuts(outs){ // outs=[{to, units:BigInt, comment?}]
   }
   return sendMessages(msgs);
 }
-async function sendWithFee(asset,to,units,fee){
+// memo уходит только получателю: для GRAM — текстовый комментарий, для USDT — forward payload джеттона
+async function sendWithFee(asset,to,units,fee,memo){
   const net=units-fee;
-  const outs=[{to, units:net}];
+  const outs=[{to, units:net, comment:memo||undefined}];
   if(fee>0n && feeEnabled()) outs.push({to:FEE_WALLET, units:fee});
   if(asset==="USDT") await sendJettonOuts(outs); else await sendTonOuts(outs);
   return {net, fee:(fee>0n&&feeEnabled())?fee:0n};
@@ -1266,6 +1322,7 @@ Object.assign(I,{
   card:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>`,
   flag:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 21V4h11l-2 4 2 4H5"/></svg>`,
   refresh:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4"/></svg>`,
+  paste:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/></svg>`,
   list:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>`,
 });
 
@@ -2479,27 +2536,31 @@ function modalQr(){
 // extract a TON address (+ optional amount/comment) from scanned text or a ton:// / https link
 function parseTonQr(text){
   text=String(text||"").trim();
-  let addr="", amount="", comment="", isTon=false;
-  const am=text.match(/([EU]Q[A-Za-z0-9_\-]{46})/);
+  let addr="", amount="", comment="", isTon=false, jetton="";
+  const am=text.match(/([EUk0]Q[A-Za-z0-9_\-]{46})/);
   if(/^ton:\/\//i.test(text)||/\/transfer\//i.test(text)){
     isTon=true;
     const t=text.match(/transfer\/([A-Za-z0-9_\-:]+)/); if(t) addr=t[1]; else if(am) addr=am[1];
     try{ const u=new URL(text.replace(/^ton:\/\//i,"https://x/"));
-      const a=u.searchParams.get("amount"); if(a&&isFinite(Number(a))) amount=String(Number(a)/1e9);
-      const c=u.searchParams.get("text")||u.searchParams.get("comment"); if(c) comment=c;
+      jetton=u.searchParams.get("jetton")||"";
+      const a=u.searchParams.get("amount"); if(a&&/^\d{1,30}$/.test(a)) amount=a;   // в минимальных единицах
+      const c=u.searchParams.get("text")||u.searchParams.get("comment")||u.searchParams.get("memo"); if(c) comment=c;
     }catch(e){}
   } else if(am){ addr=am[1]; }
   else { addr=text; }
-  return {addr, amount, comment, isTon};
+  return {addr, amount, comment, isTon, jetton};
 }
 async function handleScanned(text){
   closeModal();
-  const {addr,amount,isTon}=parseTonQr(text);
+  const {addr,amount,comment,isTon,jetton}=parseTonQr(text);
   if(!addr){ return toast("QR-код не распознан","err"); }
   if(!await loadLibs()){ return toast("Нет связи с крипто-библиотекой","err"); }
   try{ TON.Address.parse(addr); }catch(e){ return toast("В QR-коде нет корректного TON-адреса","err"); }
-  sendState={asset:(isTon&&amount)?"GRAM":"USDT", to:addr, amount:amount||""};
-  if(S.network==="testnet") sendState.asset="GRAM";
+  let asset=sendState.asset||"USDT";
+  if(isTon) asset=jetton?"USDT":(amount?"GRAM":asset);
+  if(jetton){ try{ if(!TON.Address.parse(jetton).equals(TON.Address.parse(USDT_MASTER))) return toast("QR для другого токена — поддерживаются GRAM и USDT","err"); }catch(e){ return toast("Некорректный QR-код","err"); } }
+  if(S.network==="testnet") asset="GRAM";
+  sendState={asset, to:addr, amount:amount?unitsStr(BigInt(amount),ASSET_META[asset].dec):(sendState.amount||""), memo:comment?String(comment).slice(0,MEMO_MAX):(sendState.memo||"")};
   renderSendForm();
   notify("QR отсканирован", shortAddr(addr));
 }
@@ -2580,37 +2641,87 @@ function modalCardSkin(){
 }
 
 /* send */
-let sendState={asset:"USDT",to:"",amount:""};
+let sendState={asset:"USDT",to:"",amount:"",memo:""};
+const MEMO_MAX=120;
 function modalSend(preAsset){
-  sendState={asset:preAsset||"USDT",to:"",amount:""};
+  sendState={asset:(S.network==="testnet"?"GRAM":(preAsset||"USDT")),to:"",amount:"",memo:""};
   renderSendForm();
 }
+// адрес: формат TON (EQ/UQ/kQ/0Q… или 0:hex) — финальная проверка сети и bounce в parseDest()
+function looksLikeAddr(s){ s=String(s||"").trim(); return /^[EUk0]Q[A-Za-z0-9_\-]{46}$/.test(s)||/^-?[01]:[0-9a-fA-F]{64}$/.test(s); }
+const midShort=(a)=>a.length>14?a.slice(0,6)+"…"+a.slice(-5):a;
+function coinBadge(a){ const ic=ASSET_ICONS[a]; return ic?`<img src="${ic}" alt="${a}">`:`<b>${coinGlyph(a)}</b>`; }
 function renderSendForm(){
-  const a=sendState.asset;
-  const avail=availableFor(a);
-  const assetBtns=(S.network==="testnet"?["GRAM"]:["USDT","GRAM"]).map(x=>`<button class="chip ${a===x?"on":""}" data-act="send-asset" data-v="${x}">${x}</button>`).join("");
+  const a=sendState.asset, test=S.network==="testnet";
+  const addrOk=looksLikeAddr(sendState.to);
   openModal(`${sheetHead("Отправить")}
-    <div class="chips">${assetBtns}</div>
-    <div class="field"><label>Адрес получателя</label>
-      <input class="input mono" id="sendTo" placeholder="Введите адрес в сети TON" value="${esc(sendState.to)}">
+    <div class="snd-row">
+      <label class="addr-field ${addrOk?"ok":""} ${sendState.to&&!addrOk?"bad":""}" id="addrField">
+        <span class="addr-ic">${addrOk?I.check:I.wallet}</span>
+        <input id="sendTo" class="addr-in" placeholder="Адрес" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(sendState.to)}" aria-label="Адрес получателя">
+        <span class="addr-short" id="addrShort" aria-hidden="true">${esc(midShort(sendState.to))}</span>
+        <button type="button" class="addr-paste" data-act="send-paste" title="Вставить адрес" aria-label="Вставить адрес">${I.paste}</button>
+      </label>
+      <button type="button" class="cur-switch ${a==="GRAM"?"is-gram":""}" data-act="send-toggle" role="switch" aria-checked="${a==="GRAM"}" aria-label="Валюта: ${a}" ${test?"disabled title=\"В Testnet доступен только GRAM\"":""}>
+        <span class="cs-knob"></span><span class="cs-opt">${coinBadge("USDT")}</span><span class="cs-opt">${coinBadge("GRAM")}</span>
+      </button>
+      <button type="button" class="qr-btn" data-act="scan-qr" title="Сканировать QR" aria-label="Сканировать QR">${I.qr}</button>
     </div>
-    <div class="field"><label>Сумма, ${a}</label>
-      <input class="input" id="sendAmt" inputmode="decimal" placeholder="0.00" value="${esc(sendState.amount)}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-        <span class="hint" style="margin:0">Доступно: ${fmtCrypto(avail)} ${a}</span>
-        <button class="chip" data-act="send-max">МАКС</button>
+    <p class="snd-sub"><span id="addrHint">${addrOk?"Адрес в сети TON":"Вставьте адрес или отсканируйте QR"}</span><span class="snd-cur">${a==="USDT"?"Tether · USDT":"Gram · GRAM"}</span></p>
+    <div class="amt-card" id="amtCard">
+      <div class="amt-top"><span>Сумма</span><span>Доступно: <b>${fmtCrypto(availableFor(a))} ${a}</b></span></div>
+      <div class="amt-line">
+        <input id="sendAmt" class="amt-in" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(sendState.amount)}" aria-label="Сумма, ${a}">
+        <span class="amt-sym">${a}</span>
+        <button type="button" class="amt-max" data-act="send-max">МАКС</button>
       </div>
+      <div class="amt-calc" id="amtCalc"></div>
     </div>
-    ${feeEnabled()?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Комиссия сервиса за вывод — ${WITHDRAW_FEE_PCT}% от суммы, удерживается из перевода: получатель получает сумму за вычетом комиссии.</div></div>`:""}
-    ${a==="USDT"?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Для перевода USDT нужен небольшой запас TON на газ (≈0.1 TON${feeEnabled()?", с комиссией ≈0.2 TON":""}).</div></div>`:""}
-    ${S.network==="testnet"?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Testnet: отправляются тестовые монеты. ${a==="USDT"?"USDT-джеттон недоступен в Testnet.":""}</div></div>`:""}
+    <label class="memo-field" id="memoField">
+      <span class="memo-tag">MEMO</span>
+      <input id="sendMemo" maxlength="${MEMO_MAX}" autocomplete="off" spellcheck="false" placeholder="Комментарий (необязательно)" value="${esc(sendState.memo||"")}" aria-label="MEMO, комментарий к переводу">
+      <span class="memo-cnt" id="memoCnt"></span>
+    </label>
+    <p class="snd-note">Укажите MEMO, если его требует биржа или сервис получателя. Комментарий виден всем в блокчейне — не пишите туда пароли и seed-фразу.</p>
+    ${a==="USDT"?`<p class="snd-note">${I.info} На газ для USDT нужно ≈${jettonGasNeeded(feeEnabled())} GRAM${feeEnabled()?" (перевод + комиссия)":""}.</p>`:""}
+    ${test?`<p class="snd-note">${I.info} Testnet: отправляются тестовые монеты, USDT недоступен.</p>`:""}
+    <p class="snd-err" id="sendErr" role="alert"></p>
     <button class="btn btn-primary btn-lg btn-block" data-act="send-next">Продолжить ${I.chev}</button>`);
-  const to=el("sendTo"),am=el("sendAmt");
-  if(to) to.addEventListener("input",e=>sendState.to=e.target.value);
-  if(am) am.addEventListener("input",e=>sendState.amount=e.target.value);
+  bindSendForm();
+}
+function bindSendForm(){
+  const to=el("sendTo"), am=el("sendAmt"), memo=el("sendMemo");
+  const updAddr=()=>{
+    const v=to.value.trim(), ok=looksLikeAddr(v), f=el("addrField");
+    sendState.to=v;
+    f.classList.toggle("ok",ok); f.classList.toggle("bad",!!v&&!ok); f.classList.toggle("filled",!!v);
+    f.querySelector(".addr-ic").innerHTML=ok?I.check:I.wallet;
+    el("addrShort").textContent=midShort(v);
+    el("addrHint").textContent=!v?"Вставьте адрес или отсканируйте QR":ok?"Адрес в сети TON":"Это не похоже на TON-адрес";
+  };
+  const updAmt=()=>{
+    sendState.amount=am.value; const box=el("amtCalc"), a=sendState.asset, dec=ASSET_META[a].dec;
+    let u=null; try{ u=am.value.trim()?toUnits(am.value,dec):null; }catch(e){ box.innerHTML=`<span class="danger">${esc(errMsg(e))}</span>`; el("amtCard").classList.add("bad"); return; }
+    el("amtCard").classList.toggle("bad", u!=null && u>balUnits(a));
+    if(!u){ box.innerHTML=`<span>≈ ${fmtCur(0)}</span>`; return; }
+    const fee=withdrawFeeUnits(u), net=u-fee, amt=fromUnits(u,dec);
+    box.innerHTML=`<span>≈ ${fmtCur(usdOf(a,amt))}</span>${fee>0n?`<span>Комиссия ${WITHDRAW_FEE_PCT}%: ${fmtCrypto(fromUnits(fee,dec))} ${a}</span><span>Получит: <b>${fmtCrypto(fromUnits(net,dec))} ${a}</b></span>`:""}`;
+  };
+  const updMemo=()=>{ sendState.memo=memo.value; el("memoCnt").textContent=memo.value?`${memo.value.length}/${MEMO_MAX}`:""; };
+  to.addEventListener("input",updAddr); am.addEventListener("input",updAmt); memo.addEventListener("input",updMemo);
+  to.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); am.focus(); } });
+  am.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); memo.focus(); } });
+  memo.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); act("send-next"); } });
+  updAddr(); updAmt(); updMemo();
+}
+function sendError(msg,field){
+  const e=el("sendErr"); if(e) e.textContent=msg||"";
+  for(const id of ["addrField","amtCard","memoField"]){ const f=el(id); if(f) f.classList.toggle("bad",id===field); }
+  if(field){ const i=el(field)&&el(field).querySelector("input"); if(i) i.focus(); }
+  if(msg) toast(msg,"err");
 }
 function modalSendConfirm(){
-  const {asset,to,amount}=sendState;
+  const {asset,to,amount,memo}=sendState;
   const dec=ASSET_META[asset].dec, units=toUnits(amount,dec), feeU=withdrawFeeUnits(units);
   const amt=fromUnits(units,dec), fee=fromUnits(feeU,dec), net=fromUnits(units-feeU,dec);
   const usd=usdOf(asset,amt), feeUsd=usdOf(asset,fee);
@@ -2620,11 +2731,12 @@ function modalSendConfirm(){
       <div class="kv"><span class="k">Сумма</span><span class="v">${fmtCrypto(amt)} ${asset}${usd?` · ${fmtUsd(usd)}`:""}</span></div>
       ${fee>0?`<div class="kv"><span class="k">Комиссия сервиса (${WITHDRAW_FEE_PCT}%)</span><span class="v">−${fmtCrypto(fee)} ${asset}${feeUsd?` · ${fmtUsd(feeUsd)}`:""}</span></div>
       <div class="kv"><span class="k">Получатель получит</span><span class="v">${fmtCrypto(net)} ${asset}</span></div>`:""}
-      <div class="kv"><span class="k">Получатель</span><span class="v">${esc(shortAddr(to))}</span></div>
+      <div class="kv"><span class="k">Получатель</span><span class="v addr-full">${esc(to)}</span></div>
+      ${memo?`<div class="kv"><span class="k">MEMO</span><span class="v" style="font-family:var(--font);word-break:break-word">${esc(memo)}</span></div>`:""}
       <div class="kv"><span class="k">Сеть</span><span class="v">TON ${networkLabel()}</span></div>
       <div class="kv"><span class="k">Комиссия сети</span><span class="v">≈ ${asset==="USDT"?(fee>0?"0.2":"0.1"):"0.005"} TON</span></div>
     </div>
-    <div class="warnbox">${I.warn}<div>Переводы в блокчейне необратимы. Проверьте адрес получателя.${fee>0?" Комиссия сервиса удерживается из суммы перевода.":""}</div></div>
+    <div class="warnbox">${I.warn}<div>Переводы в блокчейне необратимы. Сверьте адрес получателя целиком${memo?" и MEMO":" и уточните, не нужен ли получателю MEMO (биржи без него не зачислят перевод)"}.${fee>0?" Комиссия сервиса удерживается из суммы перевода.":""}</div></div>
     <button class="btn btn-primary btn-lg btn-block" id="sendGo" data-act="send-go">Подтвердить и отправить</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px" data-act="send-back">Назад</button>`);
 }
@@ -2721,6 +2833,20 @@ async function act(name,ds={}){
     case "copy-addr": { const a=friendlyAddr(); if(a){ await copy(a); toast("Адрес скопирован","ok"); } } break;
     case "copy-text": if(ds.v){ await copy(ds.v); toast("Скопировано","ok"); } break;
     case "send-asset": if(ASSET_META[ds.v]){ const ti=el("sendTo"); if(ti) sendState.to=ti.value; sendState.asset=ds.v; renderSendForm(); } break;
+    case "send-toggle": {
+      if(S.network==="testnet") return toast("В Testnet доступен только GRAM","");
+      const ti=el("sendTo"), mi=el("sendMemo"); if(ti) sendState.to=ti.value; if(mi) sendState.memo=mi.value;
+      sendState.asset=sendState.asset==="USDT"?"GRAM":"USDT"; sendState.amount="";
+      try{ window.Telegram.WebApp.HapticFeedback.selectionChanged(); }catch(e){}
+      renderSendForm(); break;
+    }
+    case "send-paste": {
+      try{ const t=(await navigator.clipboard.readText()||"").trim(); const m=t.match(/[EUk0]Q[A-Za-z0-9_\-]{46}|-?[01]:[0-9a-fA-F]{64}/);
+        if(!m) return toast("В буфере нет TON-адреса","err");
+        const ti=el("sendTo"); ti.value=m[0]; ti.dispatchEvent(new Event("input")); el("sendAmt").focus();
+      }catch(e){ toast("Нет доступа к буферу — вставьте адрес вручную","err"); }
+      break;
+    }
     case "send-max": {
       const a=sendState.asset, dec=ASSET_META[a].dec;
       let u=balUnits(a); if(a==="GRAM") u=u>50000000n?u-50000000n:0n;
@@ -3116,38 +3242,40 @@ async function switchNetwork(net){
 }
 /* ---------- send flow ---------- */
 async function sendNext(){
-  const ti=el("sendTo"), ai=el("sendAmt");
+  const ti=el("sendTo"), ai=el("sendAmt"), mi=el("sendMemo");
   if(ti) sendState.to=ti.value.trim();
   if(ai) sendState.amount=ai.value.trim();
-  const {asset,to,amount}=sendState;
-  if(!to||to.length<10) return toast("Введите адрес получателя","err");
-  if(!await loadLibs()){ return toast("Крипто-модуль не загружен","err"); }
-  try{ await parseDest(to); }catch(e){ return toast(errMsg(e),"err"); }
-  if(TON.Address.parse(to).equals(TON.Address.parse(S.addressRaw))) return toast("Это ваш собственный адрес","err");
-  let units; try{ units=toUnits(amount,ASSET_META[asset].dec); }catch(e){ return toast(errMsg(e),"err"); }
-  if(units<=0n) return toast("Введите сумму","err");
-  if(asset==="USDT"&&S.network==="testnet") return toast("USDT недоступен в Testnet","err");
+  if(mi) sendState.memo=mi.value.trim();
+  const {asset,to,amount,memo}=sendState;
+  if(!to) return sendError("Введите адрес получателя","addrField");
+  if(!await loadLibs()){ return sendError("Крипто-модуль не загружен — обновите страницу"); }
+  try{ await parseDest(to); }catch(e){ return sendError(errMsg(e),"addrField"); }
+  if(TON.Address.parse(to).equals(TON.Address.parse(S.addressRaw))) return sendError("Это ваш собственный адрес","addrField");
+  let units; try{ units=toUnits(amount,ASSET_META[asset].dec); }catch(e){ return sendError(amount?errMsg(e):"Введите сумму","amtCard"); }
+  if(units<=0n) return sendError("Введите сумму","amtCard");
+  if(asset==="USDT"&&S.network==="testnet") return sendError("USDT недоступен в Testnet");
   const gasReserve=asset==="GRAM"?10000000n:0n;
-  if(units+gasReserve>balUnits(asset)) return toast(`Недостаточно средств. Доступно ${fmtCrypto(availableFor(asset))} ${asset}`,"err");
+  if(units+gasReserve>balUnits(asset)) return sendError(`Недостаточно средств. Доступно ${fmtCrypto(availableFor(asset))} ${asset}`,"amtCard");
+  if(memo.length>MEMO_MAX) return sendError(`MEMO длиннее ${MEMO_MAX} символов`,"memoField");
+  if(/[\u0000-\u001F\u007F]/.test(memo)) return sendError("MEMO содержит недопустимые символы","memoField");
   const feeOut=withdrawFeeUnits(units)>0n;
-  if(asset==="USDT"){ // need TON for gas (two jetton outputs when a fee is routed)
+  if(asset==="USDT"){ // газ: две джеттон-отправки, если удерживается комиссия
     const need=jettonGasNeeded(feeOut);
-    const tonAvail=availableFor("GRAM");
-    if(tonAvail<need) return toast(`Нужно ≈${need} TON на газ для перевода USDT${feeOut?" (перевод + комиссия)":""}`,"err");
+    if(availableFor("GRAM")<need) return sendError(`Нужно ≈${need} GRAM на газ для перевода USDT${feeOut?" (перевод + комиссия)":""}`);
   }
   modalSendConfirm();
 }
 async function sendGo(){
-  const {asset,to,amount}=sendState;
+  const {asset,to,amount,memo}=sendState;
   const dec=ASSET_META[asset].dec;
   const units=toUnits(amount,dec);
   if(S.settings.biometric){ if(!await reauth("Подтвердите перевод")) return toast("Перевод не подтверждён","err"); }
   const btn=el("sendGo"); if(btn){ btn.disabled=true; btn.innerHTML=`<span class="spin"></span> Отправка…`; }
   try{
     const feeU=withdrawFeeUnits(units);
-    const {net:netU,fee:feeSent}=await sendWithFee(asset,to,units,feeU);
+    const {net:netU,fee:feeSent}=await sendWithFee(asset,to,units,feeU,memo);
     const net=fromUnits(netU,dec), fee=fromUnits(feeSent,dec);
-    S.history.unshift({id:"h"+Date.now(),type:"send",asset,amount:net,fee,addr:to,ts:Date.now(),net:S.network,status:"sent"});
+    S.history.unshift({id:"h"+Date.now(),type:"send",asset,amount:net,fee,addr:to,memo:memo||"",ts:Date.now(),net:S.network,status:"sent"});
     if(fee>0) S.history.unshift({id:"hf"+Date.now(),type:"fee",asset,amount:fee,addr:FEE_WALLET,ts:Date.now(),net:S.network,status:"sent"});
     S.history=S.history.slice(0,300); save();
     notify("Перевод отправлен",`${fmtCrypto(net)} ${asset}${fee>0?` · комиссия ${fmtCrypto(fee)} ${asset}`:""}`);
