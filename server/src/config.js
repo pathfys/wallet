@@ -55,6 +55,9 @@ export function loadConfig(env = process.env, { dotenv = true } = {}) {
   const prb = e("PRB_PER_USD", "");
   if (prb && !/^\d{1,4}(\.\d{1,6})?$/.test(prb)) throw new Error("config: PRB_PER_USD must be a decimal number");
 
+  const feeCap = e("P2P_FEE_MAX_SIDE_USD", "0");
+  if (!/^\d{1,6}(\.\d{1,2})?$/.test(feeCap)) throw new Error("config: P2P_FEE_MAX_SIDE_USD must be a number (0 = no cap)");
+
   const staticDir = e("STATIC_DIR", "");
   return Object.freeze({
     root: ROOT,
@@ -80,6 +83,8 @@ export function loadConfig(env = process.env, { dotenv = true } = {}) {
     dataKey,
     prbPerUsd: prb,
     coingecko: e("COINGECKO_URL", "https://api.coingecko.com/api/v3/simple/price"),
+    p2pFeeSideBps: int("P2P_FEE_SIDE_BPS", "200", 0, 1000),      // 200 = 2% per side
+    p2pFeeMaxSideUsdE6: BigInt(Math.round(Number(feeCap) * 1e6)),  // 0 = no cap
     escrowReclaimDays: int("ESCROW_RECLAIM_DAYS", "14", 3, 60),
     lockWindowMin: int("ESCROW_LOCK_WINDOW_MIN", "15", 5, 60),
     appealAfterMin: int("APPEAL_AFTER_MIN", "10", 1, 240),

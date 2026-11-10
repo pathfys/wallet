@@ -371,16 +371,22 @@ export function registerP2P(router, ctx) {
     const a = ASSETS[ad.asset];
     const priceE6 = await adPriceE6(ad);
     if (!priceE6) throw new HttpError(503, "no_price", "Рыночный курс временно недоступен");
-    let units;
-    if (body.amount != null && body.amount !== "") units = floorTo(v.dec(body.amount, "Количество", a.dec, { min: 1, max: a.maxUnits }), a.step);
-    else units = unitsForCents(v.dec(body.fiat, "Сумма", 2, { min: 1 }), ad.asset, priceE6);
+    // Как на Bybit: введённая сумма в фиате остаётся точной, количество крипты округляется вниз;
+    // при вводе количества сумма в фиате считается по цене.
+    let units, cents;
+    if (body.amount != null && body.amount !== "") {
+      units = floorTo(v.dec(body.amount, "Количество", a.dec, { min: 1, max: a.maxUnits }), a.step);
+      cents = fiatCents(units, a.dec, priceE6);
+    } else {
+      cents = v.dec(body.fiat, "Сумма", 2, { min: 1, max: 100_000_000_000n });
+      units = unitsForCents(cents, ad.asset, priceE6);
+    }
     if (units <= 0n) throw bad("bad_amount", "Слишком маленькая сумма");
-    const cents = fiatCents(units, a.dec, priceE6);
     if (cents < BigInt(ad.min_cents) || cents > BigInt(ad.max_cents)) throw bad("limits", `Сумма вне лимитов: ${toStr(BigInt(ad.min_cents), 2)}–${toStr(BigInt(ad.max_cents), 2)} ${ad.fiat}`);
     if (units > BigInt(ad.remaining_units)) throw bad("no_liquidity", "Недостаточно доступного количества в объявлении");
     const usd = await prices.usdE6(ad.asset);
     if (!usd) throw new HttpError(503, "no_price", "Курс временно недоступен");
-    const fee = sideFee(units, ad.asset, usd);
+    const fee = sideFee(units, ad.asset, usd, cfg.p2pFeeSideBps, cfg.p2pFeeMaxSideUsdE6);
     if (units - fee <= 0n) throw bad("bad_amount", "Слишком маленькая сумма");
 
     // payment details: always the SELLER's account, snapshotted for this order

@@ -63,8 +63,10 @@ export const PAY_TYPES = ["АПБ", "ЭксимБанк", "Сбербанк", "�
 export const PAY_WINDOWS = [15, 30, 60];
 export const PINS = [{ h: 3, usd: 1 }, { h: 6, usd: 3 }, { h: 12, usd: 5 }, { h: 24, usd: 10 }];
 
-export const P2P_FEE_BPS = 50n;        // 0.5% per side
-export const MAX_FEE_SIDE_USD_E6 = 2_000_000n; // $2 per side (=> max $4 per order)
+// P2P fee defaults: 2% from the buyer + 2% from the seller = 4% per order, no $-cap.
+// Override with P2P_FEE_SIDE_BPS / P2P_FEE_MAX_SIDE_USD in .env.
+export const P2P_FEE_BPS = 200n;
+export const MAX_FEE_SIDE_USD_E6 = 0n;
 
 export const pow10 = (n) => 10n ** BigInt(n);
 export const floorTo = (x, step) => (x / step) * step;
@@ -84,11 +86,11 @@ export function unitsForCents(cents, asset, priceE6) {
   const u = (BigInt(cents) * pow10(a.dec) * 1_000_000n) / (BigInt(priceE6) * 100n);
   return floorTo(u, a.step);
 }
-// per-side P2P fee: 0.5%, capped at $2 of the asset (usdE6 = asset price in USD * 1e6)
-export function sideFee(units, asset, usdE6) {
-  let fee = (BigInt(units) * P2P_FEE_BPS + 9_999n) / 10_000n; // round up to the unit
-  if (usdE6 && usdE6 > 0n) {
-    const cap = (MAX_FEE_SIDE_USD_E6 * pow10(ASSETS[asset].dec)) / BigInt(usdE6);
+// per-side P2P fee in basis points, rounded up to the unit; optional cap in USD (usdE6 = asset price * 1e6)
+export function sideFee(units, asset, usdE6, bps = P2P_FEE_BPS, capUsdE6 = MAX_FEE_SIDE_USD_E6) {
+  let fee = (BigInt(units) * BigInt(bps) + 9_999n) / 10_000n;
+  if (capUsdE6 > 0n && usdE6 && usdE6 > 0n) {
+    const cap = (BigInt(capUsdE6) * pow10(ASSETS[asset].dec)) / BigInt(usdE6);
     if (fee > cap) fee = cap;
   }
   return fee;

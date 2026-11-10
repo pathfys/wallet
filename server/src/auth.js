@@ -2,7 +2,7 @@
 // wallet ownership binding and the public client config.
 import { randomBytes, createHash } from "node:crypto";
 import { Address } from "@ton/core";
-import { HttpError, bad, conflict, v, randomId, now, ASSETS, FIATS, PAY_TYPES, PAY_WINDOWS, PINS, P2P_FEE_BPS, MAX_FEE_SIDE_USD_E6 } from "./util.js";
+import { HttpError, bad, conflict, v, randomId, now, ASSETS, FIATS, PAY_TYPES, PAY_WINDOWS, PINS } from "./util.js";
 import { verifyInitData, parseP256, verifyWalletProof, nickError, nickKey } from "./security.js";
 import { ESCROW_CODE_HASH, ESCROW_TON } from "./escrow.js";
 
@@ -14,7 +14,7 @@ export function registerAuth(router, ctx) {
     network: cfg.network, feeWallet: cfg.feeWallet, arbiterKey: cfg.arbiter.publicKeyHex, escrowCodeHash: ESCROW_CODE_HASH,
     usdtMaster: cfg.usdtMaster, assets: Object.fromEntries(Object.entries(ASSETS).map(([k, a]) => [k, { dec: a.dec, step: a.step.toString() }])),
     fiats: FIATS, payTypes: PAY_TYPES, payWindows: PAY_WINDOWS, pins: PINS,
-    fee: { sideBps: Number(P2P_FEE_BPS), maxSideUsd: Number(MAX_FEE_SIDE_USD_E6) / 1e6 },
+    fee: { sideBps: cfg.p2pFeeSideBps, orderBps: cfg.p2pFeeSideBps * 2, maxSideUsd: Number(cfg.p2pFeeMaxSideUsdE6) / 1e6 },
     escrowTon: Object.fromEntries(Object.entries(ESCROW_TON).map(([k, x]) => [k, x.toString()])),
     lockWindowMin: cfg.lockWindowMin, appealAfterMin: cfg.appealAfterMin,
   });

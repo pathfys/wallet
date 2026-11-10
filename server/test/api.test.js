@@ -162,9 +162,10 @@ test("ads list and order creation (limits, own ad, idempotency)", async () => {
   order = r.body; orderId = order.id;
   assert.equal(order.status, 5);
   assert.equal(order.amount, "20");
-  assert.equal(order.buyerFee, "0.1");
-  assert.equal(order.sellerLocks, "20.1");
-  assert.equal(order.buyerReceives, "19.9");
+  assert.equal(order.buyerFee, "0.4");      // 2% from the buyer
+  assert.equal(order.sellerFee, "0.4");     // 2% from the seller
+  assert.equal(order.sellerLocks, "20.4");
+  assert.equal(order.buyerReceives, "19.6");
   assert.equal(order.payDetails, null, "buyer must not see payment details before escrow is funded");
   assert.equal((await buyer.req("POST", "/api/orders", { adId, fiat: "20", payType: "АПБ", idem: "order-0001" })).body.id, orderId, "idempotent");
   assert.equal((await buyer.req("GET", "/api/ads?side=sell&asset=USDT&fiat=USD")).body.items[0].available, "80");
@@ -186,13 +187,13 @@ test("escrow tx: address is reproducible from public params; setup is arbiter-si
   assert.ok(Address.parse(e.sellerAddress).equals(seller.address));
   assert.equal(e.kind, KIND.jetton);
   assert.equal(r.body.messages.length, 2);
-  assert.equal(r.body.messages[1].jettonAmountUnits, "20100000");
+  assert.equal(r.body.messages[1].jettonAmountUnits, "20400000");
   assert.ok(r.body.setup.signature);
 });
 
 test("lifecycle: funded -> paid -> appeal guard -> chat -> released -> feedback", async () => {
   const o = app.ctx.db.get("SELECT * FROM orders WHERE id=?", orderId);
-  chainState.set(o.escrow_address, { deployed: true, status: STATUS.open, seqno: 0, tonBalance: 300_000_000n, jettonWallet: Address.parse(o.jetton_wallet), jettonBalance: 20_100_000n });
+  chainState.set(o.escrow_address, { deployed: true, status: STATUS.open, seqno: 0, tonBalance: 300_000_000n, jettonWallet: Address.parse(o.jetton_wallet), jettonBalance: 20_400_000n });
   await jobs.checkOrder(o);
   let v = (await buyer.req("GET", `/api/orders/${orderId}`)).body;
   assert.equal(v.status, 10);
@@ -234,7 +235,7 @@ test("buyer cancel after funding triggers a valid arbiter refund to this exact e
   const r = await buyer.req("POST", "/api/orders", { adId, amount: "10", payType: "АПБ", idem: "order-0002" });
   assert.equal(r.status, 200, JSON.stringify(r.body));
   const o = app.ctx.db.get("SELECT * FROM orders WHERE id=?", r.body.id);
-  chainState.set(o.escrow_address, { deployed: true, status: STATUS.open, seqno: 3, tonBalance: 300_000_000n, jettonWallet: Address.parse("0:" + createHash("sha256").update(o.escrow_address).digest("hex")), jettonBalance: 10_050_000n });
+  chainState.set(o.escrow_address, { deployed: true, status: STATUS.open, seqno: 3, tonBalance: 300_000_000n, jettonWallet: Address.parse("0:" + createHash("sha256").update(o.escrow_address).digest("hex")), jettonBalance: 10_200_000n });
   await seller.req("GET", `/api/orders/${o.id}/escrow-tx`);
   await jobs.checkOrder(app.ctx.db.get("SELECT * FROM orders WHERE id=?", o.id));
   assert.equal((await buyer.req("POST", `/api/orders/${o.id}/cancel`, {})).status, 200);
@@ -251,7 +252,7 @@ test("buyer cancel after funding triggers a valid arbiter refund to this exact e
   assert.equal(p.loadUint(32), 3, "uses on-chain seqno");
   p.loadUint(32);
   assert.equal(p.loadUint(8), ACTION.refund);
-  assert.equal(p.loadCoins(), 10_050_000n, "refunds the actual jetton balance");
+  assert.equal(p.loadCoins(), 10_200_000n, "refunds the actual jetton balance");
   assert.equal((await buyer.req("GET", "/api/ads?side=sell&asset=USDT&fiat=USD")).body.items[0].available, "80", "liquidity returned to the ad");
 });
 
@@ -260,7 +261,7 @@ test("appeal -> admin resolves release; non-admin cannot use admin API", async (
   const o = app.ctx.db.get("SELECT * FROM orders WHERE id=?", r.body.id);
   await seller.req("GET", `/api/orders/${o.id}/escrow-tx`);
   const o2 = app.ctx.db.get("SELECT * FROM orders WHERE id=?", o.id);
-  chainState.set(o.escrow_address, { deployed: true, status: STATUS.open, seqno: 0, tonBalance: 300_000_000n, jettonWallet: Address.parse(o2.jetton_wallet), jettonBalance: 15_075_000n });
+  chainState.set(o.escrow_address, { deployed: true, status: STATUS.open, seqno: 0, tonBalance: 300_000_000n, jettonWallet: Address.parse(o2.jetton_wallet), jettonBalance: 15_300_000n });
   await jobs.checkOrder(o2);
   await buyer.req("POST", `/api/orders/${o.id}/paid`, {});
   app.ctx.db.run("UPDATE orders SET paid_at=paid_at-120000 WHERE id=?", o.id);
@@ -293,7 +294,7 @@ test("timeouts: unpaid order is cancelled and counted against the buyer; 3 strik
     const o = app.ctx.db.get("SELECT * FROM orders WHERE id=?", r.body.id);
     await seller.req("GET", `/api/orders/${o.id}/escrow-tx`);
     const o2 = app.ctx.db.get("SELECT * FROM orders WHERE id=?", o.id);
-    chainState.set(o.escrow_address, { deployed: true, status: STATUS.open, seqno: 0, tonBalance: 300_000_000n, jettonWallet: Address.parse(o2.jetton_wallet), jettonBalance: 10_050_000n });
+    chainState.set(o.escrow_address, { deployed: true, status: STATUS.open, seqno: 0, tonBalance: 300_000_000n, jettonWallet: Address.parse(o2.jetton_wallet), jettonBalance: 10_200_000n });
     await jobs.checkOrder(o2);
     app.ctx.db.run("UPDATE orders SET pay_deadline=? WHERE id=?", Date.now() - 1000, o.id);
     await jobs.tick();

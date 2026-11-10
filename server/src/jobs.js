@@ -56,8 +56,9 @@ export function startJobs(ctx) {
   function timeouts() {
     const t = now();
     for (const o of db.all("SELECT * FROM orders WHERE status=? AND lock_deadline<? LIMIT 50", OS.AWAIT_ESCROW, t)) {
-      // last-chance chain check happens in the watcher; give it 60s grace after the deadline
-      if (t - o.lock_deadline < 60_000 && o.chain_checked_at < o.lock_deadline) continue;
+      // grace after the deadline: 60s for a last chain check, 5 min if the seller already sent the lock tx
+      const grace = o.lock_sent_at && o.lock_sent_at <= o.lock_deadline + 60_000 ? 5 * 60_000 : 60_000;
+      if (t - o.lock_deadline < grace) continue;
       ctx.cancelOrder(o, { by: null, reason: "продавец не заблокировал средства вовремя", fault: o.seller_id });
     }
     for (const o of db.all("SELECT * FROM orders WHERE status=? AND pay_deadline<? LIMIT 50", OS.AWAIT_PAY, t))

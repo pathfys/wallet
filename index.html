@@ -593,6 +593,9 @@ const CONFIG=Object.freeze({
   ARBITER_PUBKEY:"",        // публичный ключ арбитра эскроу (npm run gen:keys). Пусто — доверять серверу (только для разработки!)
   FEE_WALLET:"UQAtqU5yzF4yMzJqqvCSJxH9dgaOr8Mciuikl3ws66scVoaW",
   TG_BOT_LINK:"",           // "https://t.me/YourBot/app" — кнопка «Открыть в Telegram» на экране блокировки
+  // Потолок P2P-комиссии, который клиент примет от сервера (в б.п. с одной стороны: 200 = 2%).
+  // Эскроу с комиссией выше этого клиент откажется создавать, даже если так ответит сервер.
+  MAX_P2P_FEE_SIDE_BPS:200,
 });
 
 /* ---------- crypto libs: локальный бандл vendor/pmr-vendor.js (SRI), без внешних CDN ---------- */
@@ -613,11 +616,15 @@ const ENDPOINTS={ mainnet:"https://toncenter.com/api/v2/jsonRPC", testnet:"https
 const SCAN={mainnet:"https://tonviewer.com",testnet:"https://testnet.tonviewer.com"};
 
 /* ---------- platform fees ---------- */
-// Комиссия вывода (1%) удерживается этим приложением. P2P-комиссия (0.5% с каждой стороны,
-// максимум $2 со стороны / $4 за ордер) зашита в смарт-контракт эскроу и обойти её нельзя.
+// Комиссия вывода (2%) удерживается этим приложением при переводе на сторонний адрес.
+// P2P-комиссия: 2% с покупателя + 2% с продавца = 4% за ордер. Её размер задаёт сервер,
+// а выплачивает смарт-контракт эскроу — обойти её нельзя.
 const FEE_WALLET=CONFIG.FEE_WALLET;
-const WITHDRAW_FEE_BPS=100n;    // 1%
-const P2P_FEE_SIDE_PCT=0.5, MAX_FEE_SIDE_USD=2, MAX_FEE_ORDER_USD=4;
+const WITHDRAW_FEE_BPS=200n;    // 2%
+const WITHDRAW_FEE_PCT=Number(WITHDRAW_FEE_BPS)/100;
+let P2P_FEE={sideBps:200, maxSideUsd:0};   // уточняется из /api/config
+const p2pSidePct=()=>P2P_FEE.sideBps/100;
+const p2pOrderPct=()=>P2P_FEE.sideBps/50;
 function feeEnabled(){ return typeof FEE_WALLET==="string" && FEE_WALLET.length>40; }
 function withdrawFeeUnits(units){ return feeEnabled() ? (BigInt(units)*WITHDRAW_FEE_BPS+9999n)/10000n : 0n; }
 
@@ -1083,6 +1090,7 @@ function applyServerConfig(c){
   if(Array.isArray(c.payTypes)) METHODS=c.payTypes;
   if(Array.isArray(c.payWindows)) PAY_WINDOWS=c.payWindows;
   if(Array.isArray(c.pins)) PINS=c.pins;
+  if(c.fee&&Number.isInteger(c.fee.sideBps)&&c.fee.sideBps>=0&&c.fee.sideBps<=CONFIG.MAX_P2P_FEE_SIDE_BPS) P2P_FEE={sideBps:c.fee.sideBps, maxSideUsd:Number(c.fee.maxSideUsd)||0};
 }
 async function api(method,path,body,opt={}){
   if(!API.token) await apiLogin();
@@ -1125,7 +1133,8 @@ function connectWs(){
 function onServerEvent(ev){
   if(ev.t==="msg"&&ev.message){
     if(view==="order"&&curOrderId===ev.orderId){ addMessages([ev.message]); }
-    else if(ev.message.from!=="me"){ unread[ev.orderId]=(unread[ev.orderId]||0)+1; if(ev.message.from!=="system") toast(`Новое сообщение · ордер #${ev.orderId}`); renderBadges(); }
+    // непрочитанными считаем только сообщения людей и поддержки; системные события видны по статусу ордера
+    else if(ev.message.from!=="me"&&ev.message.from!=="system"){ unread[ev.orderId]=(unread[ev.orderId]||0)+1; toast(`Новое сообщение · ордер #${ev.orderId}`); renderBadges(); }
   } else if(ev.t==="order"){
     if(view==="order"&&curOrderId===ev.orderId) reloadOrder();
     refreshOrdersCount();
@@ -1160,7 +1169,9 @@ function verifyEscrow(o,e){
   const lock=toUnits(o.sellerLocks,dec), amount=toUnits(o.amount,dec);
   const bA=BigInt(e.buyerAmountUnits), fA=BigInt(e.feeAmountUnits);
   if(bA+fA!==lock) fail("сумма блокировки");
-  if(fA*10000n>amount*100n+20000n) fail("комиссия выше 1%");
+  // комиссия обеих сторон не больше 2 x MAX_P2P_FEE_SIDE_BPS (+1 единица округления на сторону)
+  const sideMax=(amount*BigInt(CONFIG.MAX_P2P_FEE_SIDE_BPS)+9999n)/10000n;
+  if(fA>sideMax*2n) fail(`комиссия выше ${CONFIG.MAX_P2P_FEE_SIDE_BPS/50}%`);
   const now=Math.floor(Date.now()/1000);
   if(e.deadline<now+3*86400||e.deadline>now+61*86400) fail("срок контракта");
   const addr=ESC.escrowAddress({dealId:BigInt(e.dealId),kind:e.kind,deadline:e.deadline,arbiterKeyHex:e.arbiterKey,buyerAmount:bA,feeAmount:fA,seller:e.sellerAddress,buyer:e.buyerAddress,feeWallet:e.feeWallet});
@@ -1487,7 +1498,9 @@ async function refreshOrdersCount(){
 function renderBadges(){
   const n=Object.values(unread).reduce((a,x)=>a+x,0);
   const b=document.querySelector('[data-act="my-orders"] .cnt');
-  if(b) b.textContent=String(activeOrders||n||"");
+  if(b){ b.textContent=String(activeOrders||""); b.style.display=activeOrders?"":"none"; }
+  const u=document.getElementById("ordUnread");
+  if(u){ u.textContent=String(n); u.style.display=n?"":"none"; u.title=n+" непрочитанных"; }
 }
 function renderP2P(){
   const block=p2pBlockReason(), buy=P2P.side==="buy", list=P2P.ads||[];
@@ -1508,6 +1521,7 @@ function renderP2P(){
     <button class="myorders-btn" data-act="my-orders" style="margin-top:0">
       <span class="ic">${I.clock}</span>
       <span class="tx"><b>Мои ордеры</b><span>Сделки, в которых вы участвуете</span></span>
+      <span class="unread" id="ordUnread" style="${Object.keys(unread).length?"":"display:none"}">${Object.values(unread).reduce((a,x)=>a+x,0)||""}</span>
       <span class="cnt" style="${activeOrders?"":"display:none"}">${activeOrders||""}</span>
     </button>
     <div class="twocard">
@@ -1517,7 +1531,7 @@ function renderP2P(){
     <button class="bigcta" style="margin-top:12px" data-act="create-ad"><span class="pl">${I.plus}</span>Разместить объявление</button>
     <div class="sec-head" id="offersAnchor"><h2>${buy?"Купить":"Продать"} ${P2P.asset}${P2P.fiat?" · "+esc(P2P.fiat):""}</h2><span class="count">${P2P.ads?list.length:"…"}</span></div>
     ${block?"":P2P.err?`<div class="empty">${esc(P2P.err)}</div>`:!P2P.ads?`<div class="empty"><span class="spin" style="border-color:var(--line-2);border-top-color:var(--primary)"></span></div>`:list.length?list.map(adCard).join(""):`<div class="empty">Нет объявлений по выбранным фильтрам.</div>`}
-    <p class="pagenote">Как на Bybit: средства продавца блокируются в смарт‑контракте эскроу этой сделки (платформа их не хранит), покупатель платит продавцу напрямую, продавец отпускает крипту после поступления оплаты. Споры решает поддержка через апелляцию. Комиссия — ${P2P_FEE_SIDE_PCT}% с каждой стороны (макс. $${MAX_FEE_SIDE_USD} со стороны, $${MAX_FEE_ORDER_USD} за ордер), её удерживает контракт.</p>
+    <p class="pagenote">Как на Bybit: средства продавца блокируются в смарт‑контракте эскроу этой сделки (платформа их не хранит), покупатель платит продавцу напрямую, продавец отпускает крипту после поступления оплаты. Споры решает поддержка через апелляцию. Комиссия — ${p2pSidePct()}% с покупателя и ${p2pSidePct()}% с продавца (${p2pOrderPct()}% за ордер), её удерживает контракт.</p>
   </div>`;
   if(!block) loadAds();
 }
@@ -1576,13 +1590,12 @@ function takeCalc(){
   let units=0n, cents=0n;
   const v=String(takeState.value||"").trim();
   if(!v) return null;
+  // как на сервере: введённая сумма в фиате точная, количество крипты округляется вниз
   if(mode==="fiat"){ cents=toUnits(v,2); units=(cents*10n**BigInt(dec)*1000000n)/(priceE6*100n)/step*step; }
-  else { units=toUnits(v,dec)/step*step; }
-  const den=10n**BigInt(dec)*1000000n;
-  cents=(units*priceE6*100n+den/2n)/den;
+  else { units=toUnits(v,dec)/step*step; const den=10n**BigInt(dec)*1000000n; cents=(units*priceE6*100n+den/2n)/den; }
   const usd=assetUsd(ad.asset);
-  let fee=(units*50n+9999n)/10000n;
-  if(usd>0){ const cap=BigInt(Math.floor(MAX_FEE_SIDE_USD*1e6))*10n**BigInt(dec)/BigInt(Math.round(usd*1e6)); if(fee>cap) fee=cap; }
+  let fee=(units*BigInt(P2P_FEE.sideBps)+9999n)/10000n;
+  if(P2P_FEE.maxSideUsd>0&&usd>0){ const cap=BigInt(Math.round(P2P_FEE.maxSideUsd*1e6))*10n**BigInt(dec)/BigInt(Math.round(usd*1e6)); if(fee>cap) fee=cap; }
   return {units,cents,fee,dec};
 }
 function updTake(){
@@ -1594,10 +1607,10 @@ function updTake(){
   box.innerHTML=takerBuys
     ?`<div class="kv"><span class="k">Вы заплатите</span><span class="v">${fmtNum(unitsStr(c.cents,2),2)} ${esc(ad.fiat)}</span></div>
       <div class="kv"><span class="k">Вы получите</span><span class="v">${unitsStr(c.units-c.fee,c.dec)} ${esc(ad.asset)}</span></div>
-      <div class="kv"><span class="k">Комиссия (${P2P_FEE_SIDE_PCT}%)</span><span class="v">≈${unitsStr(c.fee,c.dec)} ${esc(ad.asset)}</span></div>${out}`
+      <div class="kv"><span class="k">Ваша комиссия (${p2pSidePct()}%)</span><span class="v">≈${unitsStr(c.fee,c.dec)} ${esc(ad.asset)}</span></div>${out}`
     :`<div class="kv"><span class="k">Вы получите</span><span class="v">${fmtNum(unitsStr(c.cents,2),2)} ${esc(ad.fiat)}</span></div>
       <div class="kv"><span class="k">Заблокируете в эскроу</span><span class="v">${unitsStr(c.units+c.fee,c.dec)} ${esc(ad.asset)}</span></div>
-      <div class="kv"><span class="k">Комиссия (${P2P_FEE_SIDE_PCT}%)</span><span class="v">≈${unitsStr(c.fee,c.dec)} ${esc(ad.asset)}</span></div>${out}`;
+      <div class="kv"><span class="k">Ваша комиссия (${p2pSidePct()}%)</span><span class="v">≈${unitsStr(c.fee,c.dec)} ${esc(ad.asset)}</span></div>${out}`;
 }
 function renderTake(){
   const {ad}=takeState, takerBuys=ad.side==="sell";
@@ -1829,7 +1842,7 @@ function bindPinGo(){
 let curOrderId=null, curOrder=null, curMsgs=[], orderTick=null, orderPoll=null;
 function stopOrderTimers(){ clearInterval(orderTick); clearInterval(orderPoll); orderTick=orderPoll=null; }
 async function openOrder(id,pre){
-  curOrderId=Number(id); curOrder=pre&&pre.id===curOrderId?pre:null; curMsgs=[]; delete unread[curOrderId];
+  curOrderId=Number(id); curOrder=pre&&pre.id===curOrderId?pre:null; curMsgs=[]; delete unread[curOrderId]; renderBadges();
   closeModal(); view="order"; render();
   await reloadOrder(); await loadMessages(true);
 }
@@ -1886,7 +1899,7 @@ function renderOrder(){
       <input id="chatMsg" placeholder="Сообщение…" autocomplete="off" maxlength="1000">
       <button class="snd" data-act="chat-send" title="Отправить">${I.send2}</button>
     </div>
-    <input type="file" id="chatFile" accept="image/png,image/jpeg" style="display:none">
+    <input type="file" id="chatFile" accept="image/*" style="display:none">
     <p class="pagenote">Общайтесь только в этом чате. Сотрудники PMR никогда не просят перевести средства, сообщить seed-фразу или пароль.</p>
   </div>`;
   if(curOrder) renderOrderBody();
@@ -1901,7 +1914,7 @@ function renderOrder(){
 }
 function updateOrderTimers(){
   if(view!=="order") return stopOrderTimers();
-  const t=Date.now();
+  const t=Date.now()+API.skew;
   const tm=el("ordTimer"); if(tm){ const d=Number(tm.dataset.deadline||0); tm.textContent=fmtMin(d-t); if(d-t<=0&&!tm.dataset.fired){ tm.dataset.fired="1"; setTimeout(reloadOrder,3000); } }
   const ap=el("appealIn"); if(ap&&curOrder){ const left=(curOrder.appealAvailableAt||0)-t; if(left<=0) renderOrderBody(); else ap.textContent=fmtMin(left); }
 }
@@ -1909,7 +1922,7 @@ const obtn=(act,label,kind="primary",extra="")=>`<button class="btn btn-lg btn-b
 const kvc=(k,v,copy)=>`<div class="kv"><span class="k">${esc(k)}</span><span class="v" style="font-family:var(--font)">${copy?`<span class="copyv" data-act="copy-text" data-v="${esc(v)}">${esc(v)} ${I.copy}</span>`:esc(v)}</span></div>`;
 function renderOrderBody(){
   const o=curOrder, box=el("orderBody"); if(!o||!box) return;
-  const admin=o.role==="admin", buyer=o.role==="buyer", seller=o.role==="seller", s=o.status, t=Date.now();
+  const admin=o.role==="admin", buyer=o.role==="buyer", seller=o.role==="seller", s=o.status, t=Date.now()+API.skew;
   let title="", sub="", deadline=0, actions="";
   const fiat=`${fmtNum(o.fiatAmount,2)} ${esc(o.fiat)}`;
   if(s===5){ deadline=o.lockDeadline;
@@ -2020,7 +2033,9 @@ async function orderCancel(){
   const afterPaid=o.status===20||o.status===30;
   const ok=await confirmModal({title:"Отменить ордер",okKind:"sell",okText:"Отменить ордер",
     html:afterPaid?`<div class="warnbox" style="margin:0 0 12px">${I.warn}<div>Если вы уже перевели деньги — <b>не отменяйте</b>: откройте апелляцию.</div></div>Средства из эскроу вернутся продавцу.`
-      :o.role==="seller"?"Сделка будет отменена. Частые отказы снижают ваш рейтинг выполнения.":"Отмена после блокировки средств засчитывается вам. После 3 отмен за сутки создание ордеров на покупку временно блокируется.",
+      :o.role==="seller"?"Сделка будет отменена. Частые отказы снижают ваш рейтинг выполнения."
+      :o.status===5?"Средства продавца ещё не заблокированы — отмена не засчитывается вам."
+      :"Средства вернутся продавцу. Отмена после блокировки засчитывается вам: после 3 отмен за сутки создание ордеров на покупку временно блокируется.",
     check:afterPaid?"Я не переводил(а) оплату продавцу":null});
   if(!ok) return;
   try{ curOrder=await api("POST",`/api/orders/${o.id}/cancel`,{confirmNotPaid:afterPaid}); renderOrderBody(); refreshOrdersCount(); toast("Ордер отменён",""); }catch(e){ toast(errMsg(e),"err"); }
@@ -2054,11 +2069,25 @@ async function chatSend(){
   catch(e){ inp.value=text; toast(errMsg(e),"err"); }
   finally{ inp.disabled=false; inp.focus(); }
 }
+// Фото с камеры (5–10 МБ, HEIC) уменьшаем до 1600 px и пересжимаем в JPEG прямо на телефоне —
+// так проходят лимит 3 МБ и заодно теряют EXIF/геолокацию (сервер вырезает их ещё раз).
+async function prepareImage(file){
+  if(/^image\/(png|jpeg)$/.test(file.type)&&file.size<=1500000) return {buf:new Uint8Array(await file.arrayBuffer()),type:file.type};
+  let bmp;
+  try{ bmp=await createImageBitmap(file); }catch(e){ throw new Error("Не удалось открыть изображение — пришлите скриншот в JPEG или PNG"); }
+  const k=Math.min(1,1600/Math.max(bmp.width,bmp.height));
+  const c=document.createElement("canvas"); c.width=Math.max(1,Math.round(bmp.width*k)); c.height=Math.max(1,Math.round(bmp.height*k));
+  c.getContext("2d").drawImage(bmp,0,0,c.width,c.height); if(bmp.close) bmp.close();
+  const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",0.85));
+  if(!blob) throw new Error("Не удалось подготовить изображение");
+  if(blob.size>3*1024*1024) throw new Error("Изображение слишком большое");
+  return {buf:new Uint8Array(await blob.arrayBuffer()),type:"image/jpeg"};
+}
 async function uploadChatImage(file){
-  if(!/^image\/(png|jpeg)$/.test(file.type)) return toast("Поддерживаются только JPEG и PNG","err");
-  if(file.size>3*1024*1024) return toast("Файл больше 3 МБ","err");
+  if(!/^image\//.test(file.type)&&!/\.(heic|heif|jpe?g|png|webp)$/i.test(file.name||"")) return toast("Можно прикрепить только изображение","err");
+  if(file.size>25*1024*1024) return toast("Файл больше 25 МБ","err");
   toast("Загрузка изображения…");
-  try{ const buf=new Uint8Array(await file.arrayBuffer()); const m=await api("POST",`/api/orders/${curOrderId}/files`,undefined,{raw:buf,type:file.type}); addMessages([m]); }
+  try{ const img=await prepareImage(file); const m=await api("POST",`/api/orders/${curOrderId}/files`,undefined,{raw:img.buf,type:img.type}); addMessages([m]); }
   catch(e){ toast(errMsg(e),"err"); }
 }
 
@@ -2565,7 +2594,7 @@ function renderSendForm(){
         <button class="chip" data-act="send-max">МАКС</button>
       </div>
     </div>
-    ${feeEnabled()?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Комиссия сервиса за вывод — 1% от суммы, удерживается из перевода: получатель получает сумму за вычетом комиссии.</div></div>`:""}
+    ${feeEnabled()?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Комиссия сервиса за вывод — ${WITHDRAW_FEE_PCT}% от суммы, удерживается из перевода: получатель получает сумму за вычетом комиссии.</div></div>`:""}
     ${a==="USDT"?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Для перевода USDT нужен небольшой запас TON на газ (≈0.1 TON${feeEnabled()?", с комиссией ≈0.2 TON":""}).</div></div>`:""}
     ${S.network==="testnet"?`<div class="infobox" style="margin-bottom:14px">${I.info}<div>Testnet: отправляются тестовые монеты. ${a==="USDT"?"USDT-джеттон недоступен в Testnet.":""}</div></div>`:""}
     <button class="btn btn-primary btn-lg btn-block" data-act="send-next">Продолжить ${I.chev}</button>`);
@@ -2582,7 +2611,7 @@ function modalSendConfirm(){
     <div style="padding:6px 2px 10px">
       <div class="kv"><span class="k">Актив</span><span class="v">${asset}</span></div>
       <div class="kv"><span class="k">Сумма</span><span class="v">${fmtCrypto(amt)} ${asset}${usd?` · ${fmtUsd(usd)}`:""}</span></div>
-      ${fee>0?`<div class="kv"><span class="k">Комиссия сервиса (1%)</span><span class="v">−${fmtCrypto(fee)} ${asset}${feeUsd?` · ${fmtUsd(feeUsd)}`:""}</span></div>
+      ${fee>0?`<div class="kv"><span class="k">Комиссия сервиса (${WITHDRAW_FEE_PCT}%)</span><span class="v">−${fmtCrypto(fee)} ${asset}${feeUsd?` · ${fmtUsd(feeUsd)}`:""}</span></div>
       <div class="kv"><span class="k">Получатель получит</span><span class="v">${fmtCrypto(net)} ${asset}</span></div>`:""}
       <div class="kv"><span class="k">Получатель</span><span class="v">${esc(shortAddr(to))}</span></div>
       <div class="kv"><span class="k">Сеть</span><span class="v">TON ${networkLabel()}</span></div>
