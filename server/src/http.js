@@ -2,6 +2,7 @@
 // allowlist, security headers, per-IP/per-user rate limits, signed-session auth.
 import { createServer } from "node:http";
 import { secretOk } from "./bot-updates.js";
+import { syncCspHash } from "./csp.js";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
 import { createHash } from "node:crypto";
@@ -112,7 +113,8 @@ export function makeServer(ctx, router) {
     const file = normalize(join(cfg.staticDir, p === "/" ? "index.html" : p));
     if (!file.startsWith(cfg.staticDir + sep)) return false;
     try { if (!(await stat(file)).isFile()) return false; } catch { return false; }
-    const data = await readFile(file);
+    let data = await readFile(file);
+    if (extname(file) === ".html") { try { data = Buffer.from(syncCspHash(data.toString("utf8")).html, "utf8"); } catch {} }
     const headers = {
       "Content-Type": STATIC_TYPES[extname(file)] || "application/octet-stream",
       "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",

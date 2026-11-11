@@ -8,4 +8,4 @@ const seed = randomBytes(32).toString("hex");
 const { publicKeyHex } = arbiterKeyFromSeed(seed);
 console.log(`ARBITER_SECRET=${seed}`);
 console.log(`DATA_KEY=${randomBytes(32).toString("hex")}`);
-console.log(`# ARBITER_PUBLIC_KEY=${publicKeyHex}   <- put into index.html CONFIG.ARBITER_PUBKEY`);
+console.log(`# ARBITER_PUBLIC_KEY=${publicKeyHex}   (после заполнения .env: npm run setup:frontend — пропишет его в index.html)`);

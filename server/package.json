@@ -8,6 +8,7 @@
     "build:contract": "node scripts/build-contract.mjs",
     "build:vendor": "node scripts/build-vendor.mjs",
     "gen:keys": "node scripts/gen-keys.mjs",
+    "setup:frontend": "node --no-warnings scripts/setup-frontend.mjs",
     "test": "node --no-warnings --test test/*.test.js"
   },
   "license": "UNLICENSED",

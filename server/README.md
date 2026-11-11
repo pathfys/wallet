@@ -3,32 +3,66 @@
 Node.js ≥ 22.13 (встроенный SQLite), две рантайм‑зависимости: `@ton/core`, `ws`.
 Подробности архитектуры и безопасности — в [`../REVIEW.md`](../REVIEW.md).
 
-## Быстрый старт (локально, testnet)
+## Быстрый старт (локально)
 
 ```bash
 cd server
 npm ci
 npm test
 cp .env.example .env
-npm run gen:keys      # вставьте ARBITER_SECRET и DATA_KEY в .env, публичный ключ — в index.html (CONFIG.ARBITER_PUBKEY)
+npm run gen:keys          # ARBITER_SECRET и DATA_KEY -> в .env
+npm run setup:frontend    # пропишет ключ арбитра и кошелёк комиссий в ../index.html
 npm start
 ```
 
-## Продакшен
+Приложение открывается только внутри нативного Telegram — в обычном браузере будет пустая страница (так задумано).
 
-1. Сервер с доменом и TLS (Let's Encrypt). Пользователь: `sudo useradd -r -s /usr/sbin/nologin pmrwallet`.
-2. Код в `/opt/pmr-wallet` (репозиторий целиком: фронтенд раздаётся этим же сервером), затем
-   `cd /opt/pmr-wallet/server && npm ci --omit=dev`.
-3. `.env` по образцу `.env.example`, `chmod 600 .env`, `mkdir data && chown pmrwallet data`.
-4. `deploy/pmr-wallet.service` → `/etc/systemd/system/`, `systemctl enable --now pmr-wallet`.
-5. `deploy/nginx.conf` → `/etc/nginx/sites-enabled/` (замените `wallet.example.com`), `nginx -t && systemctl reload nginx`.
-6. В @BotFather укажите URL Mini App: `https://<ваш домен>/`.
-   Бот сам отвечает на `/start` приветствием («PMR WALLET — пространство криптовалюты в Приднестровье…») с кнопкой
-   открытия кошелька, на `/help` — инструкцией и правилами против «треугольников», ставит команды и кнопку меню.
-   Тексты — в `src/bot-texts.js`. Режим: `BOT_MODE=polling` (по умолчанию) или `webhook`
-   (`BOT_WEBHOOK_URL=https://<домен>/api/tg/webhook`, `BOT_WEBHOOK_SECRET=$(openssl rand -hex 32)`).
-7. Если фронтенд остаётся на GitHub Pages: в `index.html` задайте `CONFIG.API_BASE = "https://<api-домен>"`,
-   добавьте этот домен в `connect-src` CSP в `index.html`, а на сервере `ALLOWED_ORIGINS=https://<pages-домен>`.
+## Продакшен на pmrwallet.com
+
+Нужен VPS (Ubuntu 22.04/24.04, 1 vCPU / 1 ГБ хватит на старт) и DNS: записи `A` для `pmrwallet.com`
+и `www.pmrwallet.com` на IP сервера.
+
+```bash
+# 1. Node.js 22 и nginx
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
+sudo apt install -y nodejs nginx certbot python3-certbot-nginx unzip
+
+# 2. Код
+sudo useradd -r -s /usr/sbin/nologin pmrwallet
+sudo mkdir -p /opt/pmr-wallet && sudo unzip pmrwallet.zip -d /opt/pmr-wallet
+cd /opt/pmr-wallet/server && sudo npm ci --omit=dev
+
+# 3. Настройки
+sudo cp .env.example .env && sudo chmod 600 .env
+sudo node scripts/gen-keys.mjs        # ARBITER_SECRET и DATA_KEY — вставить в .env, сохранить копию офлайн
+sudo nano .env                        # BOT_TOKEN, ADMIN_IDS, TONCENTER_API_KEY, FEE_WALLET, BOT_WEBHOOK_SECRET, TG_APP_LINK
+sudo npm run setup:frontend           # ключ арбитра + кошелёк комиссий -> index.html
+sudo mkdir -p data && sudo chown -R pmrwallet /opt/pmr-wallet/server/data
+
+# 4. Служба
+sudo cp deploy/pmr-wallet.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now pmr-wallet
+
+# 5. HTTPS + nginx
+sudo certbot certonly --nginx -d pmrwallet.com -d www.pmrwallet.com
+sudo cp deploy/nginx.conf /etc/nginx/sites-enabled/pmrwallet.conf
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+
+# 6. Проверка
+curl -s https://pmrwallet.com/api/config | head -c 200; echo
+sudo journalctl -u pmr-wallet -n 30 --no-pager   # не должно быть ошибок про ARBITER_PUBKEY / FEE_WALLET
+```
+
+**@BotFather**
+1. `/newapp` (или `/myapps` → ваш бот) → URL Mini App: `https://pmrwallet.com/`, короткое имя, например `app`.
+   Ссылка вида `https://t.me/<бот>/app` — это `TG_APP_LINK` в `.env` (перезапустите службу).
+2. Бот сам ставит вебхук `https://pmrwallet.com/api/tg/webhook`, команды `/start`, `/help` и кнопку меню «Кошелёк».
+
+`BOT_WEBHOOK_SECRET` — `openssl rand -hex 32`. Сначала стоит проверить всё на testnet (`TON_NETWORK=testnet`).
+
+После правки `index.html` руками (например, `CONFIG`) сервер сам пересчитывает CSP‑хеш при отдаче страницы;
+для хостинга без этого сервера выполните `npm run setup:frontend`.
 
 ## Пересборка артефактов
 

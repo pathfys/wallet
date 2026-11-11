@@ -1,5 +1,7 @@
 // PMR Wallet backend entry point.
 import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import { frontendConfig } from "./csp.js";
 import { loadConfig } from "./config.js";
 import { openDb } from "./db.js";
 import { makeRouter, makeServer, clientIp } from "./http.js";
@@ -70,6 +72,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const cfg = loadConfig();
   const { server, ctx, jobs } = createApp(cfg);
   server.listen(cfg.port, cfg.host, () => ctx.log.info("listening", { host: cfg.host, port: cfg.port, network: cfg.network, arbiter: cfg.arbiter.publicKeyHex }));
+  if (cfg.staticDir) {
+    try {
+      const fc = frontendConfig(readFileSync(join(cfg.staticDir, "index.html"), "utf8"));
+      if (fc.arbiterPubkey !== cfg.arbiter.publicKeyHex) ctx.log.error("index.html CONFIG.ARBITER_PUBKEY does not match ARBITER_SECRET — run: npm run setup:frontend");
+      if (fc.feeWallet && fc.feeWallet !== cfg.feeWallet) ctx.log.error("index.html CONFIG.FEE_WALLET differs from FEE_WALLET — run: npm run setup:frontend");
+    } catch (e) { ctx.log.warn("index.html check skipped", { err: String(e) }); }
+  }
   const stop = () => { ctx.log.info("shutdown"); jobs?.stop(); ctx.botUpdates.stop(); server.close(() => { ctx.db.close(); process.exit(0); }); setTimeout(() => process.exit(0), 5000).unref(); };
   process.on("SIGTERM", stop);
   process.on("SIGINT", stop);

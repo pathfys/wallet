@@ -2,6 +2,7 @@
 import { build } from "esbuild";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { syncCspHash } from "../src/csp.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -22,10 +23,8 @@ const src = readFileSync(html, "utf8");
 let next = src.replace(/(<script type="module" src="vendor\/pmr-vendor\.js" integrity=")[^"]*(")/, `$1${sri}$2`);
 // CSP: the app's only inline script is allowed by its SHA-256 hash instead of 'unsafe-inline',
 // so an injected <script> or on*= handler (XSS) will not run.
-const inline = [...next.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-if (inline.length !== 1) throw new Error("expected exactly one inline <script type=module>, got " + inline.length);
-const cspHash = "'sha256-" + createHash("sha256").update(inline[0], "utf8").digest("base64") + "'";
-next = next.replace(/(script-src 'self' )(?:'unsafe-inline'|'sha256-[A-Za-z0-9+/=]+')/, `$1${cspHash}`);
-if (!next.includes(cspHash)) throw new Error("CSP script-src not found in index.html");
+const synced = syncCspHash(next);
+next = synced.html;
+const cspHash = synced.hash;
 if (next !== src) writeFileSync(html, next);
 console.log(`vendor/pmr-vendor.js ${(data.length / 1024).toFixed(0)} KB  ${sri}  csp ${cspHash}${next !== src ? "  (index.html updated)" : ""}`);
