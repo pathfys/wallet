@@ -1,5 +1,6 @@
 // PMR Wallet backend entry point.
 import { join } from "node:path";
+import { Address } from "@ton/core";
 import { readFileSync } from "node:fs";
 import { frontendConfig } from "./csp.js";
 import { loadConfig } from "./config.js";
@@ -71,14 +72,21 @@ export function createApp(cfg, deps = {}) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const cfg = loadConfig();
   const { server, ctx, jobs } = createApp(cfg);
-  server.listen(cfg.port, cfg.host, () => ctx.log.info("listening", { host: cfg.host, port: cfg.port, network: cfg.network, arbiter: cfg.arbiter.publicKeyHex }));
+  // fail closed: the fee wallet and arbiter key pinned in index.html must match the backend.
+  // A changed FEE_WALLET in .env alone (e.g. by an intruder) stops the server instead of
+  // quietly creating escrows that pay fees elsewhere (clients would refuse them anyway).
   if (cfg.staticDir) {
+    let problem = "";
     try {
       const fc = frontendConfig(readFileSync(join(cfg.staticDir, "index.html"), "utf8"));
-      if (fc.arbiterPubkey !== cfg.arbiter.publicKeyHex) ctx.log.error("index.html CONFIG.ARBITER_PUBKEY does not match ARBITER_SECRET — run: npm run setup:frontend");
-      if (fc.feeWallet && fc.feeWallet !== cfg.feeWallet) ctx.log.error("index.html CONFIG.FEE_WALLET differs from FEE_WALLET — run: npm run setup:frontend");
-    } catch (e) { ctx.log.warn("index.html check skipped", { err: String(e) }); }
+      let sameFee = false;
+      try { sameFee = Address.parse(fc.feeWallet || "").equals(Address.parse(cfg.feeWallet)); } catch {}
+      if (!sameFee) problem = "index.html CONFIG.FEE_WALLET differs from FEE_WALLET in .env";
+      else if (fc.arbiterPubkey !== cfg.arbiter.publicKeyHex) problem = "index.html CONFIG.ARBITER_PUBKEY does not match ARBITER_SECRET in .env";
+    } catch (e) { problem = "cannot read index.html: " + String(e); }
+    if (problem) { ctx.log.error(problem + " — run: npm run setup:frontend"); process.exit(1); }
   }
+  server.listen(cfg.port, cfg.host, () => ctx.log.info("listening", { host: cfg.host, port: cfg.port, network: cfg.network, arbiter: cfg.arbiter.publicKeyHex, feeWallet: cfg.feeWallet }));
   const stop = () => { ctx.log.info("shutdown"); jobs?.stop(); ctx.botUpdates.stop(); server.close(() => { ctx.db.close(); process.exit(0); }); setTimeout(() => process.exit(0), 5000).unref(); };
   process.on("SIGTERM", stop);
   process.on("SIGINT", stop);
