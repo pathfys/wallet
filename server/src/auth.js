@@ -7,7 +7,7 @@ import { verifyInitData, parseP256, verifyWalletProof, nickError, nickKey } from
 import { ESCROW_CODE_HASH, ESCROW_TON } from "./escrow.js";
 
 export function registerAuth(router, ctx) {
-  const { cfg, db } = ctx;
+  const { cfg, db, log } = ctx;
   const ACTIVE_SQL = "status IN (5,10,20,30)";
 
   const publicConfig = () => ({
@@ -28,9 +28,18 @@ export function registerAuth(router, ctx) {
   router.get("/api/config", { auth: "public" }, () => publicConfig());
 
   router.post("/api/auth/login", { auth: "public", limit: { key: "login", n: 60, ms: 60_000 } }, ({ body, ip }) => {
-    const { user: tg, startParam } = verifyInitData(body.initData, cfg.botToken, cfg.loginMaxAgeSec);
+    const { user: tg, startParam, hash: idHash, authDate } = verifyInitData(body.initData, cfg.botToken, cfg.loginMaxAgeSec);
     const { x, y } = parseP256(body.pub);
     const t = now();
+    // one initData -> one device key. Re-login from the same app instance (same key) is fine;
+    // the same initData presented with any other key is a copy and is refused.
+    db.run("INSERT OR IGNORE INTO init_data_uses(hash,user_id,pub_x,pub_y,expires_at) VALUES(?,?,?,?,?)",
+      idHash, tg.id, x, y, (authDate + cfg.loginMaxAgeSec + 120) * 1000);
+    const use = db.get("SELECT pub_x, pub_y FROM init_data_uses WHERE hash=?", idHash);
+    if (!use || use.pub_x !== x || use.pub_y !== y) {
+      log.warn("init_data reuse", { user: tg.id, ip });
+      throw new HttpError(401, "init_data_used", "Сессия Telegram уже используется — закройте и откройте приложение заново");
+    }
     const role = cfg.adminIds.includes(tg.id) ? "admin" : "user";
     db.run(`INSERT INTO users(id, first_name, username, allows_pm, role, created_at, last_seen_at) VALUES(?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET first_name=excluded.first_name, username=excluded.username,

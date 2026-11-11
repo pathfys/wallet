@@ -119,7 +119,20 @@ export function makeServer(ctx, router) {
       "Cache-Control": extname(file) === ".html" ? "no-cache" : "public, max-age=3600",
       "Permissions-Policy": "geolocation=(), microphone=(), payment=(), usb=()",
     };
-    if (extname(file) === ".html") headers["Content-Security-Policy"] = "frame-ancestors 'self' https://web.telegram.org https://webk.telegram.org https://webz.telegram.org; object-src 'none'; base-uri 'none'";
+    if (extname(file) === ".html") {
+      // Telegram Web (web.telegram.org/a|k) shows Mini Apps in an <iframe>; native clients load
+      // the page top-level in a WebView. Forbidding any framing makes the browser refuse to render
+      // the app inside Telegram Web; Sec-Fetch-Dest lets us refuse it before sending a byte.
+      const dest = String(req.headers["sec-fetch-dest"] || "");
+      if (/^(iframe|frame|embed|object|fencedframe)$/.test(dest)) {
+        res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8", "X-Frame-Options": "DENY", "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'", "Cache-Control": "no-store" });
+        res.end();
+        return true;
+      }
+      headers["Content-Security-Policy"] = "frame-ancestors 'none'; object-src 'none'; base-uri 'none'";
+      headers["X-Frame-Options"] = "DENY";
+      headers["Cross-Origin-Opener-Policy"] = "same-origin";
+    }
     res.writeHead(200, headers);
     res.end(req.method === "HEAD" ? undefined : data);
     return true;

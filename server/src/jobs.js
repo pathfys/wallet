@@ -126,6 +126,7 @@ export function startJobs(ctx) {
     const t = now();
     db.run("DELETE FROM sessions WHERE expires_at<?", t);
     db.run("DELETE FROM wallet_challenges WHERE created_at<?", t - 3_600_000);
+    db.run("DELETE FROM init_data_uses WHERE expires_at<?", t);
     db.run("DELETE FROM activity WHERE hour<?", Math.floor((t - 800 * 86_400_000) / 3_600_000));
     ctx.nonces.sweep();
     ctx.limiter.sweep();

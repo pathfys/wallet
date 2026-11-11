@@ -103,6 +103,13 @@ CREATE TABLE IF NOT EXISTS broadcasts(
   sent INTEGER NOT NULL DEFAULT 0, failed INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL, created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS nonces(k TEXT PRIMARY KEY, exp INTEGER NOT NULL) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS nonces_exp ON nonces(exp);
+-- initData is bound to the first device key that used it: a copied initData
+-- (logs, Telegram Web devtools, a malicious proxy) cannot open a second session.
+CREATE TABLE IF NOT EXISTS init_data_uses(
+  hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, pub_x TEXT NOT NULL, pub_y TEXT NOT NULL, expires_at INTEGER NOT NULL
+) WITHOUT ROWID;
 `;
 
 export function openDb(file) {

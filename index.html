@@ -8,7 +8,7 @@
 <!-- CSP: скрипты только с этого домена и telegram.org (крипто-библиотеки — локальный бандл с SRI),
      сеть — только к API, RPC TON и CoinGecko. Если API_BASE на другом домене — добавьте его в connect-src.
      frame-ancestors и HSTS задаются HTTP-заголовками на сервере (см. server/deploy/nginx.conf). -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://toncenter.com https://testnet.toncenter.com https://ton.access.orbs.network https://api.coingecko.com wss:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-8Bhb3Axrl1qCuFy1DbgPxUvntDYrqzwMlSpsVAo8acQ=' https://telegram.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self' https://toncenter.com https://testnet.toncenter.com https://ton.access.orbs.network https://api.coingecko.com wss:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'; upgrade-insecure-requests">
 <meta name="description" content="PMR Wallet — некастодиальный криптокошелёк сети TON: TON (GRAM) и USDT, приём и отправка, P2P с блокировкой средств в смарт-контракте эскроу.">
 <title>PMR Wallet</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f6bff'/%3E%3Cpath d='M9 12h11a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H9z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='19' cy='17' r='1.6' fill='%23fff'/%3E%3C/svg%3E">
@@ -642,12 +642,38 @@ button.tlink{background:none;padding:0;font-size:inherit;}
    сделки, а не у платформы. Ключи и seed-фраза — только на этом устройстве.
    ======================================================================== */
 
+/* ---------- ENV GATE: только нативный клиент Telegram (iOS / Android / Desktop / macOS) ---------- */
+// Выполняется первым. Обычный браузер, Telegram Web (web.telegram.org — там открыт F12),
+// встраивание во iframe и запуск без подписанных initData -> пустая страница, приложение
+// не инициализируется вообще. Это барьер на клиенте; настоящая защита — на сервере:
+// каждая сессия начинается с проверки HMAC-подписи initData токеном бота, initData
+// привязывается к ключу устройства, а index.html запрещено открывать во iframe.
+const ENV_OK=(()=>{
+  try{
+    const tg=window.Telegram&&window.Telegram.WebApp;
+    if(!tg) return false;
+    const initData=String(tg.initData||"");
+    if(initData.length<20 || !/(^|&)hash=[0-9a-f]{64}(&|$)/.test(initData) || !/(^|&)auth_date=\d+/.test(initData)) return false;
+    const platform=String(tg.platform||"unknown");
+    if(["web","weba","webk","webz","unknown"].includes(platform)) return false;
+    if(window.self!==window.top) return false;                       // Telegram Web держит Mini App во iframe
+    // нативные клиенты внедряют мост: TelegramWebviewProxy (Android/iOS/Desktop/macOS) или external.notify
+    const bridge=typeof window.TelegramWebviewProxy!=="undefined" || !!(window.external&&("notify" in window.external));
+    if(!bridge) return false;
+    return true;
+  }catch(e){ return false; }
+})();
+function killPage(){
+  try{ window.stop(); }catch(e){}
+  try{ document.documentElement.innerHTML="<head><title></title></head><body></body>"; }catch(e){}
+}
+if(!ENV_OK){ killPage(); throw new Error("PMR: unsupported environment"); }
+
 /* ---------- CONFIG: заполните при развёртывании ---------- */
 const CONFIG=Object.freeze({
   API_BASE:"",              // "" — API на этом же домене (/api). Иначе, например, "https://api.example.com"
   ARBITER_PUBKEY:"",        // публичный ключ арбитра эскроу (npm run gen:keys). Пусто — доверять серверу (только для разработки!)
   FEE_WALLET:"UQAtqU5yzF4yMzJqqvCSJxH9dgaOr8Mciuikl3ws66scVoaW",
-  TG_BOT_LINK:"",           // "https://t.me/YourBot/app" — кнопка «Открыть в Telegram» на экране блокировки
   // Потолок P2P-комиссии, который клиент примет от сервера (в б.п. с одной стороны: 200 = 2%).
   // Эскроу с комиссией выше этого клиент откажется создавать, даже если так ответит сервер.
   MAX_P2P_FEE_SIDE_BPS:200,
@@ -708,32 +734,45 @@ const CARD_SKINS=[
 ];
 const skinGlow=(k)=>(CARD_SKINS.find(s=>s.k===k)||CARD_SKINS[0]).glow;
 
-/* ---------- environment gate (run only inside native Telegram) ---------- */
-// Клиентская проверка — лишь барьер для случайного запуска. Реальная защита —
-// на сервере: каждая сессия начинается с проверки подписи initData (HMAC токена бота).
-const ENFORCE_TG=true;                       // false — только для локального тестирования
-const TG_WEB_PLATFORMS=["weba","webk","web"];// веб-клиенты Telegram (там доступны devtools)
+/* ---------- environment ---------- */
+// Шлюз окружения — в самом начале модуля (ENV_OK). Сюда код доходит только в нативном Telegram.
 function tgEnv(){
   const tg=(window.Telegram&&window.Telegram.WebApp)||null;
   return { tg, initData:(tg&&tg.initData)||"", platform:(tg&&tg.platform)||"unknown" };
 }
-function isLocalDev(){ try{ const h=location.hostname; return h==="localhost"||h==="127.0.0.1"; }catch(e){ return false; } }
-function envAllowed(){
-  if(!ENFORCE_TG || isLocalDev()) return true;
-  const {initData,platform}=tgEnv();
-  if(!initData) return false;
-  if(TG_WEB_PLATFORMS.includes(platform)) return false;
-  return true;
+const envAllowed=()=>ENV_OK;
+
+/* ---------- anti-devtools (F12) ---------- */
+// В нативных клиентах devtools нет, но их можно включить (Telegram Desktop: «Allow web view
+// inspecting», Android: отладка WebView). Горячие клавиши и контекстное меню блокируются,
+// а если отладчик всё же подключён — ключи стираются из памяти и страница очищается.
+let devtoolsHit=false;
+function wipeAndKill(){
+  if(devtoolsHit) return; devtoolsHit=true;
+  try{ if(session.key&&session.key.secretKey) session.key.secretKey.fill(0); }catch(e){}
+  try{ session={key:null,unlocked:false}; if(S){ S.locked=true; save(); } }catch(e){}
+  try{ API.token=null; API.kp=null; if(API.ws) API.ws.close(); }catch(e){}
+  killPage();
 }
-function renderBlocked(){
-  try{ el("tabbar").style.display="none"; }catch(e){}
-  el("app").innerHTML=`
-  <div class="onb" style="justify-content:center;text-align:center">
-    <div class="hero-badge" style="margin:0 auto 22px;width:92px;height:92px;border-radius:28px">${I.lock}</div>
-    <h2 style="margin:0 auto 8px">Откройте в Telegram</h2>
-    <p class="lead" style="margin:0 auto 18px">PMR Wallet работает только в мобильном или десктоп‑приложении Telegram. Веб‑версия Telegram и обычный браузер не поддерживаются в целях безопасности.</p>
-    ${/^https:\/\/t\.me\//.test(CONFIG.TG_BOT_LINK)?`<a class="btn btn-primary btn-lg" style="max-width:320px;margin:0 auto" href="${esc(CONFIG.TG_BOT_LINK)}">Открыть в Telegram</a>`:""}
-  </div>`;
+function bindAntiDevtools(){
+  const BLOCK=new Set(["KeyI","KeyJ","KeyC","KeyK","KeyU","KeyS","KeyP"]);
+  document.addEventListener("keydown",(e)=>{
+    const mod=e.ctrlKey||e.metaKey;
+    const isDev=e.code==="F12" || (mod&&(e.shiftKey||e.altKey)&&BLOCK.has(e.code)) || (mod&&!e.shiftKey&&!e.altKey&&(e.code==="KeyU"||e.code==="KeyS"||e.code==="KeyP"));
+    if(isDev){ e.preventDefault(); e.stopImmediatePropagation(); }
+  },true);
+  document.addEventListener("contextmenu",(e)=>{
+    const t=e.target;
+    if(t&&t.closest&&t.closest("input,textarea,[contenteditable='true']")) return;   // вставка адреса из меню
+    e.preventDefault();
+  },true);
+  // Отладчик: при открытых devtools оператор debugger останавливает выполнение — замеряем паузу.
+  setInterval(()=>{
+    const t0=performance.now();
+    // eslint-disable-next-line no-debugger
+    debugger;
+    if(performance.now()-t0>200) wipeAndKill();
+  },1000);
 }
 
 /* ---------- state ---------- */
@@ -1118,12 +1157,29 @@ function jettonGasNeeded(withFee){ return withFee ? 0.22 : 0.12; }
 const API={token:null, kp:null, me:null, cfg:null, online:false, error:null, loginP:null, skew:0, ws:null, wsTry:0, startParam:""};
 const apiUrl=(p)=>(CONFIG.API_BASE||"")+p;
 class ApiError extends Error{ constructor(status,code,msg){ super(msg||code||("HTTP "+status)); this.status=status; this.code=code; } }
+// Неэкспортируемый ECDSA-ключ устройства. CryptoKey хранится в IndexedDB как объект (сам
+// приватный ключ из него не извлечь), поэтому перезагрузка WebView не ломает вход с тем же
+// initData, а скопированный initData на другом устройстве сервер отвергнет (init_data_used).
+async function deviceKey(){
+  const gen=()=>crypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
+  let db;
+  try{
+    db=await new Promise((res,rej)=>{ const r=indexedDB.open("pmr_device",1); r.onupgradeneeded=()=>r.result.createObjectStore("k"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+    const tx=(m)=>db.transaction("k",m).objectStore("k");
+    const got=await new Promise((res)=>{ const q=tx("readonly").get("ecdsa"); q.onsuccess=()=>res(q.result||null); q.onerror=()=>res(null); });
+    if(got&&got.privateKey&&got.publicKey&&got.privateKey.extractable===false) return got;
+    const kp=await gen();
+    await new Promise((res)=>{ const q=tx("readwrite").put(kp,"ecdsa"); q.onsuccess=()=>res(); q.onerror=()=>res(); });
+    return kp;
+  }catch(e){ return gen(); }
+  finally{ try{ db&&db.close(); }catch(e){} }
+}
 async function apiLogin(){
   if(API.loginP) return API.loginP;
   API.loginP=(async()=>{
     const {initData}=tgEnv();
     if(!initData) throw new ApiError(0,"no_telegram","Откройте приложение в Telegram");
-    API.kp=await crypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
+    if(!API.kp) API.kp=await deviceKey();
     const jwk=await crypto.subtle.exportKey("jwk",API.kp.publicKey);
     const t0=Date.now();
     const r=await fetch(apiUrl("/api/auth/login"),{method:"POST",headers:{"Content-Type":"application/json"},credentials:"omit",cache:"no-store",
@@ -3058,7 +3114,8 @@ function tgInit(){
 }
 async function boot(){
   try{ const tg=window.Telegram&&window.Telegram.WebApp; if(tg&&tg.ready) tg.ready(); }catch(e){}
-  if(!envAllowed()){ bindEvents(); renderBlocked(); return; }
+  if(!envAllowed()){ killPage(); return; }
+  bindAntiDevtools();
   load(); tgInit(); applyTheme(); bindEvents(); bindIdleLock();
   // секретный ключ живёт только в памяти: после перезапуска всегда нужен пароль
   if(S.hasWallet) S.locked=true;

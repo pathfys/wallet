@@ -13,7 +13,7 @@ import { bindMessage } from "../src/security.js";
 export const BOT = "123456789:" + "A".repeat(35);
 
 export function initData(user, ageSec = 0) {
-  const p = new URLSearchParams({ auth_date: String(Math.floor(Date.now() / 1000) - ageSec), query_id: "AAE", user: JSON.stringify(user) });
+  const p = new URLSearchParams({ auth_date: String(Math.floor(Date.now() / 1000) - ageSec), query_id: "AAE" + randomBytes(6).toString("base64url"), user: JSON.stringify(user) });
   const check = [...p.entries()].map(([k, v]) => `${k}=${v}`).sort().join("\n");
   const secret = createHmac("sha256", "WebAppData").update(BOT).digest();
   p.set("hash", createHmac("sha256", secret).update(check).digest("hex"));

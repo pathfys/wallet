@@ -21,7 +21,7 @@ const chainState = new Map(); // escrow raw address -> state
 const sent = [];
 
 function initData(user, ageSec = 0) {
-  const p = new URLSearchParams({ auth_date: String(Math.floor(Date.now() / 1000) - ageSec), query_id: "AAE", user: JSON.stringify(user) });
+  const p = new URLSearchParams({ auth_date: String(Math.floor(Date.now() / 1000) - ageSec), query_id: "AAE" + randomBytes(6).toString("base64url"), user: JSON.stringify(user) });
   const check = [...p.entries()].map(([k, v]) => `${k}=${v}`).sort().join("\n");
   const secret = createHmac("sha256", "WebAppData").update(BOT).digest();
   p.set("hash", createHmac("sha256", secret).update(check).digest("hex"));
@@ -71,7 +71,7 @@ before(async () => {
   dir = mkdtempSync(join(tmpdir(), "pmr-"));
   const cfg = loadConfig({
     BOT_TOKEN: BOT, FEE_WALLET: "UQAtqU5yzF4yMzJqqvCSJxH9dgaOr8Mciuikl3ws66scVoaW", ARBITER_SECRET: randomBytes(32).toString("hex"),
-    DATA_KEY: randomBytes(32).toString("hex"), ADMIN_IDS: String(ADMIN_ID), DATA_DIR: dir, DISABLE_JOBS: "1", APPEAL_AFTER_MIN: "1",
+    DATA_KEY: randomBytes(32).toString("hex"), ADMIN_IDS: String(ADMIN_ID), DATA_DIR: dir, DISABLE_JOBS: "1", APPEAL_AFTER_MIN: "1", STATIC_DIR: "..",
   }, { dotenv: false });
   const chain = {
     async escrowState(o) { return chainState.get(o.escrow_address) || { deployed: false, tonBalance: 0n }; },
@@ -112,6 +112,36 @@ test("request signatures: replay, tampering, stale timestamp and missing signatu
   // another device's key cannot use a stolen token
   const thief = new Client(seller.tg); await thief.login(); thief.token = seller.token;
   assert.equal((await thief.req("GET", "/api/me")).status, 401);
+});
+
+test("initData is bound to the first device key; nonces survive a restart; app refuses to be framed", async () => {
+  // a copied initData (e.g. from Telegram Web devtools) cannot open a session on another device
+  const id = initData(stranger.tg);
+  const owner = new Client(stranger.tg);
+  assert.equal((await owner.login(id)).status, 200);
+  const copycat = new Client(stranger.tg);
+  const r = await copycat.login(id);
+  assert.equal(r.status, 401);
+  assert.equal(r.body.error, "init_data_used");
+  // the same app instance (same key) may log in again with its initData
+  const kp = owner.kp;
+  const jwk = await webcrypto.subtle.exportKey("jwk", kp.publicKey);
+  const again = await fetch(base + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ initData: id, pub: { kty: "EC", crv: "P-256", x: jwk.x, y: jwk.y } }) });
+  assert.equal(again.status, 200);
+
+  // nonces are persisted: an in-memory cache reset (= process restart) does not reopen the replay window
+  const ok = await seller.req("GET", "/api/me");
+  assert.equal(ok.status, 200);
+  assert.ok(app.ctx.db.get("SELECT COUNT(*) n FROM nonces").n > 0);
+  assert.equal((await seller.req("GET", "/api/me", null, { nonce: ok.nonce, ts: ok.ts })).status, 409);
+
+  // index.html: never inside an iframe (Telegram Web), CSP frame-ancestors 'none'
+  const framed = await fetch(base + "/", { headers: { "sec-fetch-dest": "iframe" } });
+  assert.equal(framed.status, 403);
+  const top = await fetch(base + "/", { headers: { "sec-fetch-dest": "document" } });
+  assert.equal(top.status, 200);
+  assert.match(top.headers.get("content-security-policy"), /frame-ancestors 'none'/);
+  assert.equal(top.headers.get("x-frame-options"), "DENY");
 });
 
 test("nicknames: validation, uniqueness, homoglyph impersonation, single change", async () => {
@@ -309,7 +339,7 @@ test("timeouts: unpaid order is cancelled and counted against the buyer; 3 strik
 test("banned users are locked out; admin actions are audited", async () => {
   assert.equal((await admin.req("POST", "/api/admin/bans", { userId: stranger.tg.id, reason: "spam" })).status, 200);
   assert.equal((await stranger.req("GET", "/api/ads?side=sell")).status, 401, "sessions revoked");
-  await stranger.login();
+  const relog = await stranger.login(); assert.equal(relog.status, 200, JSON.stringify(relog.body));
   assert.equal((await stranger.req("GET", "/api/ads?side=sell")).status, 403);
   assert.equal((await stranger.req("GET", "/api/me")).body.banned, true);
   assert.equal((await admin.req("POST", "/api/admin/bans", { userId: ADMIN_ID })).status, 400);

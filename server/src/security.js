@@ -28,7 +28,7 @@ export function verifyInitData(initData, botToken, maxAgeSec, nowSec = Math.floo
   let user;
   try { user = JSON.parse(params.get("user") || "null"); } catch { user = null; }
   if (!user || !Number.isSafeInteger(user.id) || user.id <= 0 || user.is_bot) throw new HttpError(401, "bad_init_data", "Нет пользователя Telegram");
-  return { user, authDate, startParam: params.get("start_param") || "" };
+  return { user, authDate, hash, startParam: params.get("start_param") || "" };
 }
 
 // ------------------------------------------------------------ request signatures
@@ -64,6 +64,17 @@ export function verifyRequestSig(sess, { method, pathQuery, ts, nonce, sig, body
 
 // replay window: each (session, nonce) is accepted once within +-SKEW of server time
 export const SKEW_MS = 60_000;
+// Persistent variant: nonces live in SQLite, so a request captured before a
+// server restart cannot be replayed after it (the in-memory cache would be empty).
+export class DbNonceCache {
+  constructor(db) { this.db = db; }
+  seen(key, ts) {
+    const exp = Math.max(Number(ts) || 0, Date.now()) + 2 * SKEW_MS;
+    return this.db.run("INSERT OR IGNORE INTO nonces(k, exp) VALUES(?, ?)", key, exp).changes === 0;
+  }
+  sweep() { this.db.run("DELETE FROM nonces WHERE exp<?", Date.now()); }
+}
+
 export class NonceCache {
   constructor(max = 500_000) { this.max = max; this.map = new Map(); }
   seen(key, ts) {

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { loadConfig } from "./config.js";
 import { openDb } from "./db.js";
 import { makeRouter, makeServer, clientIp } from "./http.js";
-import { RateLimiter, NonceCache, encryptJson, decryptJson } from "./security.js";
+import { RateLimiter, DbNonceCache, encryptJson, decryptJson } from "./security.js";
 import { Toncenter, makeChain } from "./ton.js";
 import { makePrices } from "./prices.js";
 import { makeBot } from "./bot.js";
@@ -32,7 +32,7 @@ export function createApp(cfg, deps = {}) {
     chain: deps.chain || makeChain(cfg, rpc),
     prices: deps.prices || makePrices(cfg),
     limiter: new RateLimiter(),
-    nonces: new NonceCache(),
+    nonces: new DbNonceCache(db),
     hub: makeHub(),
     enc: (obj, aad) => encryptJson(cfg.dataKey, obj, aad),
     dec: (s, aad) => decryptJson(cfg.dataKey, s, aad),
