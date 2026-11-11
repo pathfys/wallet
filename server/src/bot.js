@@ -6,15 +6,26 @@ export function makeBot(cfg, db, log, fetchImpl = fetch) {
   let running = false;
   const lastPerChat = new Map();
 
-  async function sendNow(chatId, text, link) {
+  // generic Bot API call with a timeout; never throws
+  async function call(method, payload, timeoutMs = 10_000) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeoutMs);
+    try {
+      const r = await fetchImpl(`${cfg.botApi}/bot${cfg.botToken}/${method}`, { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload || {}) });
+      const j = await r.json().catch(() => ({}));
+      return { status: r.status, ok: r.ok && j.ok !== false, result: j.result, retryAfter: r.status === 429 ? (j.parameters?.retry_after || 5) * 1000 : 0, error: j.description };
+    } catch (e) { return { status: 0, ok: false, error: String(e && e.name === "AbortError" ? "timeout" : e) }; }
+    finally { clearTimeout(t); }
+  }
+  function notifyBody(chatId, text, link) {
     const body = { chat_id: chatId, text: String(text).slice(0, 3500), disable_web_page_preview: true };
     if (link && /^https:\/\/t\.me\//.test(link)) body.reply_markup = { inline_keyboard: [[{ text: "Открыть PMR Wallet", url: link }]] };
-    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 10_000);
-    try {
-      const r = await fetchImpl(`${cfg.botApi}/bot${cfg.botToken}/sendMessage`, { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (r.status === 429) { const j = await r.json().catch(() => ({})); return { retryAfter: (j.parameters?.retry_after || 5) * 1000 }; }
-      return { ok: r.ok };
-    } catch { return { ok: false }; } finally { clearTimeout(t); }
+    return body;
+  }
+  async function sendNow(job) {
+    const r = await call("sendMessage", job.body || notifyBody(job.chatId, job.text, job.link));
+    // user blocked the bot -> stop notifying them
+    if (r.status === 403) db.run("UPDATE users SET allows_pm=0 WHERE id=?", job.chatId);
+    return r;
   }
   async function pump() {
     if (running) return;
@@ -30,7 +41,7 @@ export function makeBot(cfg, db, log, fetchImpl = fetch) {
         }
         if (idx < 0) { await new Promise((r) => setTimeout(r, Math.max(50, Math.min(minWait, 1100)))); continue; }
         const [job] = q.splice(idx, 1);
-        const res = await sendNow(job.chatId, job.text, job.link);
+        const res = await sendNow(job);
         lastPerChat.set(job.chatId, Date.now());
         if (lastPerChat.size > 100_000) lastPerChat.clear();
         if (res.retryAfter) { q.unshift(job); await new Promise((r) => setTimeout(r, Math.min(res.retryAfter, 60_000))); continue; }
@@ -47,6 +58,13 @@ export function makeBot(cfg, db, log, fetchImpl = fetch) {
       q.push({ chatId: userId, text, link, done });
       pump().catch((e) => log.error("bot pump", { err: String(e) }));
     },
+    // direct reply to a chat (bot commands); same per-chat throttling, no allows_pm check
+    send(chatId, body, done) {
+      if (q.length >= MAX_Q) { done?.(false); return; }
+      q.unshift({ chatId, body: { ...body, chat_id: chatId }, done });
+      pump().catch((e) => log.error("bot pump", { err: String(e) }));
+    },
+    call,
     queueSize: () => q.length,
   };
 }

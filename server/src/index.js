@@ -7,6 +7,7 @@ import { RateLimiter, DbNonceCache, encryptJson, decryptJson } from "./security.
 import { Toncenter, makeChain } from "./ton.js";
 import { makePrices } from "./prices.js";
 import { makeBot } from "./bot.js";
+import { makeBotUpdates } from "./bot-updates.js";
 import { makeHub, attachWs, registerChat } from "./chat.js";
 import { registerAuth } from "./auth.js";
 import { registerP2P } from "./p2p.js";
@@ -56,9 +57,12 @@ export function createApp(cfg, deps = {}) {
   registerP2P(router, ctx);
   registerChat(router, ctx);
   registerAdmin(router, ctx);
+  ctx.botUpdates = makeBotUpdates(ctx);
+  ctx.botUpdates.registerRoute(router);
   const server = makeServer(ctx, router);
   attachWs(server, ctx);
   const jobs = cfg.disableJobs ? null : startJobs(ctx);
+  if (!cfg.disableJobs && !deps.bot) ctx.botUpdates.start();
   return { server, ctx, router, jobs };
 }
 
@@ -66,7 +70,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const cfg = loadConfig();
   const { server, ctx, jobs } = createApp(cfg);
   server.listen(cfg.port, cfg.host, () => ctx.log.info("listening", { host: cfg.host, port: cfg.port, network: cfg.network, arbiter: cfg.arbiter.publicKeyHex }));
-  const stop = () => { ctx.log.info("shutdown"); jobs?.stop(); server.close(() => { ctx.db.close(); process.exit(0); }); setTimeout(() => process.exit(0), 5000).unref(); };
+  const stop = () => { ctx.log.info("shutdown"); jobs?.stop(); ctx.botUpdates.stop(); server.close(() => { ctx.db.close(); process.exit(0); }); setTimeout(() => process.exit(0), 5000).unref(); };
   process.on("SIGTERM", stop);
   process.on("SIGINT", stop);
   process.on("unhandledRejection", (e) => ctx.log.error("unhandledRejection", { err: String(e && e.stack || e) }));

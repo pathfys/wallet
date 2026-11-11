@@ -23,6 +23,10 @@ npm start
 4. `deploy/pmr-wallet.service` → `/etc/systemd/system/`, `systemctl enable --now pmr-wallet`.
 5. `deploy/nginx.conf` → `/etc/nginx/sites-enabled/` (замените `wallet.example.com`), `nginx -t && systemctl reload nginx`.
 6. В @BotFather укажите URL Mini App: `https://<ваш домен>/`.
+   Бот сам отвечает на `/start` приветствием («PMR WALLET — пространство криптовалюты в Приднестровье…») с кнопкой
+   открытия кошелька, на `/help` — инструкцией и правилами против «треугольников», ставит команды и кнопку меню.
+   Тексты — в `src/bot-texts.js`. Режим: `BOT_MODE=polling` (по умолчанию) или `webhook`
+   (`BOT_WEBHOOK_URL=https://<домен>/api/tg/webhook`, `BOT_WEBHOOK_SECRET=$(openssl rand -hex 32)`).
 7. Если фронтенд остаётся на GitHub Pages: в `index.html` задайте `CONFIG.API_BASE = "https://<api-домен>"`,
    добавьте этот домен в `connect-src` CSP в `index.html`, а на сервере `ALLOWED_ORIGINS=https://<pages-домен>`.
 

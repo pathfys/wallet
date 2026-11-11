@@ -59,6 +59,17 @@ export function loadConfig(env = process.env, { dotenv = true } = {}) {
   if (!/^\d{1,6}(\.\d{1,2})?$/.test(feeCap)) throw new Error("config: P2P_FEE_MAX_SIDE_USD must be a number (0 = no cap)");
 
   const staticDir = e("STATIC_DIR", "");
+
+  // Telegram bot: how updates arrive and where the "Открыть" button leads
+  const webAppUrl = e("WEBAPP_URL", "");
+  if (webAppUrl && !/^https:\/\/[^\s"<>]+$/.test(webAppUrl)) throw new Error("config: WEBAPP_URL must be an https:// URL");
+  const botMode = e("BOT_MODE", "polling");
+  if (!["polling", "webhook", "off"].includes(botMode)) throw new Error("config: BOT_MODE must be polling | webhook | off");
+  const botWebhookUrl = e("BOT_WEBHOOK_URL", ""), botWebhookSecret = e("BOT_WEBHOOK_SECRET", "");
+  if (botMode === "webhook") {
+    if (!/^https:\/\/[^\s"<>]+\/api\/tg\/webhook$/.test(botWebhookUrl)) throw new Error("config: BOT_WEBHOOK_URL must be https://<domain>/api/tg/webhook");
+    if (!/^[A-Za-z0-9_-]{32,256}$/.test(botWebhookSecret)) throw new Error("config: BOT_WEBHOOK_SECRET must be 32-256 chars of A-Z a-z 0-9 _ - (openssl rand -hex 32)");
+  }
   return Object.freeze({
     root: ROOT,
     host: e("HOST", "127.0.0.1"),
@@ -70,6 +81,7 @@ export function loadConfig(env = process.env, { dotenv = true } = {}) {
     botToken,
     botApi: e("TELEGRAM_API", "https://api.telegram.org"),
     tgAppLink: e("TG_APP_LINK", ""),
+    webAppUrl, botMode, botWebhookUrl, botWebhookSecret,
     loginMaxAgeSec: int("LOGIN_MAX_AGE_SEC", "86400", 60, 7 * 86400),
     sessionTtlSec: int("SESSION_TTL_SEC", "43200", 300, 7 * 86400),
     adminIds,

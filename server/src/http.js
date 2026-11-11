@@ -1,6 +1,7 @@
 // Hardened HTTP layer: strict routing, bounded bodies, timeouts, CORS
 // allowlist, security headers, per-IP/per-user rate limits, signed-session auth.
 import { createServer } from "node:http";
+import { secretOk } from "./bot-updates.js";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
 import { createHash } from "node:crypto";
@@ -154,8 +155,9 @@ export function makeServer(ctx, router) {
     };
     try {
       // per-IP ceiling (mobile CGNAT shares IPs, so it is generous); per-user limits apply after auth
-      if (!limiter.take("ip:" + ip, 600, 60_000)) throw tooMany();
       const url = new URL(req.url, "http://x");
+      const tgHook = url.pathname === "/api/tg/webhook" && secretOk(cfg, req.headers["x-telegram-bot-api-secret-token"]);
+      if (!tgHook && !limiter.take("ip:" + ip, 600, 60_000)) throw tooMany();
       if (url.pathname.length > 256 || url.search.length > 1024) throw new HttpError(414, "uri_too_long", "Слишком длинный адрес");
       if (!url.pathname.startsWith("/api/")) {
         if (await serveStatic(req, res, url)) return;
